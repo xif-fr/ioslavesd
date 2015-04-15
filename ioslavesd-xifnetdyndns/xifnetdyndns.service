@@ -1,0 +1,7 @@
+/* Xif Network Dynamic DNS service using NSD */
+
+type: "SLAVE_PROG";
+command: "xifnetdyndns";
+port: 53;
+port_proto: "TCP+UDP";
+autostart: true;

@@ -1,0 +1,27 @@
+# Maintainer: Félix Faisant <xcodexif@xif.fr>
+
+pkgname=ioslstatd
+pkgver=2.5
+pkgrel=1
+pkgdesc='Xif Network - ioslaves master websocket status gathering deamon'
+license=('custom')
+arch=('i686' 'x86_64')
+depends=('ioslaves-master' 'nopoll')
+makedepends=('xifutils')
+
+source=('../common/common.hpp' '../common/common.cpp'
+        '../common-master/master.hpp' '../common-master/master-impl.cpp'
+        'ioslstatd.cpp'
+        'Makefile')
+sha256sums=('SKIP' 'SKIP'
+            'SKIP' 'SKIP'
+            'SKIP'
+            'SKIP')
+
+build() {
+	make CXXFLAGS="${CXXFLAGS} -DXIFNET"
+}
+
+package() {
+	install -D -m755 $srcdir/ioslstatd $pkgdir/usr/bin/ioslstatd
+}

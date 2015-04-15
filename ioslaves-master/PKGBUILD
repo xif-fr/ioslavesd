@@ -1,0 +1,33 @@
+# Maintainer: Félix Faisant <xcodexif@xif.fr>
+
+pkgname=ioslaves-master
+pkgver=2.5
+pkgrel=1
+pkgdesc='Xif Network - ioslaves master program for controlling slaves'
+license=('custom')
+arch=('i686' 'x86_64')
+depends=('socketxx' 'ldns')
+makedepends=('xifutils')
+optdepends=()
+backup=()
+options=()
+install=''
+
+source=('../common/common.hpp' '../common/common.cpp'
+        'master.cpp' '../common-master/master.hpp' '../common-master/master-impl.cpp' '../common-master/dyn_slaves.cpp' '../common-master/wol.cpp'
+        'Makefile')
+sha256sums=('SKIP' 'SKIP'
+            'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
+            'SKIP')
+
+options=(debug !strip)
+
+build() {
+	export CXXFLAGS="${CXXFLAGS} -DXIFNET -DIOSLAVES_MASTER_DIR=\"__get_homedir__()+\\\"/ioslaves-master\\\"\" -DXIFNET_HELP_HEADER=\"\\\"Xif Network\\\"\""
+	make 
+}
+
+package() {
+	echo "ioslaves-master dir : by user"
+	install -D -m755 $srcdir/ioslaves-master $pkgdir/usr/bin/ioslaves-master
+}

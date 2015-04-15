@@ -1,0 +1,45 @@
+# Maintainer: Félix Faisant <xcodexif@xif.fr>
+
+pkgname=ioslavesd-minecraft
+pkgver=2.5
+pkgrel=1
+pkgdesc='Xif Network - ioslaved plugin for Minecraft Server Distributed Hosting'
+license=('custom')
+arch=('i686' 'x86_64')
+depends=('socketxx' 'zip' 'unzip' 'ioslavesd' 'jre7-openjdk-headless' 'pure-ftpd-ext')
+makedepends=('xifutils' 'unzip')
+optdepends=()
+backup=()
+options=()
+install='ioslavesd-mc.install'
+
+source=('../common/common.hpp' '../common/common.cpp'
+        '../common-ioslavesd/api.h' '../common-ioslavesd/log.h' '../common-ioslavesd/log_api.cpp'
+        '../common-minecraft/minecraft.h'
+        'minecraft.cpp' 'ftp-auth-mc.cpp'
+        'Makefile'
+        'minecraft.service'
+        'maptpl.zip' 'permtpl.zip')
+noextract=('maptpl.zip' 'permtpl.zip')
+sha256sums=('SKIP' 'SKIP'
+            'SKIP' 'SKIP' 'SKIP'
+            'SKIP' 'SKIP'
+            'SKIP'
+            'SKIP'
+            'SKIP'
+            'SKIP' 'SKIP')
+
+build() {
+	make CXXFLAGS="${CXXFLAGS} -DMINECRAFT_SRV_DIR=\\\"\"/srv/mc\"\\\" -DXIFNET"
+}
+
+package() {
+	install -d -m755 $pkgdir/etc/ioslavesd/services
+	install -d -m755 $pkgdir/usr/lib/ioslavesd/api-services
+	install -D -m644 $srcdir/minecraft.service $pkgdir/etc/ioslavesd/services/minecraft.service
+	install -D -m644 $srcdir/minecraft.iosldl $pkgdir/usr/lib/ioslavesd/api-services/minecraft.iosldl
+	install -d -m775 $pkgdir/srv/mc/{_jars,_maps,_bigfiles}
+	cd $pkgdir/srv/mc/
+	unzip $srcdir/maptpl.zip
+	unzip $srcdir/permtpl.zip
+}

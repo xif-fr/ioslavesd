@@ -1,0 +1,28 @@
+# Maintainer: Félix Faisant <xcodexif@xif.fr>
+
+pkgname=minecraft-master
+pkgver=2.5
+pkgrel=1
+pkgdesc='Xif Network - ioslaves master sub-program for controlling minecraft service on slaves'
+license=('custom')
+arch=('i686' 'x86_64')
+depends=('zip' 'unzip' 'libconfig' 'nopoll')
+makedepends=('xifutils')
+
+source=('../common/common.hpp' '../common/common.cpp'
+        '../common-master/master.hpp' '../common-master/dyn_slaves.cpp' '../common-master/master-impl.cpp' '../common-master/wol.cpp'
+        '../common-minecraft/minecraft.h' 'minecraft-master.cpp'
+        'Makefile')
+sha256sums=('SKIP' 'SKIP'
+            'SKIP' 'SKIP' 'SKIP' 'SKIP'
+            'SKIP' 'SKIP'
+            'SKIP')
+
+build() {
+	make CXXFLAGS="${CXXFLAGS} -DXIFNET -DIOSLAVES_MASTER_DIR=\"__get_homedir__()+\\\"/ioslaves-master\\\"\""
+}
+
+package() {
+	echo "minecraft-master dir : by user, in ioslaves-master dir"
+	install -D -m755 $srcdir/minecraft-master $pkgdir/usr/bin/minecraft-master
+}

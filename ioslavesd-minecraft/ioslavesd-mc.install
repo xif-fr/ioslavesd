@@ -1,0 +1,10 @@
+post_install() {
+	useradd mcjava --system --user-group --no-create-home --home-dir=/srv/mc
+	chown -R mcjava:mcjava /srv/mc
+}
+
+pre_remove() {
+	systemctl stop ioslavesd || true
+	userdel mcjava
+	groupdel mcjava
+}

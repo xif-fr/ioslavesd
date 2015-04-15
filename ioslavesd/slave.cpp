@@ -1,0 +1,1181 @@
+/**********************************************************\
+ *               -== Xif Network project ==-
+ *                       ioslavesd
+ *        slave control deamon and services manager
+ * *********************************************************
+ * Copyright © Félix Faisant 2013-2014. All rights reserved
+ * This software is under the GNU General Public License
+\**********************************************************/
+
+	// Common
+#define IOSLAVESD_API_MAIN_PROG_IMPL
+#include "main.h"
+
+	// ioslaves-master API
+#include "master.hpp"
+
+	// General
+#include <vector>
+#include <list>
+#include <map>
+#include <stdlib.h>
+#include <unistd.h>
+#include <time.h>
+
+	// Process
+#include <sys/sysctl.h>
+#ifdef __APPLE__
+	#include <libproc.h>
+#endif
+
+	// Threads and signals
+#include <signal.h>
+#include <sys/wait.h>
+fd_t serv_stop_pipe[2] = {INVALID_SOCKET,INVALID_SOCKET};
+void* signals_thread (void* _data);
+
+	// Services
+std::list<ioslaves::service*> ioslaves::services_list;
+
+	// Network
+#include <socket++/handler/socket_server.hpp>
+#include <socket++/handler/socket_client.hpp>
+#include <socket++/quickdefs.h>
+#define IN_LISTENING_PORT ioslavesd_listening_port
+#define IN_LISTENING_IP inaddr_any
+#define IN_ACCEPT_MAX_WAITING_CLIENTS 10
+#define IN_CLIENT_TIMEOUT {2,0}
+#define POOL_TIMEOUT {1,0}
+in_port_t ioslavesd_listening_port = 2929;
+
+	// User
+#include <pwd.h>
+#define IOSLAVES_USER "ioslaves"
+uid_t ioslaves_user_id = 0;
+gid_t ioslaves_group_id = 0;
+void ioslaves::api::run_as_root (bool set) noexcept {
+	int errsave = errno;
+	if (ioslaves_user_id == 0)
+		return;
+	int r = ::seteuid(set?0:ioslaves_user_id)
+	      | ::setegid(set?0:ioslaves_group_id);
+	if (r != 0)
+		__log__(log_lvl::ERROR, "SEC", logstream << "Failed to set uid/gid to " << (set?0:ioslaves_user_id) << "/" << (set?0:ioslaves_group_id) << " : " << strerror(errno));
+	errno = errsave;
+}
+
+	// Vars
+char hostname[64];
+short ip_refresh_dyndns_interval = -1;
+in_addr ip_refresh_dyndns_server = {0};
+bool shutdown_ignore_err = false;
+time_t shutdown_time = 0;
+	// API vars
+ioslaves::api::common_vars_t ioslaves::api::api_vars = {
+	.system_stat = &ioslaves::system_stat,
+	.shutdown_time = &shutdown_time,
+};
+
+	/// Main
+int main (int argc, const char* argv[]) { try {
+	int r;
+	logl_t l;
+	_log_file_path = IOSLAVESD_LOG_FILE;
+	
+		// ioslaves user
+	if (::getuid() == 0) {
+		long _pwbufsz = ::sysconf(_SC_GETPW_R_SIZE_MAX);
+		if (_pwbufsz < 1) _pwbufsz = 100;
+		char pwbuf[_pwbufsz];
+		struct passwd userinfo, *_p_userinfo;
+		r = ::getpwnam_r(IOSLAVES_USER, &userinfo, pwbuf, _pwbufsz, &_p_userinfo);
+		if (r == -1 or _p_userinfo == NULL) 
+			__log__(log_lvl::MAJOR, NULL, logstream << "Starting ioslavesd as root (user '" IOSLAVES_USER "' not found)...", LOG_WAIT, &l);
+		else {
+			ioslaves_user_id = userinfo.pw_uid;
+			ioslaves_group_id = userinfo.pw_gid;
+			r = ::seteuid(ioslaves_user_id)
+			  | ::setegid(ioslaves_group_id);
+			if (r != 0) {
+				__log__(log_lvl::WARNING, "SEC", logstream << "Failed to set effective uid/gid to user '" IOSLAVES_USER "' : " << ::strerror(errno));	
+				ioslaves_user_id = ioslaves_group_id = 0;
+			} else
+				__log__(log_lvl::MAJOR, NULL, logstream << "Starting ioslavesd as user '" IOSLAVES_USER "'...", LOG_WAIT, &l);
+		}
+	} else {
+		__log__(log_lvl::MAJOR, NULL, logstream << "Starting ioslavesd as uid " << ::getuid() << "...", LOG_WAIT, &l);
+	}
+	
+		// Hostname
+	::gethostname(hostname, sizeof(hostname));
+	for (size_t i = 0; i < ::strlen(hostname); i++) 
+		if (hostname[i] == '.') { hostname[i] = '\0'; break; }
+	
+		// Create PID file
+	const char* pid_file = IOSLAVESD_RUN_FILES"/ioslavesd.pid";
+	fd_t pid_f = ::open(pid_file, O_CREAT|O_WRONLY|O_EXCL|O_NOFOLLOW, 0644);
+	if (pid_f == -1 and errno == EEXIST) {
+		__log__(log_lvl::WARNING, NULL, logstream << "PID file at " << pid_file << " already exists ! Overwriting.");
+		pid_f = ::open(pid_file, O_WRONLY|O_TRUNC|O_NOFOLLOW);
+	} {
+		if (pid_f == -1) {
+			__log__(log_lvl::FATAL, NULL, logstream << "Can't create PID file : " << ::strerror(errno));
+			return EXIT_FAILURE;
+		}
+		pid_t pid = ::getpid();
+		std::string pid_str = ::ixtoa(pid);
+		ssize_t rs = ::write(pid_f, pid_str.c_str(), pid_str.length());
+		if (rs != (ssize_t)pid_str.length()) {
+			__log__(log_lvl::FATAL, NULL, logstream << "Can't write to PID file : " << ::strerror(errno));
+			return EXIT_FAILURE;
+		}
+		::close(pid_f);
+	}
+	RAII_AT_END_N(pidfile, {
+		if (pid_file != NULL)
+			::unlink(pid_file);
+	});
+	
+		// Create signals thread
+	signal_catch_sigchild_p = new sig_atomic_t (true);
+	pthread_t sig_thread;
+	r = ::pthread_create(&sig_thread, NULL, signals_thread, NULL);
+	if (r != 0)
+		throw xif::sys_error("failed to create signals thread", r);
+	
+		// Conf file
+	__log__(log_lvl::LOG, NULL, logstream << "Loading conf file...", LOG_ADD, &l);
+	libconfig::Config conf;
+	try {
+		conf.readFile(IOSLAVESD_CONF_FILE);
+		{
+			enable_upnp = (bool)conf.lookup("upnp_port_opening");
+			if (enable_upnp) {
+				ports_reopen_interval = (time_t)(int)conf.lookup("upnp_igd_port_reopen_interval");
+				if (ports_reopen_interval != 0) {
+					if (ports_reopen_interval <= 20) {
+						__log__(log_lvl::ERROR, "CONF", logstream << "Ports reopen interval too short");
+						return 1;
+					}
+					ports_reopen_justafter = (bool)conf.lookup("upnp_igd_port_reopen_justafter");
+					ports_reopen_interval += (ports_reopen_justafter) ? (+2) : (-10);
+				}
+				ioslavesd_listening_port_open = !(bool)conf.lookup("listening_port_already_opened");
+				try {
+					upnp_cache_deviceurl = (bool)conf.lookup("upnp_cache_igd_url");
+				} catch (...) {}
+				try {
+					ports_check_interval = (time_t)(int)conf.lookup("upnp_ports_check_interval");
+				} catch (...) {}
+			}
+			ioslavesd_listening_port = (in_port_t)(int)conf.lookup("listening_port");
+			try {
+				ip_refresh_dyndns_interval = (int)conf.lookup("dyndns_refresh_interval");
+			} catch (...) {}
+			if (ip_refresh_dyndns_interval >= 0) {
+				try {
+					ip_refresh_dyndns_server = socketxx::IP( conf.lookup("dyndns_refresh_server_ip") );
+				} catch (socketxx::bad_addr_error) {
+					__log__(log_lvl::FATAL, "CONF", logstream << "dyndns_refresh_server_ip : invalid IP");
+					return 1;
+				}
+			}
+			try {
+				shutdown_ignore_err = (bool)conf.lookup("shutdown_ignore_err");
+			} catch (...) {}
+			try {
+				std::string fixed_hostname = conf.lookup("fixed_hostname").operator std::string();
+				::strncpy(hostname, fixed_hostname.c_str(), sizeof(hostname));
+			} catch (...) {}
+			try {
+				std::string shutdown_at = conf.lookup("shutdown_at");
+				time_t t = ::time(NULL);
+				struct tm time;
+				::gmtime_r(&t, &time);
+				char* r = ::strptime(shutdown_at.c_str(), "%H:%M", &time);
+				if (r == NULL) 
+					__log__(log_lvl::ERROR, "CONF", logstream << "shutdown_at : bad format (should be %H:%M)");
+				else {
+					struct tm time2 = time;
+					shutdown_time = ::mktime(&time2);
+					if (shutdown_time <= ::time(NULL))
+						time.tm_mday += 1;
+					shutdown_time = ::mktime(&time);
+				}
+			} catch (...) {}
+			try {
+				time_t shutdown_in = (int)conf.lookup("shutdown_in_minutes");
+				shutdown_time = ::time(NULL) + shutdown_in*60;
+			} catch (...) {}
+			if (shutdown_time != 0) 
+				__log__(log_lvl::NOTICE, "SHUTDOWN", logstream << "Slave will try to shutdown in " << (shutdown_time-::time(NULL))/60 << " minutes");
+		}
+	} catch (libconfig::ConfigException& ce) {
+		__log__(log_lvl::FATAL, "CONF", logstream << "Reading configuration file failed : " << ce.what());
+		return 1;
+	}
+	
+		// Load services
+	__log__(log_lvl::IMPORTANT, NULL, logstream << "Loading services...");
+	{
+		size_t ext_sz = ::strlen(IOSLAVESD_SERVICE_FILE_EXT);
+		size_t ni;
+		DIR* services_dir = ::opendir(IOSLAVESD_SERVICE_FILES_DIR);
+		if (services_dir == NULL) { __log__(log_lvl::FATAL, "SERVICES", logstream << "Can't open services dir !"); return 1; }
+		dirent* dp = NULL;
+		while ((dp = ::readdir(services_dir)) != NULL) {
+			for (ni = 1; ni <= ext_sz; ni++)
+				if (dp->d_name[::strlen(dp->d_name)-ni] != IOSLAVESD_SERVICE_FILE_EXT[ext_sz-ni]) 
+					goto __dp_loop_next;
+			{
+				std::string serv_name = std::string(dp->d_name).substr(0, ::strlen(dp->d_name)-ni+1);
+				if (serv_name.empty()) continue;
+				FILE* ser_f = ::fopen(_s( IOSLAVESD_SERVICE_FILES_DIR,"/",std::string(dp->d_name) ), "r");
+				ioslaves::loadService(serv_name, ser_f);
+				::fclose(ser_f);
+			}
+		__dp_loop_next:
+			continue;
+		}
+		::closedir(services_dir);
+	}
+	
+		// Init UPnP
+	if (enable_upnp) {
+		__log__(log_lvl::IMPORTANT, NULL, logstream << "Initializing UPnP IGD NAT port mapping...");
+		try {
+			ioslaves::upnpInit();
+		} catch (ioslaves::upnpError) { return EXIT_FAILURE; }
+	}
+	
+		// Main listening socket
+	__log__(log_lvl::LOG, NULL, logstream << "Starting listening socket...");
+	socketxx::simple_socket_server<socketxx::base_netsock,void> serv(socketxx::base_netsock::addr_info(IN_LISTENING_IP,IN_LISTENING_PORT), IN_ACCEPT_MAX_WAITING_CLIENTS);
+	serv.set_pool_timeout(::timeval(POOL_TIMEOUT));
+	if (enable_upnp and ioslavesd_listening_port_open)
+		try {
+			ioslaves::upnpPort p = {IN_LISTENING_PORT, ioslaves::upnpPort::TCP, IN_LISTENING_PORT, 1, _S("ioslavesd ",hostname)};
+			ioslaves::upnpOpenPort(p);
+		} catch (ioslaves::upnpError& ue) {
+			__log__(log_lvl::FATAL, "NET", "Can't open port on gateway for listening socket !");
+			return EXIT_FAILURE;
+		}
+	__log__(log_lvl::DONE, "NET", logstream << "ioslavesd slave '" << hostname << "' is listening on port " << IN_LISTENING_PORT);
+	
+		// Create stop pipe
+	r = ::pipe(serv_stop_pipe);
+	if (r == SOCKET_ERROR) throw xif::sys_error("pipe() failed", false);
+	
+		// Permanent status clients
+	std::list<socketxx::simple_socket_server<socketxx::base_netsock,void>::client> status_clients;
+	
+	for (;;) {
+		try {
+			// Waiting for new client
+			socketxx::simple_socket_server<socketxx::base_netsock,void>::client cli = serv.wait_new_client_stoppable(serv_stop_pipe[0], true);
+		#ifdef SO_NOSIGPIPE
+			cli._setopt_sock_bool(cli.get_fd(), SO_NOSIGPIPE, true);
+		#endif
+			cli.set_read_timeout(::timeval(IN_CLIENT_TIMEOUT));
+			
+				// Really ? Are you shure ? Do you really want to disturb the powefull, scarry one, only one, THE SLAVE ?
+			bool really = cli.i_bool();
+			if (not really) continue;
+			ioslaves::op_code opcode;
+			
+				// Authentification
+			std::string master_id = cli.i_str();
+			bool auth = cli.i_bool();
+				
+			if (auth and not master_id.empty()) {
+				#warning TO DO : challenge authentification
+				std::string key = "ABCDEF";												// Find the right key for the corresponding master
+				std::string challenge = ioslaves::generate_random(256);			// Create a new challenge
+				cli.o_str(challenge);														// Send challenge
+				std::string expected_answer = ioslaves::hash(challenge+key);	// Calculate expected answer
+				std::string master_answer = cli.i_str();								// Get answer
+				if (master_answer != expected_answer) { 								// Verify answer
+					cli.o_char((char)ioslaves::answer_code::BAD_CHALLENGE_ANSWER);
+					__log__(log_lvl::NOTICE, "AUTH", logstream << "Authentification failed for " << cli.addr.get_ip_str() << " as '" << master_id << "' ! Bad answer to challenge [" << challenge.substr(0,6) << "...]");
+					continue;
+				} else {
+					opcode = (ioslaves::op_code)cli.i_char();
+					if (opcode != ioslaves::op_code::GET_STATUS and opcode != ioslaves::op_code::LOG_HISTORY)
+						__log__(log_lvl::LOG, "AUTH", logstream << "Authentification succeeded for '" << master_id << "' (" << cli.addr.get_ip_str() << ")");
+				}
+			} else {
+				__log__(log_lvl::LOG, "AUTH", logstream << "Connection of " << cli.addr.get_ip_str() << " as " << (master_id.empty() ? "anonymous" : _S("'",master_id,"' (not verified, no auth)")));
+				opcode = (ioslaves::op_code)cli.i_char();
+			}
+			auth = true; /***** TEMPORARY ***/
+			
+				// Query
+			#warning TO DO : Verify permissions
+			try {
+				switch (opcode) {
+					case ioslaves::op_code::SERVICE_START:
+						__log__(log_lvl::LOG, "OP", "Opperation : Start service");
+						ioslaves::controlService(
+														 ioslaves::getServiceByName(cli.i_str()), 
+														 true, 
+														 master_id.c_str());
+						break;
+					case ioslaves::op_code::SERVICE_STOP:
+						__log__(log_lvl::LOG, "OP", "Opperation : Stop service");
+						ioslaves::controlService(
+														 ioslaves::getServiceByName(cli.i_str()), 
+														 false, 
+														 master_id.c_str());
+						break;
+					case ioslaves::op_code::IGD_PORT_OPEN:
+					case ioslaves::op_code::IGD_PORT_CLOSE: {
+						std::string descr;
+						if (opcode == ioslaves::op_code::IGD_PORT_OPEN) {
+							__log__(log_lvl::LOG, "OP", "Opperation : Open port on IGD");
+							descr = cli.i_str();
+						} else {
+							__log__(log_lvl::LOG, "OP", "Opperation : Close port on IGD");
+						}
+						char type = cli.i_char();
+						ioslaves::upnpPort::proto proto;
+						bool range = false;
+						switch (type) {
+							case 't': proto = ioslaves::upnpPort::TCP; range = false; break;
+							case 'T': proto = ioslaves::upnpPort::TCP; range = true; break;
+							case 'u': proto = ioslaves::upnpPort::UDP; range = false; break;
+							case 'U': proto = ioslaves::upnpPort::UDP; range = true; break;
+							default: throw ioslaves::requestException(ioslaves::answer_code::INVALID_DATA, "UPnP", logstream << "Invalid port type '" << type << "'");
+						}
+						uint16_t range_sz = 1;
+						in_port_t port = cli.i_int<uint16_t>();
+						if (range) {
+							in_port_t port_end = cli.i_int<uint16_t>();
+							if (port_end < port) 
+								throw ioslaves::requestException(ioslaves::answer_code::INVALID_DATA, "UPnP", logstream << "Range : End can't be lower than begin");
+							range_sz = port_end-port+1;
+						}
+						if (opcode == ioslaves::op_code::IGD_PORT_OPEN) {
+							if (enable_upnp) try {
+								ioslaves::upnpPort p = {port, proto, port, range_sz, descr};
+								if (ioslaves::upnpPortRangeCollision(port, range_sz, p.p_proto)) {
+									if (range_sz == 1) throw ioslaves::requestException(ioslaves::answer_code::EXISTS, "UPnP", logstream << "Port " << (char)p.p_proto << port << " is already opened");
+									else throw ioslaves::requestException(ioslaves::answer_code::EXISTS, "UPnP", logstream << "Port range is in collision with another port(s)");
+								}
+								ioslaves::upnpOpenPort(p);
+							} catch (ioslaves::upnpError& upnperr) {
+								if (not upnperr.fatal) {
+									cli.o_char((char)ioslaves::answer_code::MAY_HAVE_FAIL);
+									continue;
+								}
+								throw ioslaves::requestException(ioslaves::answer_code::ERROR,  "UPnP", logstream << "Error while closing port : " << upnperr.what());
+							}
+						} else {
+							if (port == IN_LISTENING_PORT) 
+								throw ioslaves::requestException(ioslaves::answer_code::DENY, "UPnP", logstream << "Can't close port " << port << " : used by ioslavesd");
+							if (enable_upnp) try {
+								if (not ioslaves::upnpPortRangeExists(ioslaves::upnpPort({port, proto, port, range_sz})))
+									throw ioslaves::requestException(ioslaves::answer_code::NOT_FOUND, "UPnP", logstream << "Port" << (range_sz==1?"":" range") << " is not in port table");
+								ioslaves::upnpPort p = {port, proto, port, range_sz};
+								ioslaves::upnpClosePort(p);
+							} catch (ioslaves::upnpError& upnperr) {
+								throw ioslaves::requestException(ioslaves::answer_code::ERROR, "UPnP", logstream << "Error while closing port : " << upnperr.what());
+							}
+						}
+					} break;
+					case ioslaves::op_code::GET_STATUS: {
+						if (not auth)
+							__log__(log_lvl::LOG, "OP", "Opperation : Get status");
+						xif::polyvar infos = ioslaves::getStatus(true);
+						cli.o_var(infos);
+					} break;
+					case ioslaves::op_code::PERM_STATUS:
+						__log__(log_lvl::LOG, "OP", "Registering to the permanent status pool");
+						status_clients.insert(status_clients.begin(), cli);
+						break;
+					case ioslaves::op_code::SLAVE_SHUTDOWN:
+					case ioslaves::op_code::SLAVE_REBOOT: {
+						bool does_reboot = (opcode == ioslaves::op_code::SLAVE_REBOOT);
+						__log__(log_lvl::MAJOR, "OP", logstream << "Opperation : " << (does_reboot ? "Rebooting" : "Shutting down") << " server NOW !");
+						if (enable_upnp and ioslavesd_listening_port_open)
+							ioslaves::upnpClosePort(ioslaves::upnpPort({IN_LISTENING_PORT, ioslaves::upnpPort::TCP, IN_LISTENING_PORT, 1}));
+						ioslaves::stopAllServices();
+						ioslaves::upnpShutdown();
+						while (status_clients.size()) 
+							status_clients.erase(status_clients.begin());
+						ioslaves::api::run_as_root(true);
+						int r;
+						{ sigchild_block();
+							r = ::system( _s("shutdown -",(does_reboot?'r':'h')," now") ); // -k `date --date \"now + 1 minute\" \"+%H:%M\"`
+						}
+						if (r == 0) {
+							cli.o_char((char)ioslaves::answer_code::OK);
+							return EXIT_SUCCESS;
+						} else {
+							if (r == -1) __log__(log_lvl::ERROR, "OP", logstream << "system() failed with errno " << ::strerror(errno));
+							else if (not shutdown_ignore_err) __log__(log_lvl::ERROR, "OP", logstream << "`shutdown` command failed with retcode " << r);
+							else { 
+								cli.o_char((char)ioslaves::answer_code::OK);
+								return EXIT_SUCCESS;
+							}
+							if (enable_upnp and ioslavesd_listening_port_open) {
+								ioslaves::upnpInit();
+								ioslaves::upnpOpenPort(ioslaves::upnpPort{IN_LISTENING_PORT, ioslaves::upnpPort::TCP, IN_LISTENING_PORT, 1, "emergency ioslavesd"});
+							}
+							throw ioslaves::requestException(ioslaves::answer_code::INTERNAL_ERROR);
+						}
+					} break;
+					case ioslaves::op_code::CALL_API_SERVICE: {
+						std::string service_name = cli.i_str();
+						__log__(log_lvl::LOG, "OP", logstream << "Opperation : Calling API service '" << service_name << "'");
+						ioslaves::service* service = ioslaves::getServiceByName(service_name);
+						if (service->s_type != ioslaves::service::type::IOSLPLUGIN) 
+							throw ioslaves::requestException(ioslaves::answer_code::BAD_TYPE, "OP", logstream << "Service '" << service_name << "' is not an API service");
+						if (service->ss_status_running == false) 
+							throw ioslaves::requestException(ioslaves::answer_code::BAD_STATE, "OP", logstream << "API service '" << service_name << "' not running");
+						dl_t dl_handle = service->spec.plugin.handle;
+	__extension__	ioslaves::api::net_client_call_f cli_call_f = (ioslaves::api::net_client_call_f) ::dlsym(dl_handle, "ioslapi_net_client_call");
+						if (cli_call_f == NULL) 
+							throw ioslaves::requestException(ioslaves::answer_code::INTERNAL_ERROR, "API", logstream << "Error getting function with dlsym(\"ioslapi_net_client_call\") : " << ::dlerror());
+						cli.o_char((char)ioslaves::answer_code::OK);
+						(*cli_call_f)(cli, auth?(master_id.empty()?NULL:master_id.c_str()):NULL, cli.addr.get_ip_addr().s_addr);
+						continue;
+					}
+					case ioslaves::op_code::LOG_HISTORY: {
+						if (not auth)
+							__log__(log_lvl::LOG, "OP", logstream << "Opperation : Get log history", LOG_WAIT, &l);
+						time_t log_begin = cli.i_int<int64_t>();
+						time_t log_end = cli.i_int<int64_t>();
+						if (not auth)
+							__log__(log_lvl::LOG, "OP", logstream << "from " << log_begin << " to " << (log_end==0?"end":ixtoa(log_end)), LOG_WAIT|LOG_ADD, &l);
+						size_t i, beg = 0, end = log_history.size();
+						if (log_begin != 0) {
+							for (i = 0; i < log_history.size(); i++) 
+								if (log_history[i].le_time >= log_begin) { beg = i; goto _log_seek_end; }
+							cli.o_int<uint64_t>(0);
+							break;
+						}
+					_log_seek_end:
+						if (log_end != 0 and log_end >= log_begin) {
+							for (; i < log_history.size(); i++) 
+								if (log_end > log_history[i].le_time) { end = i+1; goto _log_send; }
+						}
+						if (log_begin > log_end) { beg = 0; end = 0; }
+					_log_send:
+						if (not auth)
+							__log__(log_lvl::LOG, "OP", logstream << "(" << (end-beg) << " lines)", LOG_ADD, &l);
+						cli.o_int<uint64_t>(end-beg);
+						for (i = beg; i < end; i++) {
+							cli.o_int<uint64_t>(log_history[i].le_time);
+							cli.o_char((char)log_history[i].le_lvl);
+							cli.o_str((log_history[i].le_part==NULL)?"":log_history[i].le_part);
+							cli.o_str(log_history[i].le_msg);
+						}
+					} break;
+					default:
+						__log__(log_lvl::NOTICE, "OP", logstream << "Unknown opcode '" << (char)opcode << "'");
+						cli.o_char((char)ioslaves::answer_code::OP_NOT_DEF);
+						continue;
+				}
+				cli.o_char((char)ioslaves::answer_code::OK);
+			} catch (ioslaves::requestException& e) {
+				cli.o_char((char)e.answ_code);
+			}
+		
+			// Net error
+		} catch (socketxx::error& se) {
+			__log__(log_lvl::OOPS, "NET", logstream << "Communication error with client : " << se.what());
+			continue;
+		} 
+			// Scheduled timeout
+		catch (socketxx::timeout_event&) {
+			
+				// Check and reopen ports
+			if (enable_upnp)
+				ioslaves::upnpReopen();
+			
+				// Permanent status
+			if (status_clients.size() != 0) {
+				xif::polyvar infos = ioslaves::getStatus(false);
+				for (auto it = status_clients.begin(); it != status_clients.end();) {
+					try {
+						(*it).o_var(infos);
+						++it;
+					} catch (socketxx::error& e) {
+						__log__(log_lvl::NOTICE, "NET", logstream << "Erasing client from the status pool : " << e.what());
+						auto p_it = it++; status_clients.erase(p_it);
+					}
+				}
+			}
+			
+				// Topp frame
+			ioslaves::statusFrame();
+			
+				// Contact XifNet DynDNS server for refreshing public IP
+			if (ip_refresh_dyndns_interval >= 0) {
+				static time_t dyndns_last = 0;
+				if (dyndns_last+ip_refresh_dyndns_interval < ::time(NULL)) {
+					dyndns_last = ::time(NULL);
+					try {
+						socketxx::simple_socket_client<socketxx::base_netsock> sock (socketxx::base_netsock::addr_info(ip_refresh_dyndns_server, 2929), timeval{1,0});
+						sock.set_read_timeout(timeval{0,800000});
+						iosl_master::slave_api_service_connect(sock, _S("_IOSL_",hostname), "xifnetdyndns");
+						sock.o_int<in_port_t>(ioslavesd_listening_port);
+						in_addr_t my_ip = sock.i_int<in_addr_t>();
+						static in_addr_t my_ip_last = 0;
+						if (my_ip_last != my_ip and my_ip_last != 0) 
+							__log__(log_lvl::MAJOR, "DynDNS", logstream << "Public IP changed from " << socketxx::base_netsock::addr_info::addr2str(my_ip_last) << " to " << socketxx::base_netsock::addr_info::addr2str(my_ip));
+						my_ip_last = my_ip;
+						ioslaves::answer_code answ;
+						if ((answ = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) {
+							__log__(log_lvl::ERROR, "DynDNS", logstream << "Refresh IP failed (answ = " << (char)answ << ")");
+							continue;
+						}
+						sock.o_char((char)ioslaves::answer_code::OK);
+					} catch (socketxx::classic_error& e) {
+						log_lvl lvl = (e.get_errno()==EAGAIN) ? log_lvl::OOPS : log_lvl::ERROR;
+						__log__(lvl, "DynDNS", logstream << "Network error with xifnetdyndns service : " << e.what(), lvl==log_lvl::OOPS?LOG_DEBUG:0);
+					} catch (master_err& e) {
+						__log__(log_lvl::ERROR, "DynDNS", logstream << "Master error while connecting to DynDNS : " << e.what());
+					} catch (ioslaves::answer_code answ) {
+						__log__(log_lvl::ERROR, "DynDNS", logstream << "Failed to refresh DynDNS : " << (char)answ);
+					}
+				}
+			}
+			
+				// Auto shutdown
+			#define IOSL_SHUTDOWN_CHK_INTERVAL 10*60
+			if (shutdown_time != 0) {
+				static time_t last_shutdown_chk = 0;
+				if (last_shutdown_chk + IOSL_SHUTDOWN_CHK_INTERVAL < ::time(NULL)) {
+					last_shutdown_chk = ::time(NULL);
+					if (::time(NULL) > shutdown_time) {
+						__log__(log_lvl::IMPORTANT, "SHUTDOWN", logstream << "Slave will now try to shut down !");
+						for (ioslaves::service* s : ioslaves::services_list) {
+							if (s->ss_shutdown_inhibit and s->ss_status_running) {
+								if (s->s_type == ioslaves::service::type::IOSLPLUGIN) {
+									dl_t dl_handle = s->spec.plugin.handle;
+				__extension__ 	ioslaves::api::shutdown_inhibit_f inhib_f = (ioslaves::api::shutdown_inhibit_f) ::dlsym(dl_handle, "ioslapi_shutdown_inhibit");
+									if (inhib_f == NULL) {
+										__log__(log_lvl::ERROR, "SHUTDOWN", logstream << "Error getting function with dlsym(\"ioslapi_shutdown_inhibit\") : " << ::dlerror());
+										continue;
+									}
+									bool inhib = (*inhib_f)();
+									if (not inhib) 
+										continue;
+								}
+								__log__(log_lvl::IMPORTANT, "SHUTDOWN", logstream << "Shutdown inhibited by service '" << s->s_name << "'");
+								goto __inhibit;
+							}
+						}
+						__log__(log_lvl::MAJOR, "SHUTDOWN", logstream << "Shutting down slave NOW !");
+						shutdown_time = (time_t)-1;
+						break;
+					__inhibit:;
+					} else if (::time(NULL)+3600 > shutdown_time) 
+						__log__(log_lvl::NOTICE, "SHUTDOWN", logstream << "Slave will try to shut down in " << (shutdown_time-::time(NULL))/60 << " minutes");
+				}
+			}
+			
+			continue;
+		} 
+			// Stop from signals_thread
+		catch (socketxx::stop_event&) {
+			break;
+		}
+		
+		continue;
+	}
+	
+		// Stop services
+	ioslaves::stopAllServices();
+	for (ioslaves::service* s : ioslaves::services_list) {
+		delete s;
+	}
+	
+		// Eject permanant status clients
+	while (status_clients.size()) 
+		status_clients.erase(status_clients.begin());
+	
+		// Close ports
+	try {
+		if (enable_upnp and ioslavesd_listening_port_open)
+			ioslaves::upnpClosePort(ioslaves::upnpPort({IN_LISTENING_PORT, ioslaves::upnpPort::TCP, IN_LISTENING_PORT, 1}));
+		ioslaves::upnpShutdown();
+	} catch (...) {}
+	
+	} catch (std::exception& e) {
+		__log__(log_lvl::FATAL, NULL, logstream << "Exception catched : " << e.what());
+		return EXIT_FAILURE;
+	}
+	
+	if (shutdown_time == (time_t)-1) {
+		*signal_catch_sigchild_p = false;
+		::system("shutdown -h now"); 
+	}
+	
+	__log__(log_lvl::MAJOR, NULL, "-=# Exiting... #=-");
+	return EXIT_SUCCESS;
+}
+
+	/// Signals thread
+void _stop_serv (int);
+void _sigchild (int);
+fd_t _sig_pipe[2] = {INVALID_SOCKET,INVALID_SOCKET};
+void* signals_thread (void* _data) {
+	
+		// Create signal pipe
+	int r = ::pipe(_sig_pipe);
+	if (r == SOCKET_ERROR) throw xif::sys_error("signals : pipe() failed", false);
+	
+		// Block signals : this thread will NOT execute signal handler.
+		// Others threads than main shall not execute ::system()
+	sigset_t sigs_main_blocked;
+	sigemptyset(&sigs_main_blocked);
+	for (size_t si = 0; sigs_to_block[si] != (int)NULL; ++si)
+		sigaddset(&sigs_main_blocked, sigs_to_block[si]);
+	::pthread_sigmask(SIG_BLOCK, &sigs_main_blocked, NULL);
+	
+		// Attach stop signals to `stop(int)` function
+	struct sigaction sigs_action;
+	sigs_action.sa_handler = &_stop_serv;
+	sigemptyset(&sigs_action.sa_mask);
+	sigs_action.sa_flags = SA_RESTART;
+	int sigs_to_block[] = { SIGINT, SIGQUIT, SIGHUP, SIGTERM, (int)NULL };
+	for (size_t si = 0; sigs_to_block[si] != (int)NULL; ++si)
+		::sigaction(sigs_to_block[si], &sigs_action, NULL);
+	
+		// SIGCHILD, special treatment
+	struct sigaction sigchild_action;
+	sigchild_action.sa_handler = &_sigchild;
+	sigemptyset(&sigchild_action.sa_mask);
+	sigchild_action.sa_flags = SA_RESTART;
+	::sigaction(SIGCHLD, &sigchild_action, NULL);
+	
+		// Loop
+	for (;;) {
+		
+		/* sigwait() = plus simple */
+		
+		char c;
+		ssize_t rs = ::read(_sig_pipe[0], &c, 1);
+		if (rs != 1) throw xif::sys_error("signals thread : read code failed");
+		
+		if (c == 'C') { // SIGCHILD
+			pid_t pid;
+			int status;
+			rs = ::read(_sig_pipe[0], &pid, sizeof(pid_t));
+			if (rs != sizeof(pid_t)) throw xif::sys_error("read(sig_pipe, pid) failed");
+			rs = ::read(_sig_pipe[0], &status, sizeof(int));
+			if (rs != sizeof(int)) throw xif::sys_error("read(sig_pipe, status) failed");
+			__log__(log_lvl::LOG, NULL, logstream << "Catched SIGCHILD for pid° " << pid);
+			for (const ioslaves::service* s : ioslaves::services_list) {
+				if (s->s_type != ioslaves::service::type::IOSLPLUGIN) continue;
+				if (not s->ss_status_running) continue;
+				dl_t dl_handle = s->spec.plugin.handle;
+				__extension__	ioslaves::api::got_sigchld_f sig_call_f = (ioslaves::api::got_sigchld_f) ::dlsym(dl_handle, "ioslapi_got_sigchld");
+				if (sig_call_f == NULL) 
+					__log__(log_lvl::WARNING, "API", logstream << "Can't get function `ioslapi_got_sigchld` for service " << s->s_name);
+				bool own = (*sig_call_f)(pid, status);
+				if (own) break;
+			}
+		}
+		else if (c == 'S') { // SIG{INT,QUIT,HUP,TERM}
+			if (serv_stop_pipe[1] == INVALID_HANDLE) 
+				::exit(EXIT_FAILURE);
+			rs = ::write(serv_stop_pipe[1], "", 1);
+			if (rs != 1) throw xif::sys_error("signals thread : write stop byte failed");
+		}
+		else ::abort();
+		
+	}
+	
+}
+void _stop_serv (int param) {
+	if (::isatty(STDOUT_FILENO))
+		::fputc('\n', stdout);
+	ssize_t rs = ::write(_sig_pipe[1], "S", 1);
+	if (rs < 1) ::abort();
+}
+void _sigchild (int param) {
+	if (not *signal_catch_sigchild_p) return;
+	int status;
+	pid_t pid = ::waitpid((pid_t)-1, &status, WUNTRACED|WNOHANG);
+	if (pid == -1) return;
+	unsigned char buf[1+sizeof(pid_t)+sizeof(int)] = { 'C',0 };
+	::memcpy(buf+1,               &pid,    sizeof(pid_t));
+	::memcpy(buf+1+sizeof(pid_t), &status, sizeof(int));
+	ssize_t rs = ::write(_sig_pipe[1], buf, sizeof(buf));
+	if (rs != sizeof(buf)) throw xif::sys_error("write(sig_pipe, child info) failed");
+}
+
+	///-----------------  API callbacks  -----------------///
+
+/// Log
+void ioslaves::api::report_log (ioslaves::service* _service, log_lvl _lvl, const char* _part, std::string& _msg, int _m, logl_t* _lid) noexcept {
+	std::string partstr = _S("API:", _service->s_name, ((_part == NULL) ? std::string() : _S("] [", _part)));
+	char* part = new char[partstr.length()+1]; // Leak, but log history is kept until exit
+	::strcpy(part, partstr.c_str());
+	return __log__(_lvl, part, _msg, _m, _lid);
+}
+
+/// Add SRV entry
+ioslaves::answer_code ioslaves::api::dns_srv_create (const char* service_name, std::string domain, std::string host, bool with_cname, in_port_t port, bool is_tcp) noexcept {
+	try {
+		socketxx::simple_socket_client<socketxx::base_netsock> sock (socketxx::base_netsock::addr_info(ip_refresh_dyndns_server, 2929), timeval{1,0});
+		sock.set_read_timeout(timeval{1,0});
+		iosl_master::slave_api_service_connect(sock, _S("_IOSL_",hostname), "xifnetdyndns");
+		sock.o_int<in_port_t>(0);
+		sock.i_int<in_addr_t>();
+		sock.o_char((char)ioslaves::answer_code::WANT_SEND);
+		sock.o_bool(true);
+		sock.o_str(service_name);
+		sock.o_str(domain);
+		sock.o_str(host);
+		sock.o_bool(with_cname);
+		sock.o_bool(is_tcp);
+		sock.o_int<in_port_t>(port);
+		ioslaves::answer_code answ;
+		if ((answ = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) {
+			__log__(log_lvl::ERROR, "DynDNS", logstream << "Creation of SRV entry failed (answ = " << (char)answ << ")");
+			return answ;
+		}
+		sock.o_char((char)ioslaves::answer_code::OK);
+		return ioslaves::answer_code::OK;
+	} catch (socketxx::classic_error& e) {
+		__log__(log_lvl::ERROR, "DynDNS", logstream << "Network error with xifnetdyndns service : " << e.what());
+	} catch (master_err& e) {
+		__log__(log_lvl::ERROR, "DynDNS", logstream << "Master error while connecting to DynDNS : " << e.what());
+	} catch (ioslaves::answer_code answ) {
+		__log__(log_lvl::ERROR, "DynDNS", logstream << "Failed to add SRV entry to DynDNS : " << (char)answ);
+	}
+	return ioslaves::answer_code::ERROR;
+}
+
+/// Delete SRV entry
+void ioslaves::api::dns_srv_del (const char* service_name, std::string domain, std::string host, bool is_tcp) noexcept {
+	try {
+		socketxx::simple_socket_client<socketxx::base_netsock> sock (socketxx::base_netsock::addr_info(ip_refresh_dyndns_server, 2929), timeval{1,0});
+		sock.set_read_timeout(timeval{1,0});
+		iosl_master::slave_api_service_connect(sock, _S("_IOSL_",hostname), "xifnetdyndns");
+		sock.o_int<in_port_t>(0);
+		sock.i_int<in_addr_t>();
+		sock.o_char((char)ioslaves::answer_code::WANT_SEND);
+		sock.o_bool(false);
+		sock.o_str(service_name);
+		sock.o_str(domain);
+		sock.o_str(host);
+		sock.o_bool(is_tcp);
+		ioslaves::answer_code answ;
+		if ((answ = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) 
+			throw answ;
+		sock.o_char((char)ioslaves::answer_code::OK);
+	} catch (socketxx::classic_error& e) {
+		__log__(log_lvl::ERROR, "DynDNS", logstream << "Network error with xifnetdyndns service : " << e.what());
+	} catch (master_err& e) {
+		__log__(log_lvl::ERROR, "DynDNS", logstream << "Master error while connecting to DynDNS : " << e.what());
+	} catch (ioslaves::answer_code answ) {
+		__log__(log_lvl::ERROR, "DynDNS", logstream << "Failed to delete SRV entry (answ = " << (char)answ << ")");
+	}
+}
+
+	///-----------------  Services  -----------------///
+
+#define _IOSLAVES_STR_TO_SERVICE_TYPE(TYPE) if (str == std::string(#TYPE)) return type::TYPE;
+ioslaves::service::type ioslaves::service::strToType (std::string str) {
+	_IOSLAVES_STR_TO_SERVICE_TYPE(SYSTEMCTL);
+	_IOSLAVES_STR_TO_SERVICE_TYPE(PROG_DEAMON);
+	_IOSLAVES_STR_TO_SERVICE_TYPE(IOSLPLUGIN);
+	throw std::runtime_error(_S("service::strToType : Unknown type '",str,"' in field 'type' !"));
+}
+#define _IOSLAVES_SERVICE_TYPE_TO_STR(TYPE) if (this->s_type == type::TYPE) return std::string(#TYPE);
+std::string ioslaves::service::typeToStr () {
+	_IOSLAVES_SERVICE_TYPE_TO_STR(SYSTEMCTL);
+	_IOSLAVES_SERVICE_TYPE_TO_STR(PROG_DEAMON);
+	_IOSLAVES_SERVICE_TYPE_TO_STR(IOSLPLUGIN);
+	throw std::logic_error("typeToStr: bad service type");
+}
+
+	/// Load from file and add service to service list
+void ioslaves::loadService (std::string name, FILE* service_file) {
+	#define _IOSLAVES_SERVICE_CONF_ERROR_STR "Skipping service : Unable to read description file of service `" << name << "` : "
+	bool autostart = false;
+	ioslaves::service* s = new ioslaves::service;
+	s->s_name = name;
+	try {
+		libconfig::Config service_conf;
+		service_conf.read(service_file);
+		s->s_type = service::strToType( service_conf.lookup("type").operator std::string() );
+		s->s_name = name;
+		s->s_command = service_conf.lookup("command").operator std::string();
+		std::string port_descr = _S( s->s_name," ioslaves service on ",hostname );
+		if (service_conf.exists("port")) {
+			ioslaves::upnpPort p;
+			p.p_range_sz = 1;
+			p.p_descr = port_descr;
+			p.p_ext_port = p.p_int_port = (in_port_t)(unsigned int)service_conf.lookup("port");
+			std::string proto = service_conf.lookup("port_proto").operator std::string();
+			if (proto == "TCP+UDP") {
+				p.p_proto = ioslaves::upnpPort::TCP;
+				s->s_ports.push_back(p);
+				p.p_proto = ioslaves::upnpPort::UDP;
+				s->s_ports.push_back(p);
+			} else {
+				     if (proto == "TCP") p.p_proto = ioslaves::upnpPort::TCP;
+				else if (proto == "UDP") p.p_proto = ioslaves::upnpPort::UDP;
+				else {
+					__log__(log_lvl::ERROR, "SERVICE", logstream << _IOSLAVES_SERVICE_CONF_ERROR_STR << "Invalid protocol for port opening");
+					return;
+				}
+				s->s_ports.push_back(p);
+			}
+		} else if (service_conf.exists("ports")) {
+			std::string str = service_conf.lookup("ports").operator std::string();
+			if (str[str.length()-1] != ',') str += ',';
+			ioslaves::upnpPort p;
+			p.p_descr = port_descr;
+			std::string num;
+			in_port_t portnum;
+			enum { PORT_NEW, PORT_NUM } st = PORT_NEW;
+			for (size_t i = 0; i < str.length(); i++) {
+				if (st == PORT_NEW) {
+					p.p_range_sz = 1;
+					     if (str[i] == 'T') p.p_proto = ioslaves::upnpPort::TCP;
+					else if (str[i] == 'U') p.p_proto = ioslaves::upnpPort::UDP;
+					else { 
+						__log__(log_lvl::ERROR, "SERVICE", logstream << _IOSLAVES_SERVICE_CONF_ERROR_STR << "ports : Invalid protocol letter '" << str[i] << "'");
+						return;
+					}
+					st = PORT_NUM;
+					portnum = 0;
+					p.p_ext_port = 0;
+				} else if (st == PORT_NUM) {
+					if (isdigit(str[i]))
+						num += str[i];
+					else if (str[i] == ',' or str[i] == '-') {
+						if (portnum != 0) 
+							p.p_ext_port = p.p_int_port = portnum;
+						try {
+							portnum = ::atoix<uint16_t>(num, IX_DEC);
+							num.erase();
+							if (portnum == 0) throw std::runtime_error("cannot be 0");
+							if (p.p_ext_port != 0) {
+								if (portnum <= p.p_ext_port) throw std::runtime_error("second port number in port range must be greater than first");
+								p.p_range_sz = portnum-p.p_ext_port+1;
+								s->s_ports.push_back(p);
+								st = PORT_NEW;
+								continue;
+							}
+							if (str[i] == '-') continue;
+							else {
+								p.p_ext_port = p.p_int_port = portnum;
+								p.p_range_sz = 1;
+								s->s_ports.push_back(p);
+								st = PORT_NEW;
+							}
+						} catch (std::runtime_error& e) {
+							__log__(log_lvl::ERROR, "SERVICE", logstream << _IOSLAVES_SERVICE_CONF_ERROR_STR << "ports : port number : " << e.what());
+							return;
+						}
+					} else {
+						__log__(log_lvl::ERROR, "SERVICE", logstream << _IOSLAVES_SERVICE_CONF_ERROR_STR << "ports : char '" << str[i] << "' not allowed in port number");
+						return;
+					}
+				}
+			}
+		}
+			// Autostart
+		try {
+			autostart = (bool)service_conf.lookup("autostart");
+		} catch (libconfig::SettingNotFoundException) {}
+		
+			// Shutdown inhibit
+		s->ss_shutdown_inhibit = (s->s_type == ioslaves::service::type::IOSLPLUGIN);
+		try {
+			s->ss_shutdown_inhibit = (bool)service_conf.lookup("shutdown_inhibit");
+		} catch (libconfig::SettingNotFoundException) {}
+		
+			// Specific service type params
+		switch (s->s_type) {
+			case ioslaves::service::type::IOSLPLUGIN:
+			case ioslaves::service::type::SYSTEMCTL:
+				if (!ioslaves::validateShellProgramName(s->s_command)) {
+					__log__(log_lvl::ERROR, "SECURITY", logstream << "Service " << s->s_name << " : `" << s->s_command << "` is not a valid command name !");
+					return;
+				}
+				break;
+			case ioslaves::service::type::PROG_DEAMON: 
+				try {
+					std::string pidfile = service_conf.lookup("pid_file").operator std::string();
+					s->spec.exec.pid_file = new char[pidfile.length()+1];
+					::strcpy(s->spec.exec.pid_file, pidfile.c_str());
+				} catch (libconfig::SettingException&) {
+					__log__(log_lvl::WARNING, "SERVICE", logstream << "Service '" << s->s_name << "' have no PID file defined : will be not stoppable");
+				}
+				std::string execnam = service_conf.lookup("proc_name").operator std::string();
+				s->spec.exec.execnam = new char[execnam.length()+1];
+				::strcpy(s->spec.exec.execnam, execnam.c_str());
+				break;
+		}
+	} catch (libconfig::ConfigException& ce) {
+		__log__(log_lvl::ERROR, "SERVICE", logstream << _IOSLAVES_SERVICE_CONF_ERROR_STR << ce.what());
+		return;
+	}
+	__log__(log_lvl::LOG, "SERVICE", logstream << "Service '" << s->s_name << "' of type " << s->typeToStr() << " loaded");
+	s->ss_last_status_change = (time_t)0;
+	s->ss_status_running = false;
+	services_list.push_back(s);
+	if (autostart) 
+		try {
+			ioslaves::controlService(s, true, NULL);
+		} catch (ioslaves::requestException& re) {
+			__log__(log_lvl::ERROR, "SERVICE", logstream << "Autostart service " << s->s_name << " failed !");
+		}
+}
+	// Service destructor
+ioslaves::service::~service () { 
+	if (this->s_type == type::PROG_DEAMON and this->spec.exec.pid_file != NULL) {
+		delete[] this->spec.exec.pid_file;
+		delete[] this->spec.exec.execnam;
+	}
+}
+
+	/// Stop all services
+void ioslaves::stopAllServices () {
+	__log__(log_lvl::IMPORTANT, "IOSLAVES", "Stopping all services...");
+	for (ioslaves::service* s : ioslaves::services_list) {
+		if (s->ss_status_running == true)
+			try {
+				ioslaves::controlService(s, false, NULL);
+			} catch (ioslaves::requestException& e) {}
+	}
+}
+
+	/// Get service by name
+ioslaves::service* ioslaves::getServiceByName (std::string name) throw(ioslaves::requestException) {
+	for (ioslaves::service* s : ioslaves::services_list) {
+		if (s->s_name == name) 
+			return s;
+	}
+	throw ioslaves::requestException(ioslaves::answer_code::NOT_FOUND, "SERVICE", logstream << "Service '" << name << "' not found !");
+}
+
+	/// Resumé of the serive's status
+xif::polyvar ioslaves::serviceStatus (const ioslaves::service* s) {
+	switch (s->s_type) {
+		case ioslaves::service::type::SYSTEMCTL: return xif::polyvar();
+		case ioslaves::service::type::PROG_DEAMON: return xif::polyvar();
+		case ioslaves::service::type::IOSLPLUGIN: {
+			if (not s->ss_status_running) return xif::polyvar();
+			dl_t dl_handle = s->spec.plugin.handle;
+			__extension__ ioslaves::api::status_info_f call_f = (ioslaves::api::status_info_f) ::dlsym(dl_handle, "ioslapi_status_info");
+			if (call_f == NULL) 
+				throw ioslaves::requestException(ioslaves::answer_code::INTERNAL_ERROR, "API", logstream << "Error getting function with dlsym(\"ioslapi_status_info\") : " << ::dlerror());
+			xif::polyvar* info = (*call_f)();
+			RAII_AT_END({ delete info; });
+			return *info;
+		}
+	}
+	return xif::polyvar();
+}
+
+	/// Method for starting/stopping services
+void ioslaves::controlService (ioslaves::service* s, bool start, const char* controlling_master) {
+	logl_t l;
+	switch (s->s_type) {
+		case ioslaves::service::type::SYSTEMCTL: __log__(log_lvl::IMPORTANT, "SERVICE", logstream << (start?"Starting":"Stopping") << " service '" << s->s_name << "' as systemctl service '" << s->s_command << "'..."); break;
+		case ioslaves::service::type::PROG_DEAMON:
+			__log__(log_lvl::IMPORTANT, "SERVICE", logstream << (start?"Starting":"Stopping") << " daemon '" << s->s_name << "'...");
+			break;
+		case ioslaves::service::type::IOSLPLUGIN:
+			if (start) __log__(log_lvl::DONE, "API", logstream << "Loading API service '" << s->s_name << "' (" << s->s_command << ".iosldl)...");
+			else __log__(log_lvl::LOG, "OP", logstream << "Stopping API service '" << s->s_name << "'...");;
+			break;
+	}
+	if (s->ss_status_running == start)
+		throw ioslaves::requestException(ioslaves::answer_code::BAD_STATE, "SERVICE", logstream << "Can't " << (start?"start":"stop") << " service '" << s->s_name << "' : service is " << (start?"running":"stopped"));
+	
+	// Open/Close ports
+	if (enable_upnp) {
+		for (ioslaves::upnpPort p : s->s_ports) {
+			try {
+				if (start) ioslaves::upnpOpenPort(p);
+				else		  ioslaves::upnpClosePort(p);
+			} catch (ioslaves::upnpError& ue) {
+				if (ue.fatal) 
+					throw ioslaves::requestException(ioslaves::answer_code::UPNP_ERROR);
+			}
+		}
+	}
+	
+	switch (s->s_type) {
+		
+		//-------------- Start/Stop Systemctl service
+		case ioslaves::service::type::SYSTEMCTL: {
+			std::string systemctl_string = _S( "systemctl ",(start?"start ":"stop "),s->s_command,".service" );
+			int r;
+			{ sigchild_block(); asroot_block();
+				r = ::system(systemctl_string.c_str());
+			}
+			if (r == -1) throw ioslaves::requestException(ioslaves::answer_code::INTERNAL_ERROR, "SERVICE", logstream << "system() failed to exec `systemctl` : " << ::strerror(errno));
+			if (r != 0) throw ioslaves::requestException(ioslaves::answer_code::EXTERNAL_ERROR, "SERVICE", logstream << "`" << systemctl_string << "` command failed !");
+			s->ss_status_running = start;
+			s->ss_last_status_change = ::time(NULL);
+			__log__(log_lvl::DONE, "SERVICE", logstream << "Successfully " << (start?"started":"stopped") << " service '" << s->s_name << "' with systemctl");
+		} break;
+		
+		//-------------- Start/Stop API service
+		case ioslaves::service::type::IOSLPLUGIN: {
+			if (start) {
+				std::string iosldl_path = _S( IOSLAVESD_API_DL_DIR,'/',s->s_command,".iosldl" );
+				dl_t dl_handle = ::dlopen(iosldl_path.c_str(), RTLD_NOW);
+				if (dl_handle == NULL) {
+					__log__(log_lvl::ERROR, "API", logstream << "Couldn't load ioslaves dynamic API service with dlopen() : " << ::dlerror());
+					throw ioslaves::requestException(ioslaves::answer_code::INTERNAL_ERROR);
+				}
+				__extension__ ioslaves::api::set_callbacks_f set_service_callbacks = (ioslaves::api::set_callbacks_f) ::dlsym(dl_handle, "ioslapi_set_callbacks");
+				if (set_service_callbacks == NULL) {
+					::dlclose(dl_handle);
+					throw ioslaves::requestException(ioslaves::answer_code::INTERNAL_ERROR, "API", logstream << "Error getting function with dlsym(\"ioslapi_set_callbacks\") : " << ::dlerror());
+				}
+				(*set_service_callbacks)(s, signal_catch_sigchild_p, hostname, ioslaves::api::common_vars, IOSLAVED_API_MAIN_PROG_CALLBACKS_TO_SET);
+				__extension__ ioslaves::api::start_f start_service_func = (ioslaves::api::start_f) ::dlsym(dl_handle, "ioslapi_start");
+				if (start_service_func == NULL) {
+					::dlclose(dl_handle);
+					throw ioslaves::requestException(ioslaves::answer_code::INTERNAL_ERROR, "API", logstream << "Error getting function with dlsym(\"ioslapi_start\") : " << ::dlerror());
+				}
+				bool ok = (*start_service_func)(controlling_master);
+				if (not ok) {
+					::dlclose(dl_handle);
+					throw ioslaves::requestException(ioslaves::answer_code::EXTERNAL_ERROR, "API", logstream << "The start method of the service '" << s->s_name << "' failed");
+				}
+				s->spec.plugin.handle = dl_handle;
+			} else {
+				dl_t dl_handle = s->spec.plugin.handle;
+				__extension__ ioslaves::api::stop_f stop_func = (ioslaves::api::stop_f) ::dlsym(dl_handle, "ioslapi_stop");
+				if (stop_func == NULL) 
+					throw ioslaves::requestException(ioslaves::answer_code::INTERNAL_ERROR, "API", logstream << "Error getting function with dlsym(\"ioslapi_stop\") : " << ::dlerror());
+				(*stop_func)();
+				::dlclose(dl_handle);
+				s->spec.plugin.handle = NULL;
+			}
+			s->ss_status_running = start;
+			s->ss_last_status_change = ::time(NULL);
+			__log__(log_lvl::DONE, "API", logstream << "Successfully " << (start?"loaded":"unloaded") << " API service '" << s->s_name << "'");
+		} break;
+		
+		//-------------- Start/Stop daemon executable
+		case ioslaves::service::type::PROG_DEAMON: {
+			std::function<pid_t()> file_get_pid = [&]()-> pid_t {
+				ssize_t rs;
+				fd_t pid_f = ::open(s->spec.exec.pid_file, O_RDONLY);
+				if (pid_f == INVALID_HANDLE) {
+					if (errno == ENOENT) 
+						return -ENOENT;
+					else 
+						throw xif::sys_error("can't open PID file");
+				}
+				char buf[5];
+				rs = ::read(pid_f, buf, 5);
+				for (size_t i = 0; i < (size_t)rs; i++) 
+					if (not ::isdigit(buf[i])) { buf[i] = '\0'; rs = i; break; }
+				::close(pid_f);
+				if (rs < 1) {
+					return -ENOSTR;
+				} else {
+					try {
+						pid_t pid = ::atoix<pid_t>(std::string(buf, (size_t)rs));
+						if (pid == 0) return -EINVAL;
+						return pid;
+					} catch (std::runtime_error) {
+						return -EINVAL;
+					}
+				}
+			};
+			try {
+				int r;
+				if (start) {
+					pid_t pid = file_get_pid();
+					if (pid > 0) {
+				#ifdef __APPLE__
+						char pathbuf[PROC_PIDPATHINFO_MAXSIZE];
+						r = ::proc_pidpath(pid, pathbuf, sizeof(pathbuf));
+						if (r == 0) {
+							if (errno == ESRCH)
+								 goto __start_proc;
+							throw xif::sys_error("failed to get proc name");
+						}
+						std::string proc_path = pathbuf;
+						__log__(log_lvl::LOG, "DEAMON", logstream << "Process cmdline of pid " << pid << " : `" << proc_path << "`");
+						if (::strlen(s->spec.exec.execnam) == 0 or proc_path.find(s->spec.exec.execnam)) 
+							goto __proc_validated;
+				#elif __linux__
+						ssize_t rs;
+						char pathbuf[128];
+						std::string proc_name;
+						fd_t proc_cmd_f = ::open( _s("/proc/",::ixtoa(pid),"/comm"), O_RDONLY);
+						if (proc_cmd_f == -1) 
+							goto __start_proc;
+						RAII_AT_END({ ::close(proc_cmd_f); });
+						if (::strlen(s->spec.exec.execnam) == 0) 
+							goto __proc_validated;
+						rs = ::read(proc_cmd_f, pathbuf, sizeof(pathbuf));
+						if (rs > 0) {
+							proc_name = std::string(pathbuf, rs);
+							__log__(log_lvl::LOG, "DEAMON", logstream << "Process name of pid " << pid << " : `" << proc_name << "`");
+							if (proc_name == s->spec.exec.execnam) 
+								goto __proc_validated;	
+						}
+				#else
+						#warning PID checking : Platform not supported
+						goto __proc_validated;
+				#endif
+						throw ioslaves::requestException(ioslaves::answer_code::BAD_STATE, "DAEMON", logstream << "A process with PID " << pid << " already exists but its name doesn't match");
+					__proc_validated:
+						__log__(log_lvl::WARNING, "DAEMON", logstream << "Daemon of service '" << s->s_name << "' seems to be already started with pid " << pid);
+						goto __daemon_end;
+					}
+				__start_proc:
+					{ sigchild_block(); asroot_block();
+						r = ::system(s->s_command.c_str());
+					}
+					if (r == -1) throw ioslaves::requestException(ioslaves::answer_code::INTERNAL_ERROR, "DAEMON", logstream << "system() failed to exec daemon command : " << ::strerror(errno));
+					if (r != 0) throw ioslaves::requestException(ioslaves::answer_code::EXTERNAL_ERROR, "DAEMON", logstream << "`" << s->s_command << "` command failed !");
+				} else {
+					const char* daemon_dead_why = "?";
+					pid_t pid = file_get_pid();
+					if (pid < 0) {
+						if (pid == -EINVAL) daemon_dead_why = "PID value in file is invalid";
+						else if (pid == -ENOSTR) daemon_dead_why = "Nothing in PID file";
+						else if (pid == -ENOENT) daemon_dead_why = "PID file not found";
+						goto __daemon_dead;
+					}
+					__log__(log_lvl::LOG, "DAEMON", logstream << "Killing process PID " << pid << "...", LOG_WAIT, &l);
+					{ asroot_block();
+						r = ::kill(pid, SIGTERM);
+					}
+					if (r == -1) {
+						if (errno == ESRCH) daemon_dead_why = "Process not found";
+						else throw xif::sys_error("Can't kill process");
+						goto __daemon_dead;
+					} else 
+						__log__(log_lvl::DONE, "DAEMON", "Done !", LOG_ADD, &l);
+					goto __daemon_end;
+				__daemon_dead:
+					s->ss_status_running = false;
+					s->ss_last_status_change = ::time(NULL);
+					if (daemon_dead_why != NULL)
+						__log__(log_lvl::WARNING, "DAEMON", logstream << "Process of service `" << s->s_name << "` is probably already dead : " << daemon_dead_why);
+					throw ioslaves::requestException(ioslaves::answer_code::BAD_STATE);
+				}
+			__daemon_end:
+				s->ss_status_running = start;
+				s->ss_last_status_change = ::time(NULL);
+				__log__(log_lvl::DONE, "DAEMON", logstream << "Successfully " << (start?"started":"stopped") << " service '" << s->s_name << "' as daemon");
+			} catch (xif::sys_error& syserr) {
+				throw ioslaves::requestException(ioslaves::answer_code::INTERNAL_ERROR, "DAEMON", syserr.what());
+				return;
+			}
+		} break;
+	}
+	
+}

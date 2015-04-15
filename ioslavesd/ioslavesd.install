@@ -1,0 +1,4 @@
+post_upgrade() {
+	systemctl daemon-reload
+	systemctl restart ioslavesd
+}

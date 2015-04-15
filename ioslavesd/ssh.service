@@ -1,0 +1,7 @@
+/* SSH service - high security risk, started only when needed */
+
+type: "SYSTEMCTL";
+command: "sshd"
+port: 22;
+port_proto: "TCP";
+autostart = false;

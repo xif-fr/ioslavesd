@@ -1,0 +1,38 @@
+# Maintainer: Félix Faisant <xcodexif@xif.fr>
+
+pkgname=ioslavesd-xifnetdyndns
+pkgver=2.5
+pkgrel=1
+pkgdesc='Xif Network - ioslavesd plugin for XifNet Dynamic DNS, using NSD'
+license=('custom')
+arch=('i686' 'x86_64')
+depends=('socketxx' 'ioslavesd' 'nsd')
+makedepends=('xifutils' 'unzip')
+optdepends=()
+backup=(etc/nsd/zones/net.xif.fr.zone)
+options=()
+
+source=('../common/common.hpp' '../common/common.cpp'
+        '../common-ioslavesd/api.h' '../common-ioslavesd/log.h' '../common-ioslavesd/log_api.cpp'
+        'xifnetdyndns.cpp'
+        'Makefile'
+        'xifnetdyndns.service'
+        'net.xif.fr.zone')
+sha256sums=('SKIP' 'SKIP'
+            'SKIP' 'SKIP' 'SKIP'
+            'SKIP'
+            'SKIP'
+            'SKIP'
+            'SKIP')
+
+build() {
+	make CXXFLAGS="${CXXFLAGS} -DXIFNET"
+}
+
+package() {
+	install -d -m755 $pkgdir/etc/ioslavesd/services
+	install -d -m755 $pkgdir/usr/lib/ioslavesd/api-services
+	install -D -m644 $srcdir/xifnetdyndns.service	$pkgdir/etc/ioslavesd/services/xifnetdyndns.service
+	install -D -m644 $srcdir/xifnetdyndns.iosldl	$pkgdir/usr/lib/ioslavesd/api-services/xifnetdyndns.iosldl
+	install -D -m644 $srcdir/net.xif.fr.zone	$pkgdir/etc/nsd/zones/net.xif.fr.zone
+}

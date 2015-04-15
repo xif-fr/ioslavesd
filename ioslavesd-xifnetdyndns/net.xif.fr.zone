@@ -1,0 +1,22 @@
+;;; Xif Network - Dynamic DNS Zone
+;; FORWARD Zone *.net.xif.fr
+; Automatically modified by the DynDNS ioslavesd service - Do not modify by hand this file, except for static IP hosts
+
+$ORIGIN net.xif.fr.	; our zone
+$TTL 1			; default time to live : here 1 for dynamic DNS, 0 is buggy
+
+@ IN SOA ns1.xif.fr. admin.xif.fr. (
+	0222    ; serial number
+	1       ; slave refresh
+	1       ; slave retry
+	100000  ; slave expire
+	1       ; min ttl
+)
+
+; Static IP hosts
+ballmer		IN A	80.15.95.188
+_ioslavesd._tcp.ballmer.net.xif.fr. 1 IN SRV 0 100 2929 ballmer.net.xif.fr.
+
+; Dynamic IP hosts	xxx.xxx.xxx.xxx ;    ; Don't modify anything after this line, it will be erased
+
+; -- DYN -- ;

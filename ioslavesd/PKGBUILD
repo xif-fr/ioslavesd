@@ -1,0 +1,41 @@
+# Maintainer: Félix Faisant <xcodexif@xif.fr>
+
+pkgname=ioslavesd
+pkgver=2.5
+pkgrel=1
+pkgdesc='Xif Network - ioslaves control program deamon for slave side'
+license=('custom')
+arch=('i686' 'x86_64')
+depends=('socketxx' 'libconfig' 'miniupnpc>=1.9' 'topp')
+makedepends=('xifutils')
+backup=('etc/ioslavesd/ioslavesd.conf')
+install='ioslavesd.install'
+
+source=('../common/common.hpp' '../common/common.cpp'
+        '../common-ioslavesd/log.h' '../common-ioslavesd/api.h'
+        '../common-master/master.hpp' '../common-master/master-impl.cpp'
+        'main.h' 'slave.cpp' 'upnp.cpp' 'log_slave.cpp' 'status.cpp'
+        'Makefile'
+        'ioslavesd.service' 'ioslavesd.install' 'ioslavesd.conf' 'ssh.service')
+sha256sums=('SKIP' 'SKIP'
+            'SKIP' 'SKIP'
+            'SKIP' 'SKIP'
+            'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
+            'SKIP'
+            'SKIP' 'SKIP' 'SKIP' 'SKIP')
+
+options=(debug !strip)
+
+build() {
+	make CXXFLAGS="${CXXFLAGS} -DIOSLAVES_FHS -DXIFNET"
+}
+
+package() {
+	install -D -m754 $srcdir/ioslavesd 		$pkgdir/usr/bin/ioslavesd
+	install -D -m644 $srcdir/ioslavesd.service 	$pkgdir/usr/lib/systemd/system/ioslavesd.service
+	install -d -m700 				$pkgdir/etc/ioslavesd/keys
+	install -d -m755 				$pkgdir/etc/ioslavesd/services
+	install -D -m644 $srcdir/ssh.service 		$pkgdir/etc/ioslavesd/services/ssh.service
+	install -D -m644 $srcdir/ioslavesd.conf 	$pkgdir/etc/ioslavesd/ioslavesd.conf
+	install -d -m755 				$pkgdir/usr/lib/ioslavesd/api-services
+}
