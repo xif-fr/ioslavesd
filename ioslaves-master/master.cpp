@@ -59,6 +59,7 @@ std::string $api_co_unix_sock_path;
 bool $need_auth = false;
 bool $net_verbose = false;
 timeval $connect_timeout = {1,000000};
+timeval $comm_timeout = {2,000000};
 bool $ignore_net_errors = false;
 time_t $log_begin, $log_end;
 
@@ -454,6 +455,7 @@ void IPreSlaveCo () {
 		if (optctx::verbose)
 			std::cerr << "Connecting to " << slave_name << " at " << $connect_addr.get_ip_str() << ":" << $connect_addr.get_port() << "..." << std::endl;
 		$slave_sock = new socketxx::simple_socket_client<socketxx::base_netsock> ($connect_addr, $connect_timeout);
+		$slave_sock->set_read_timeout($comm_timeout);
 	} catch (socketxx::error& e) {
 		std::cerr << COLOR_RED << "Failed to connect to slave : " << COLOR_RESET << e.what() << std::endl;
 		EXIT_FAILURE = EXIT_FAILURE_CONN;
@@ -464,6 +466,7 @@ void IPreSlaveCo () {
 		$slave_sock->o_bool(true);
 			// Authentification
 		$slave_sock->o_str($master_id);
+#warning TO DO : Auth
 $need_auth = false;
 		$slave_sock->o_bool($need_auth);
 		if ($need_auth) {
