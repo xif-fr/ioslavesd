@@ -24,8 +24,6 @@ sha256sums=('SKIP' 'SKIP'
             'SKIP'
             'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
-options=(debug !strip)
-
 build() {
 	make CXXFLAGS="${CXXFLAGS} -DIOSLAVES_FHS -DXIFNET"
 }

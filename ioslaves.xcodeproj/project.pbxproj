@@ -46,6 +46,11 @@
 		AA1D3AD11ADECD9200E2C7F6 /* minecraft.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = minecraft.h; path = "common-minecraft/minecraft.h"; sourceTree = "<group>"; };
 		AA1D3AD21ADECDAF00E2C7F6 /* ftp-auth-mc.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "ftp-auth-mc.cpp"; path = "ioslavesd-minecraft/ftp-auth-mc.cpp"; sourceTree = "<group>"; };
 		AA1D3AD41ADECDAF00E2C7F6 /* minecraft.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = minecraft.cpp; path = "ioslavesd-minecraft/minecraft.cpp"; sourceTree = "<group>"; };
+		AA2333951AE06F31009433E3 /* PKGBUILD */ = {isa = PBXFileReference; lastKnownFileType = text; path = PKGBUILD; sourceTree = "<group>"; };
+		AA2333971AE06F3C009433E3 /* PKGBUILD */ = {isa = PBXFileReference; lastKnownFileType = text; name = PKGBUILD; path = "ioslaves-master-minecraft/PKGBUILD"; sourceTree = SOURCE_ROOT; };
+		AA2333981AE06F4A009433E3 /* PKGBUILD */ = {isa = PBXFileReference; lastKnownFileType = text; name = PKGBUILD; path = "ioslavesd-xifnetdyndns/PKGBUILD"; sourceTree = "<group>"; };
+		AA2333991AE06F65009433E3 /* PKGBUILD */ = {isa = PBXFileReference; lastKnownFileType = text; name = PKGBUILD; path = "ioslavesd-minecraft/PKGBUILD"; sourceTree = "<group>"; };
+		AA23339A1AE06F7A009433E3 /* PKGBUILD */ = {isa = PBXFileReference; lastKnownFileType = text; name = PKGBUILD; path = ioslavesd/PKGBUILD; sourceTree = "<group>"; };
 		AA41B72B1ADEC2E200B369BE /* common.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = common.cpp; path = common/common.cpp; sourceTree = "<group>"; };
 		AA41B72C1ADEC2E200B369BE /* common.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = common.hpp; path = common/common.hpp; sourceTree = "<group>"; };
 		AA41B7351ADEC2FE00B369BE /* api.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = api.h; path = "common-ioslavesd/api.h"; sourceTree = "<group>"; };
@@ -136,6 +141,7 @@
 			children = (
 				AA41B76A1ADECB9B00B369BE /* minecraft-master.cpp */,
 				AAB552F418F44E8C00DC3ED9 /* minecraft-master */,
+				AA2333971AE06F3C009433E3 /* PKGBUILD */,
 			);
 			name = "minecraft-master";
 			sourceTree = "<group>";
@@ -145,6 +151,7 @@
 			children = (
 				AA41B73E1ADEC32B00B369BE /* xifnetdyndns.cpp */,
 				AA7EEC49193C9221002AD7E4 /* libxifnetdyndns.dylib */,
+				AA2333981AE06F4A009433E3 /* PKGBUILD */,
 			);
 			name = XifNetDynDns;
 			sourceTree = "<group>";
@@ -179,6 +186,7 @@
 				AA1D3AD41ADECDAF00E2C7F6 /* minecraft.cpp */,
 				AA1D3AD21ADECDAF00E2C7F6 /* ftp-auth-mc.cpp */,
 				AA90C531189F7461003A8C60 /* libminecraft.ioslaves.dylib */,
+				AA2333991AE06F65009433E3 /* PKGBUILD */,
 			);
 			name = Minecraft;
 			sourceTree = "<group>";
@@ -192,6 +200,7 @@
 				AA41B75D1ADECB1700B369BE /* wol.cpp */,
 				AA41B7651ADECB3900B369BE /* master.cpp */,
 				AAC7F7A81861FEA600033009 /* ioslaves-master */,
+				AA2333951AE06F31009433E3 /* PKGBUILD */,
 				AA23087718F1CADA00AB9CD3 /* minecraft-master */,
 				AA129CED1A90E83E009A2B42 /* ioslstatd */,
 			);
@@ -208,6 +217,7 @@
 				AA41B74A1ADEC34500B369BE /* upnp.cpp */,
 				AA41B7491ADEC34500B369BE /* status.cpp */,
 				AA99F1B0184C65DD00BB6836 /* ioslavesd */,
+				AA23339A1AE06F7A009433E3 /* PKGBUILD */,
 			);
 			name = slave;
 			sourceTree = "<group>";
