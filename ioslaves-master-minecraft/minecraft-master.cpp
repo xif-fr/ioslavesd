@@ -965,7 +965,18 @@ void MServStart () {
 	bool autoselect_slave = false;
 	std::vector<std::string> excluded_slaves;
 	socketxx::io::simple_socket<socketxx::base_socket>* sock;
-_rety_start:
+	goto _try_start;
+_retry_start:
+	if (autoselect_slave) {
+		__log__ << LOG_ARROW << "Trying another slave..." << std::flush;
+		excluded_slaves.push_back($slave_id);
+		$slave_id.clear();
+		goto _try_start;
+	} else {
+		__log__ << LOG_AROBASE_ERR << "Try an another slave or let the slave selection does its work" << std::flush;
+		throw EXCEPT_ERROR_IGNORE;
+	}
+_try_start:
 	if ($granmaster) {
 		std::string running_on_slave = ::getRunningOnSlave($server_name);
 		if (autoselect_slave)
@@ -1073,7 +1084,7 @@ _rety_start:
 					iosl_master::slave_start($slave_id, __log__);
 				} catch (std::exception& e) {
 					__log__ << LOG_AROBASE_ERR << "Power up error : " << e.what() << std::flush;
-					throw EXCEPT_ERROR_IGNORE;
+					goto _retry_start;
 				}
 				uint wait_delay = slaves.front().sl_start_delay;
 				__log__ << LOG_AROBASE << "Please wait " << wait_delay << "s for slave starting..." << std::flush;
@@ -1086,13 +1097,7 @@ _rety_start:
 			getConnection($slave_id, $server_name, minecraft::op_code::START_SERVER, {2,0}, !autoselect_slave)
 		);
 	} catch (OPTCTX_POSTFNCT_EXCEPT_T) {
-		if (autoselect_slave) {
-			__log__ << LOG_ARROW << "Trying another slave..." << std::flush;
-			excluded_slaves.push_back($slave_id);
-			$slave_id.clear();
-			goto _rety_start;
-		} else 
-			throw EXCEPT_ERROR_IGNORE;
+		goto _retry_start;
 	}
 	__log__ << "Sending infos..." << std::flush;
 	sock->o_char((char)$start_serv_type);
@@ -1123,14 +1128,7 @@ _rety_start:
 			throw EXCEPT_ERROR_IGNORE;
 		} else if (o == ioslaves::answer_code::LACK_RSRC) {
 			__log__ << LOG_AROBASE_ERR << "Lacking ressources on slave '" << $slave_id << "' : can't start server !" << std::flush;
-			if (autoselect_slave) {
-				__log__ << LOG_ARROW << "Trying another slave..." << std::flush;
-				excluded_slaves.push_back($slave_id);
-				$slave_id.clear();
-				goto _rety_start;
-			} else {
-				__log__ << LOG_AROBASE << "Try an another slave or let the slave selection does its work" << std::flush;
-			}
+			goto _retry_start;
 		} else
 			throw o;
 	}
