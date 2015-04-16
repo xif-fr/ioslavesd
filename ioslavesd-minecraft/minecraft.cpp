@@ -1123,9 +1123,9 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			cli.o_char((char)ioslaves::answer_code::OK);
 			
 		} catch (...) {
-			/*	::pthread_kill(s->s_thread, SIGKILL); */
-			/*if (s->s_java_pid != -1)
-				::kill(s->s_java_pid, SIGKILL);*/
+			::pthread_cancel(s->s_thread);
+			if (s->s_java_pid != -1)
+				::kill(s->s_java_pid, SIGKILL);
 			throw;
 		}
 		

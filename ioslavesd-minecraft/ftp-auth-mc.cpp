@@ -108,15 +108,8 @@ void minecraft::ftp_stop_thead (int why) {
 	r = (int)::write(minecraft::ftp_stopfd, "", 1);
 	if (r != 1) 
 		__log__(log_lvl::WARNING, "FTP", logstream << "Failed to send stop signal to thread : " << ::strerror(errno));
-	uint8_t i = 0;
 	do { 
 		::usleep(100000);
-		if (i == 20) {
-			minecraft::ftp_th_started = false;
-			::pthread_kill(minecraft::ftp_thread, SIGKILL);
-			return;
-		}
-		i++;
 	} while (minecraft::ftp_th_started);
 }
 
