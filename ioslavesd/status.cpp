@@ -13,6 +13,7 @@
 	// Topp linux system monitor library
 #ifndef IOSLAVESD_NO_TOPP
 	#include <toppapi.hpp>
+	#include <fstream>
 #else
 	// Mach headers & cie.
 	#ifdef __MACH__
@@ -161,6 +162,23 @@ void ioslaves::statusFrame () {
 	
 	#endif
 	
+#endif
+}
+
+void ioslaves::statusEnd () {
+	time_t iosl_uptime = ::time(NULL) - start_time;
+	__log__(log_lvl::LOG, NULL, logstream << "ioslavesd was running for " << iosl_uptime/60 << " minutes");
+#ifndef IOSLAVESD_NO_TOPP
+	std::tuple<time_t,time_t,time_t> times = topp::GetUptime();
+	try {
+		topparsing::FieldsFile F_uptime(IOSLAVESD_UPTIME_FILE);
+		std::get<0>(times) += iosl_uptime;
+		float factor = (float)iosl_uptime/(float)F_uptime.numi(0);
+		std::get<1>(times) += (time_t)((float)F_uptime.numi(1)*factor);
+		std::get<2>(times) += (time_t)((float)F_uptime.numi(2)*factor);
+	} catch (...) {}
+	std::ofstream F_uptime (IOSLAVESD_UPTIME_FILE, std::fstream::out|std::fstream::trunc);
+	F_uptime << std::get<0>(times) << ' ' << std::get<1>(times) << ' ' << std::get<2>(times);
 #endif
 }
 

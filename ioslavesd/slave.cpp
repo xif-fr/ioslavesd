@@ -70,6 +70,7 @@ short ip_refresh_dyndns_interval = -1;
 in_addr ip_refresh_dyndns_server = {0};
 bool shutdown_ignore_err = false;
 time_t shutdown_time = 0;
+time_t start_time = ::time(NULL);
 	// API vars
 ioslaves::api::common_vars_t ioslaves::api::api_vars = {
 	.system_stat = &ioslaves::system_stat,
@@ -400,6 +401,7 @@ int main (int argc, const char* argv[]) { try {
 							ioslaves::upnpClosePort(ioslaves::upnpPort({IN_LISTENING_PORT, ioslaves::upnpPort::TCP, IN_LISTENING_PORT, 1}));
 						ioslaves::stopAllServices();
 						ioslaves::upnpShutdown();
+						ioslaves::statusEnd();
 						while (status_clients.size()) 
 							status_clients.erase(status_clients.begin());
 						ioslaves::api::run_as_root(true);
@@ -595,6 +597,9 @@ int main (int argc, const char* argv[]) { try {
 		// Eject permanant status clients
 	while (status_clients.size()) 
 		status_clients.erase(status_clients.begin());
+	
+		// Save stats
+	ioslaves::statusEnd();
 	
 		// Close ports
 	try {
