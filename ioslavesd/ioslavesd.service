@@ -1,0 +1,11 @@
+[Unit]
+Description=[Xif Network] ioslavesd slave control deamon
+After=network.target
+
+[Service]
+ExecStart=/bin/ioslavesd
+KillSignal=SIGINT
+Restart=on-abort
+
+[Install]
+WantedBy=multi-user.target
