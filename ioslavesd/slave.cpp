@@ -251,7 +251,7 @@ int main (int argc, const char* argv[]) { try {
 	
 		// Main listening socket
 	__log__(log_lvl::LOG, NULL, logstream << "Starting listening socket...");
-	socketxx::simple_socket_server<socketxx::base_netsock,void> serv(socketxx::base_netsock::addr_info(IN_LISTENING_IP,IN_LISTENING_PORT), IN_ACCEPT_MAX_WAITING_CLIENTS);
+	socketxx::simple_socket_server<socketxx::base_netsock,void> serv(socketxx::base_netsock::addr_info(IN_LISTENING_IP,IN_LISTENING_PORT), IN_ACCEPT_MAX_WAITING_CLIENTS, true);
 	serv.set_pool_timeout(::timeval(POOL_TIMEOUT));
 	if (enable_upnp and ioslavesd_listening_port_open)
 		try {
@@ -393,6 +393,17 @@ int main (int argc, const char* argv[]) { try {
 						__log__(log_lvl::LOG, "OP", "Registering to the permanent status pool");
 						status_clients.insert(status_clients.begin(), cli);
 						break;
+					case ioslaves::op_code::SHUTDOWN_CTRL: {
+						__log__(log_lvl::LOG, "OP", "Opperation : change auto-shutdown time");
+						time_t shutdown_in = cli.i_int<uint32_t>();
+						if (shutdown_in == 0) {
+							__log__(log_lvl::IMPORTANT, "SHUTDOWN", "Automatic shutdown disabled");
+							shutdown_time = 0;
+						} else {
+							__log__(log_lvl::IMPORTANT, "SHUTDOWN", logstream << "Automatic shutdown set in " << shutdown_in/60 << "min");
+							shutdown_time = ::time(NULL) + shutdown_in;
+						}
+					} break;
 					case ioslaves::op_code::SLAVE_SHUTDOWN:
 					case ioslaves::op_code::SLAVE_REBOOT: {
 						bool does_reboot = (opcode == ioslaves::op_code::SLAVE_REBOOT);
@@ -439,7 +450,11 @@ int main (int argc, const char* argv[]) { try {
 						if (cli_call_f == NULL) 
 							throw ioslaves::requestException(ioslaves::answer_code::INTERNAL_ERROR, "API", logstream << "Error getting function with dlsym(\"ioslapi_net_client_call\") : " << ::dlerror());
 						cli.o_char((char)ioslaves::answer_code::OK);
-						(*cli_call_f)(cli, auth?(master_id.empty()?NULL:master_id.c_str()):NULL, cli.addr.get_ip_addr().s_addr);
+						try {
+							(*cli_call_f)(cli, auth?(master_id.empty()?NULL:master_id.c_str()):NULL, cli.addr.get_ip_addr().s_addr);
+						} catch (std::exception& e) {
+							ioslaves::requestException(ioslaves::answer_code::INTERNAL_ERROR, "API", logstream << "Error in ioslapi_net_client_call: " << e.what());
+						}
 						continue;
 					}
 					case ioslaves::op_code::LOG_HISTORY: {
@@ -561,9 +576,14 @@ int main (int argc, const char* argv[]) { try {
 										__log__(log_lvl::ERROR, "SHUTDOWN", logstream << "Error getting function with dlsym(\"ioslapi_shutdown_inhibit\") : " << ::dlerror());
 										continue;
 									}
-									bool inhib = (*inhib_f)();
-									if (not inhib) 
+									try {
+										bool inhib = (*inhib_f)();
+										if (not inhib) 
+											continue;
+									} catch (std::exception& e) {
+										__log__(log_lvl::ERROR, "API", logstream << "Error in ioslapi_shutdown_inhibit for '" << s->s_name << "' : " << e.what());
 										continue;
+									}
 								}
 								__log__(log_lvl::IMPORTANT, "SHUTDOWN", logstream << "Shutdown inhibited by service '" << s->s_name << "'");
 								goto __inhibit;
@@ -680,8 +700,12 @@ void* signals_thread (void* _data) {
 				__extension__	ioslaves::api::got_sigchld_f sig_call_f = (ioslaves::api::got_sigchld_f) ::dlsym(dl_handle, "ioslapi_got_sigchld");
 				if (sig_call_f == NULL) 
 					__log__(log_lvl::WARNING, "API", logstream << "Can't get function `ioslapi_got_sigchld` for service " << s->s_name);
-				bool own = (*sig_call_f)(pid, status);
-				if (own) break;
+				else try {
+					bool own = (*sig_call_f)(pid, status);
+					if (own) break;
+				} catch (std::exception& e) {
+					__log__(log_lvl::ERROR, "API", logstream << "Error in ioslapi_got_sigchld for '" << s->s_name << "' : " << e.what());
+				}
 			}
 		}
 		else if (c == 'S') { // SIG{INT,QUIT,HUP,TERM}
@@ -975,9 +999,13 @@ xif::polyvar ioslaves::serviceStatus (const ioslaves::service* s) {
 			__extension__ ioslaves::api::status_info_f call_f = (ioslaves::api::status_info_f) ::dlsym(dl_handle, "ioslapi_status_info");
 			if (call_f == NULL) 
 				throw ioslaves::requestException(ioslaves::answer_code::INTERNAL_ERROR, "API", logstream << "Error getting function with dlsym(\"ioslapi_status_info\") : " << ::dlerror());
-			xif::polyvar* info = (*call_f)();
-			RAII_AT_END({ delete info; });
-			return *info;
+			try {
+				xif::polyvar* info = (*call_f)();
+				RAII_AT_END({ delete info; });
+				return *info;
+			} catch (std::exception& e) {
+				ioslaves::requestException(ioslaves::answer_code::INTERNAL_ERROR, "API", logstream << "Error in ioslapi_status_info for '" << s->s_name << "' : " << e.what());
+			}
 		}
 	}
 	return xif::polyvar();
@@ -1048,10 +1076,13 @@ void ioslaves::controlService (ioslaves::service* s, bool start, const char* con
 					::dlclose(dl_handle);
 					throw ioslaves::requestException(ioslaves::answer_code::INTERNAL_ERROR, "API", logstream << "Error getting function with dlsym(\"ioslapi_start\") : " << ::dlerror());
 				}
-				bool ok = (*start_service_func)(controlling_master);
-				if (not ok) {
+				try {
+					bool ok = (*start_service_func)(controlling_master);
+					if (not ok) 
+						throw std::runtime_error("failed");
+				} catch (std::exception& e) {
 					::dlclose(dl_handle);
-					throw ioslaves::requestException(ioslaves::answer_code::EXTERNAL_ERROR, "API", logstream << "The start method of the service '" << s->s_name << "' failed");
+					throw ioslaves::requestException(ioslaves::answer_code::EXTERNAL_ERROR, "API", logstream << "Error in start method of service '" << s->s_name << "' : " << e.what());
 				}
 				s->spec.plugin.handle = dl_handle;
 			} else {
@@ -1059,7 +1090,11 @@ void ioslaves::controlService (ioslaves::service* s, bool start, const char* con
 				__extension__ ioslaves::api::stop_f stop_func = (ioslaves::api::stop_f) ::dlsym(dl_handle, "ioslapi_stop");
 				if (stop_func == NULL) 
 					throw ioslaves::requestException(ioslaves::answer_code::INTERNAL_ERROR, "API", logstream << "Error getting function with dlsym(\"ioslapi_stop\") : " << ::dlerror());
-				(*stop_func)();
+				try {
+					(*stop_func)();
+				} catch (std::exception& e) {
+					__log__(log_lvl::ERROR, "API", logstream << "Error in stop method of service '" << s->s_name << "' : " << e.what());
+				}
 				::dlclose(dl_handle);
 				s->spec.plugin.handle = NULL;
 			}

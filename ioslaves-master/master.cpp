@@ -59,9 +59,10 @@ std::string $api_co_unix_sock_path;
 bool $need_auth = false;
 bool $net_verbose = false;
 timeval $connect_timeout = {1,000000};
-timeval $comm_timeout = {2,000000};
+timeval $comm_timeout = {4,000000};
 bool $ignore_net_errors = false;
 time_t $log_begin, $log_end;
+int16_t $autoshutdown = -1;
 
 // ioslaves' core functionnality functions
 	void IPreSlaveCo ();
@@ -147,7 +148,7 @@ int main (int argc, char* const argv[]) {
 			{"open-port", required_argument, NULL, 'P'},
 			{"close-port", required_argument, NULL, 'X'},
 			{"reboot", no_argument, NULL, 'R'},
-			{"shutdown", no_argument, NULL, 'D'},
+			{"shutdown", optional_argument, NULL, 'D'},
 			{"status", no_argument, NULL, 'G'},
 			{"log", optional_argument, NULL, 'L'},
 		{"keygen", no_argument, NULL, 'K'},
@@ -205,7 +206,9 @@ int main (int argc, char* const argv[]) {
 						 "        -X, --close-port=(T|U)PORT[-END]\n"
 						 "                                    Close opened port(s) on the distant gateway.\n"
 						 "        -R, --reboot                Reboot distant slave.\n"
-						 "        -D, --shutdown              Shutdown distant slave.\n"
+						 "        -D, --shutdown [AUTO_TIME]  Shutdown distant slave. AUTO_TIME param manages automatic\n"
+						 "                                     shutdown. If AUTO_TIME=0, inhibits auto-shutdown. If AUTO_TIME>0,\n"
+						 "                                     sets the automatic shutdown in AUTO_TIME minutes.\n"
 						 "        -G, --status                Report overview status of the slave as JSON.\n"
 						 "        -L, --log [BEGIN[-END]]      Get slave's log line from timestamps BEGIN to END\n"
 						 "                                     (0 for no limit). Returns JSON if not interactive.\n"
@@ -317,6 +320,13 @@ int main (int argc, char* const argv[]) {
 				break;
 			case 'D':
 				optctx::optctx_set(optctx::slctrl_shutd);
+				if (optarg != NULL) {
+					try {
+						$autoshutdown = ::atoix<uint16_t>(optarg);
+					} catch (...) {
+						try_help("--shutdown: invalid automatic shutdown delay");
+					}	
+				} else $autoshutdown = -1;
 				$need_auth = true;
 				break;
 			case 'G':
@@ -608,12 +618,21 @@ void IPort () {
 	///---- Start/Shutdown/Sleep/Status... ----///
 
 void IShutd () {
-	if (optctx::verbose) std::cerr << "Trying to shut down distant slave..." << std::endl;
-	if ($shutd_reboot)
-		$slave_sock->o_char((char)ioslaves::op_code::SLAVE_REBOOT);
-	else
-		$slave_sock->o_char((char)ioslaves::op_code::SLAVE_SHUTDOWN);
-	$ignore_net_errors = true;
+	if ($autoshutdown == -1) {
+		if (optctx::verbose) std::cerr << "Trying to shut down distant slave..." << std::endl;
+		if ($shutd_reboot)
+			$slave_sock->o_char((char)ioslaves::op_code::SLAVE_REBOOT);
+		else
+			$slave_sock->o_char((char)ioslaves::op_code::SLAVE_SHUTDOWN);
+		$ignore_net_errors = true;
+	} else {
+		if (optctx::verbose) {
+			if ($autoshutdown == 0) std::cerr << "Disabling auto-shutdown..." << std::endl;
+			else std::cerr << "Set shutdown time in " << $autoshutdown << "min..." << std::endl;
+		}
+		$slave_sock->o_char((char)ioslaves::op_code::SHUTDOWN_CTRL);
+		$slave_sock->o_int<uint32_t>($autoshutdown*60);
+	}
 }
 
 void IStat () {

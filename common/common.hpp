@@ -49,6 +49,7 @@ namespace ioslaves {
 		IGD_PORT_OPEN = 'p',
 		IGD_PORT_CLOSE = 'c',
 		SLAVE_SHUTDOWN = 's',
+		SHUTDOWN_CTRL = 'u',
 		SLAVE_REBOOT = 'r',
 		GET_STATUS = 'g',
 		PERM_STATUS = 'S',
