@@ -218,13 +218,13 @@ time_t iosl_master::slave_start (std::string slave_id, std::ostream& _log_) {
 	uint16_t $on_psu_id = -1;
 	std::string fname = _S( IOSLAVES_MASTER_SLAVES_DIR,"/",slave_id,".conf" );
 	if (::access(fname.c_str(), F_OK) == -1) 
-		throw xif::sys_error(_S("conf file not found for slave",slave_id));
+		throw std::runtime_error(_S("conf file not found for slave ",slave_id));
 	try {
 		libconfig::Config conf;
 		conf.readFile(fname.c_str());
 		$start_delay = (int)conf.lookup("start_delay");
 		if ($start_delay == 0)
-			throw std::runtime_error(_S("slave ",slave_id," must be started manually"));
+			throw std::runtime_error("must be started manually");
 		libconfig::Setting& poweron_grp = conf.lookup("poweron");
 		std::string type = poweron_grp["type"].operator std::string();
 		if (type == "wol") {
@@ -243,7 +243,7 @@ time_t iosl_master::slave_start (std::string slave_id, std::ostream& _log_) {
 		} else
 			throw std::runtime_error("invalid poweron type");
 	} catch (std::exception& e) {
-		throw std::runtime_error(_S("conf error in file for slave ",slave_id," : ",e.what()));
+		throw std::runtime_error(_S("settings error for slave ",slave_id," : ",e.what()));
 	}
 	_log_ << "Waking up slave " << slave_id;
 	if ($poweron_type == iosl_master::on_type::WoW) {

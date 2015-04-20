@@ -136,7 +136,7 @@ int main (int argc, char* const argv[]) {
 	
 	struct option long_options[] = {
 		{"help", no_argument, NULL, 'h'},
-		{"verbose", optional_argument, NULL, 'v'},
+		{"verbose", no_argument, NULL, 'v'},
 		{"no-interactive", no_argument, NULL, 'i'},
 		{"control", no_argument, NULL, 'C'},
 			{"force-auth", no_argument, NULL, 'f'},
@@ -170,7 +170,7 @@ int main (int argc, char* const argv[]) {
 	try_parse_IDs(argc, argv);
 	
 	int opt, opt_charind = 0;
-	while ((opt = ::getopt_long(argc, argv, "-hv::iCfp:S:soa:P:X:RDGL::KO::", long_options, &opt_charind)) != -1) {
+	while ((opt = ::getopt_long(argc, argv, "-hviCfp:S:soa:P:X:RDGL::KO::", long_options, &opt_charind)) != -1) {
 		switch (opt) {
 			case 'h':
 #ifdef XIFNET_HELP_HEADER
@@ -184,8 +184,8 @@ int main (int argc, char* const argv[]) {
 						 "      MASTER-ID             The master ID, used for authentification.\n"
 						 "      SLAVE-ID/ADDR         If the slave ID is used, IP and port are automatically retrieved.\n"
 						 "                            Else, the ADDR can be an IP or an hostname, with optionally :PORT\n"
-						 "  -v, --verbose[=2]         Print additional informations about what is being done [verbose level]\n"
-						 "  -i, --no-interactive      Disable prompting and error printing.\n"
+						 "  -v, --verbose             Print informations about what is being done.\n"
+						 "  -i, --no-interactive      Disable prompting. Log in HTML.\n"
 						 "\n"
 						 "Actions :\n"
 						 "  -C, --control             Connect to distant ioslaves server. Authentification is optional but\n"
@@ -676,17 +676,46 @@ void ILog () {
 }
 
 void IPowerup () {
+	try {
 	if ($poweron_type == iosl_master::on_type::_AUTO) {
 		if ($slave_id.empty()) {
 			std::cerr << COLOR_RED << "Power up : slave ID must be defined" << COLOR_RESET << std::endl;
 			throw EXCEPT_ERROR_IGNORE;
 		}
+		bool up = iosl_master::slave_test($slave_id);
+		if (up) {
+			std::cerr << COLOR_YELLOW << "Slave '" << $slave_id << "' is already up !" << std::endl;
+			EXIT_FAILURE = EXIT_FAILURE_IOSL;
+			throw EXCEPT_ERROR_IGNORE;
+		}
+		time_t delay;
 		try {
 			std::ostream nulstream(NULL);
-			iosl_master::slave_start($slave_id, (optctx::verbose? std::cerr : nulstream));
+			delay = iosl_master::slave_start($slave_id, (optctx::verbose? std::cerr : nulstream));
 		} catch (std::exception& e) {
 			std::cerr << COLOR_RED << "Power up error" << COLOR_RESET << " : " << e.what() << std::endl;
+			EXIT_FAILURE = EXIT_FAILURE_IOSL;
 			throw EXCEPT_ERROR_IGNORE;
+		}
+		if (optctx::interactive) {
+			std::cout << "Will be up in... " << std::flush;
+			std::string timestr;
+			do {
+				timestr = ::ixtoa(delay);
+				std::cout << timestr << std::flush;
+				::sleep(1);
+				std::cout << std::string(timestr.length(), '\b') << "\033[K" << std::flush;
+			} while (--delay > 0);
+			std::cout << std::endl << "Verifying... " << std::flush;
+			bool up = iosl_master::slave_test($slave_id);
+			if (up) std::cout << COLOR_GREEN << "Up !" << COLOR_RESET << std::endl;
+			else {
+				std::cout << COLOR_RED << "Seems to be still down :(" << COLOR_RESET << std::endl;
+				EXIT_FAILURE = EXIT_FAILURE_IOSL;
+				throw EXCEPT_ERROR_IGNORE;
+			}
+		} else {
+			std::cout << ::ixtoa(delay) << std::endl;
 		}
 	} else {
 		if ($poweron_type == iosl_master::on_type::WoW) {
@@ -698,6 +727,11 @@ void IPowerup () {
 		} else if ($poweron_type == iosl_master::on_type::PSU) {
 			#warning TO DO : serial psu module
 		}
+	}
+	} catch (std::exception& e) {
+		std::cerr << COLOR_RED << "Power up error" << COLOR_RESET << " : " << e.what() << std::endl;
+		EXIT_FAILURE = EXIT_FAILURE_IOSL;
+		throw EXCEPT_ERROR_IGNORE;
 	}
 }
 
