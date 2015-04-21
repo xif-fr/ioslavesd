@@ -219,36 +219,44 @@ std::pair<pid_t,pipe_proc_t> ioslaves::fork_exec (const char* cmd, const std::ve
 		throw xif::sys_error("can't fork() processus");
 }
 
+#define DIRENT_ALLOC_SZ(dir) (size_t)offsetof(struct dirent, d_name) + std::max(sizeof(dirent::d_name), (size_t)::fpathconf(dirfd(dir),_PC_NAME_MAX)) +1
+
 	// Remove folder entierely
 void ioslaves::rmdir_recurse (const char* dir_path) {
 	int r;
 	DIR* dir = ::opendir(dir_path);
 	if (dir == NULL) 
-		throw xif::sys_error(_s("rmdir_recurse() : can't open dir '",dir_path,"'"));
-	dirent* dp = NULL;
-	while ((dp = ::readdir(dir)) != NULL) {
+		throw xif::sys_error(_S("rmdir_recurse : can't open dir '",dir_path,"'"));
+	dirent* dp, *dentr = (dirent*) ::malloc(DIRENT_ALLOC_SZ(dir));
+	RAII_AT_END({
+		::closedir(dir);
+		::free(dentr);
+	});
+	int rr;
+	while ((rr = ::readdir_r(dir, dentr, &dp)) != -1 and dp != NULL) {
 		if (::strcmp(dp->d_name, ".") == 0 or ::strcmp(dp->d_name, "..") == 0) continue;
 		char* path = new char[::strlen(dir_path)+::strlen(dp->d_name)+2];
-		RAII_AT_END({ delete[] path; });
+		RAII_AT_END_L( delete[] path );
 		::strcpy(path, dir_path);
 		path[::strlen(dir_path)] = '/';
 		::strcpy(path+::strlen(dir_path)+1, dp->d_name);
 		struct stat info;
 		r = ::stat(path, &info);
 		if (r == -1) 
-			throw xif::sys_error(_s("rmdir_recurse() : can't stat file '",path,"'"));
+			throw xif::sys_error(_S("rmdir_recurse : can't stat file '",path,"'"));
 		if (S_ISDIR(info.st_mode)) {
 			ioslaves::rmdir_recurse(path);	
 		} else {
 			r = ::unlink(path);
 			if (r == -1) 
-				throw xif::sys_error(_s("rmdir_recurse() : can't remove file '",path,"'"));
+				throw xif::sys_error(_S("rmdir_recurse : can't remove file '",path,"'"));
 		}
 	}
-	::closedir(dir);
+	if (rr == -1)
+		throw xif::sys_error("rmdir_recurse : readdir_r");
 	r = ::rmdir(dir_path);
 	if (r == -1) 
-		throw xif::sys_error(_s("rmdir_recurse() : can't remove directory '",dir_path,"'"));
+		throw xif::sys_error(_S("rmdir_recurse : can't remove directory '",dir_path,"'"));
 }
 
 	// Recursive chown
@@ -256,31 +264,37 @@ void ioslaves::chown_recurse (const char* dir_path, uid_t uid, gid_t gid) {
 	int r;
 	DIR* dir = ::opendir(dir_path);
 	if (dir == NULL) 
-		throw xif::sys_error(_s("chown_recurse() : can't open dir '",dir_path,"'"));
-	dirent* dp = NULL;
-	while ((dp = ::readdir(dir)) != NULL) {
+		throw xif::sys_error(_S("chown_recurse : can't open dir '",dir_path,"'"));
+	dirent* dp, *dentr = (dirent*) ::malloc(DIRENT_ALLOC_SZ(dir));
+	RAII_AT_END({
+		::closedir(dir);
+		::free(dentr);
+	});
+	int rr;
+	while ((rr = ::readdir_r(dir, dentr, &dp)) != -1 and dp != NULL) {
 		if (::strcmp(dp->d_name, ".") == 0 or ::strcmp(dp->d_name, "..") == 0) continue;
 		char* path = new char[::strlen(dir_path)+::strlen(dp->d_name)+2];
-		RAII_AT_END({ delete[] path; });
+		RAII_AT_END_L( delete[] path );
 		::strcpy(path, dir_path);
 		path[::strlen(dir_path)] = '/';
 		::strcpy(path+::strlen(dir_path)+1, dp->d_name);
 		struct stat info;
 		r = ::stat(path, &info);
 		if (r == -1) 
-			throw xif::sys_error(_s("chown_recurse() : can't stat file '",path,"'"));
+			throw xif::sys_error(_S("chown_recurse : can't stat file '",path,"'"));
 		if (S_ISDIR(info.st_mode)) {
 			ioslaves::chown_recurse(path, uid, gid);
 		} else {
 			r = ::chown(path, uid, gid);
 			if (r == -1) 
-				throw xif::sys_error(_s("chown_recurse() : can't chown file '",path,"'"));
+				throw xif::sys_error(_S("chown_recurse : can't chown file '",path,"'"));
 		}
 	}
-	::closedir(dir);
+	if (rr == -1)
+		throw xif::sys_error("chown_recurse : readdir_r");
 	r = ::chown(dir_path, uid, gid);
 	if (r == -1) 
-		throw xif::sys_error(_s("chown_recurse() : can't chown directory '",dir_path,"'"));
+		throw xif::sys_error(_S("chown_recurse : can't chown directory '",dir_path,"'"));
 }
 
 	// Get and cache home directory
@@ -307,9 +321,7 @@ std::string ioslaves::infofile_get (const char* path, bool nul_if_no_file) {
 		if (nul_if_no_file and errno == ENOENT) return std::string();
 		throw xif::sys_error("can't open infofile");
 	}
-	RAII_AT_END({
-		::close(f);
-	});
+	RAII_AT_END_L( ::close(f) );
 	size_t sz = ::lseek(f, 0, SEEK_END);
 	if (sz == 0)
 		return std::string();
@@ -331,9 +343,7 @@ void ioslaves::infofile_set (const char* path, std::string info) {
 	fd_t f = ::open(path, O_CREAT|O_TRUNC|O_WRONLY, 0644);
 	if (f == -1)
 		throw xif::sys_error("can't open/create infofile");
-	RAII_AT_END({
-		::close(f);
-	});
+	RAII_AT_END_L( ::close(f) );
 	ssize_t rs = ::write(f, info.c_str(), info.length());
 	if (rs != (ssize_t)info.length()) 
 		throw xif::sys_error("failed to write to infofile");

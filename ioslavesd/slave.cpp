@@ -222,7 +222,8 @@ int main (int argc, const char* argv[]) { try {
 		size_t ext_sz = ::strlen(IOSLAVESD_SERVICE_FILE_EXT);
 		size_t ni;
 		DIR* services_dir = ::opendir(IOSLAVESD_SERVICE_FILES_DIR);
-		if (services_dir == NULL) { __log__(log_lvl::FATAL, "SERVICES", logstream << "Can't open services dir !"); return 1; }
+		if (services_dir == NULL) { __log__(log_lvl::FATAL, "SERVICES", logstream << "Can't open services dir !"); return EXIT_FAILURE; }
+		RAII_AT_END_L( ::closedir(services_dir) );
 		dirent* dp = NULL;
 		while ((dp = ::readdir(services_dir)) != NULL) {
 			for (ni = 1; ni <= ext_sz; ni++)
@@ -238,7 +239,6 @@ int main (int argc, const char* argv[]) { try {
 		__dp_loop_next:
 			continue;
 		}
-		::closedir(services_dir);
 	}
 	
 		// Init UPnP
@@ -1001,7 +1001,7 @@ xif::polyvar ioslaves::serviceStatus (const ioslaves::service* s) {
 				throw ioslaves::requestException(ioslaves::answer_code::INTERNAL_ERROR, "API", logstream << "Error getting function with dlsym(\"ioslapi_status_info\") : " << ::dlerror());
 			try {
 				xif::polyvar* info = (*call_f)();
-				RAII_AT_END({ delete info; });
+				RAII_AT_END_L( delete info );
 				return *info;
 			} catch (std::exception& e) {
 				ioslaves::requestException(ioslaves::answer_code::INTERNAL_ERROR, "API", logstream << "Error in ioslapi_status_info for '" << s->s_name << "' : " << e.what());
@@ -1155,7 +1155,7 @@ void ioslaves::controlService (ioslaves::service* s, bool start, const char* con
 						fd_t proc_cmd_f = ::open( _s("/proc/",::ixtoa(pid),"/comm"), O_RDONLY);
 						if (proc_cmd_f == -1) 
 							goto __start_proc;
-						RAII_AT_END({ ::close(proc_cmd_f); });
+						RAII_AT_END_L( ::close(proc_cmd_f) );
 						if (::strlen(s->spec.exec.execnam) == 0) 
 							goto __proc_validated;
 						rs = ::read(proc_cmd_f, pathbuf, sizeof(pathbuf));

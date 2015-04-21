@@ -26,8 +26,14 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::select_slaves (const c
 	DIR* slaves_dir = ::opendir(IOSLAVES_MASTER_SLAVES_DIR);
 	if (slaves_dir == NULL) 
 		throw xif::sys_error("dyn_slaves : can't open slaves dir");
-	dirent* dp = NULL;
-	while ((dp = ::readdir(slaves_dir)) != NULL) {
+	dirent* dp, *dentr = (dirent*) ::malloc(
+		(size_t)offsetof(struct dirent, d_name) + std::max(sizeof(dirent::d_name), (size_t)::fpathconf(dirfd(slaves_dir),_PC_NAME_MAX)) +1);
+	RAII_AT_END_N(dir, {
+		::closedir(slaves_dir);
+		::free(dentr);
+	});
+	int rr;
+	while ((rr = ::readdir_r(slaves_dir, dentr, &dp)) != -1 and dp != NULL) {
 		for (ni = 1; ni <= 5; ni++)
 			if (dp->d_name[::strlen(dp->d_name)-ni] != ".conf"[5-ni]) 
 				goto __dp_loop_next;
@@ -38,12 +44,12 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::select_slaves (const c
 			if (info.sl_name.length() < 3 or !ioslaves::validateSlaveName(info.sl_name)) continue;
 			FILE* ser_f = ::fopen(fname.c_str(), "r");
 			if (ser_f == NULL)
-				throw xif::sys_error(_s("failed to open slave info file for ",info.sl_name));
+				throw xif::sys_error(_S("failed to open slave info file for ",info.sl_name));
 			libconfig::Config* conf = new libconfig::Config;
 			try {
 				conf->read(ser_f);
 			} catch (libconfig::ConfigException& e) {
-				throw xif::sys_error(_s("error in slave info file for ",info.sl_name), e.what());
+				throw xif::sys_error(_S("error in slave info file for ",info.sl_name), e.what());
 			}
 			slaves_list_cfg.push_back( std::pair<slave_info,libconfig::Config*>( info, conf ) );
 			::fclose(ser_f);
@@ -51,7 +57,8 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::select_slaves (const c
 	__dp_loop_next:
 		continue;
 	}
-	::closedir(slaves_dir);
+	if (rr == -1)
+		throw xif::sys_error("slaves dir : readdir_r");
 	
 		/// Pre-fill the info strcut
 	std::vector<iosl_dyn_slaves::slave_info> slaves_list;
@@ -74,7 +81,7 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::select_slaves (const c
 				info.sl_fixed_indices.insert(std::pair<std::string,float>( name, value ));
 			}
 		} catch (libconfig::ConfigException& ce) {
-			throw xif::sys_error(_s("missing/bad fields in slave info file for ",info.sl_name), ce.what());
+			throw xif::sys_error(_S("missing/bad fields in slave info file for ",info.sl_name), ce.what());
 		}
 		slaves_list.push_back(info);
 	}

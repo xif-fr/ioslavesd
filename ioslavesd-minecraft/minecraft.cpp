@@ -112,6 +112,7 @@ namespace minecraft {
 	void unzip (const char* file, const char* in_dir, const char* expected_dir_name);
 	void deleteMapFolder (minecraft::serv* s);
 	void cpTplDir (const char* tpl_dir, std::string working_dir);
+	time_t lastsaveTimeFile (std::string path, bool set);
 	
 		// Files and templates
 	void processTemplateFile (const char* file, std::map<std::string,std::string> hashlist);
@@ -292,7 +293,11 @@ extern "C" bool ioslapi_got_sigchld (pid_t pid, int pid_status) {
 }
 
 extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const char* auth_as, in_addr_t) {
-	if (auth_as == NULL) return;
+	int r;
+	
+	if (auth_as == NULL) 
+		return;
+	
 	try {
 		socketxx::io::simple_socket<socketxx::base_socket> cli (_cli_sock);
 		timeval utc_time; ::gettimeofday(&utc_time, NULL);
@@ -388,27 +393,48 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 					__log__(log_lvl::LOG, "COMM", ": Not running", LOG_ADD, &l);
 					cli.o_bool(false);
 				}
-				std::vector<std::string> serv_maps;
+					// Send map list (without running map) with their last-save-time for master syncing, and send map save if needed
+				__log__(log_lvl::LOG, "FILES", logstream << "List maps...", LOG_WAIT, &l);
+				std::map<std::string,time_t> serv_maps;
 				try {
 					std::string global_serv_dir = _S( MINECRAFT_SRV_DIR,"/mc_",s_servid );
 					DIR* dir = ::opendir(global_serv_dir.c_str());
 					if (dir == NULL) 
 						throw xif::sys_error("can't open global server dir for listing maps");
-					RAII_AT_END({
+					dirent* dp, *dentr = (dirent*) ::malloc(
+						(size_t)offsetof(struct dirent, d_name) + std::max(sizeof(dirent::d_name), (size_t)::fpathconf(dirfd(dir),_PC_NAME_MAX)) +1
+					);
+					RAII_AT_END({ 
 						::closedir(dir);
+						::free(dentr);
 					});
-					dirent* dp = NULL;
-					while ((dp = ::readdir(dir)) != NULL) {
-						std::string map = std::string(dp->d_name);
-						if (ioslaves::validateName(map) and not (s != NULL and not s->s_is_perm_map and s->s_map == map)) 
-							serv_maps.push_back(map);
+					int rr;
+					while ((rr = ::readdir_r(dir, dentr, &dp)) != -1 and dp != NULL) {
+						std::string map = std::string(dentr->d_name);
+						if (ioslaves::validateName(map) and not (s != NULL and not s->s_is_perm_map and s->s_map == map)) {
+							std::string lastsavetime_path = _S( MINECRAFT_SRV_DIR,"/mc_",s_servid,'/',map );
+							r = ::access(lastsavetime_path.c_str(), R_OK);
+							time_t lastsave = 0;
+							if (r == 0) 
+								lastsave = minecraft::lastsaveTimeFile(lastsavetime_path.c_str(), false);
+							__log__(log_lvl::LOG, "FILES", logstream << map << ":" << lastsave, LOG_ADD|LOG_WAIT, &l);
+							serv_maps.insert({map,lastsave});
+						}
 					}
-				} catch (xif::sys_error& e) {
-					__log__(log_lvl::NOTICE, "FILES", logstream << "Error while listing maps of server : " << e.what());
+					if (rr == -1)
+						throw xif::sys_error("map listing in server folder : readdir_r");
+				} catch (std::exception& e) {
+					__log__(log_lvl::ERROR, "FILES", logstream << "Error while listing maps of server : " << e.what());
 				}
 				cli.o_int<uint32_t>((uint32_t)serv_maps.size());
-				for (const std::string& map : serv_maps) 
-					cli.o_str(map);
+				for (decltype(serv_maps)::const_reference p : serv_maps) {
+					cli.o_str(p.first);
+					cli.o_int<uint64_t>(p.second);
+					ioslaves::answer_code o = (ioslaves::answer_code)cli.i_char();
+					if (o == ioslaves::answer_code::WANT_GET) {
+						minecraft::compressAndSend(cli, s_servid, p.first);
+					}
+				}
 			} break;
 			
 				// Transform a temp map into a permanent map (server folder will not be deleted)
@@ -499,7 +525,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 	/// Transfert and map functions
 
 // Read/write the last-save-time file on server folder
-inline time_t lastsaveTimeFile (std::string path, bool set) {
+time_t minecraft::lastsaveTimeFile (std::string path, bool set) {
 	fd_t file; ssize_t rs;
 	time_t lastsave = 0;
 	timeval utc_time;
@@ -571,7 +597,7 @@ void minecraft::transferAndExtract (socketxx::io::simple_socket<socketxx::base_s
 	__log__(log_lvl::LOG, "FILES", logstream << "Downloading file '" << name << "' of type '" << (char)what << "' from master...", LOG_WAIT, &l);
 	if (what == minecraft::transferWhat::MAP || what == minecraft::transferWhat::JAR || what == minecraft::transferWhat::BIGFILE) {
 		tempfile_name = _S( parent_dir,'/',name );
-		fd_t tempfd = ::open(tempfile_name.c_str(), O_CREAT|O_EXCL|O_WRONLY, 0644);
+		fd_t tempfd = ::open(tempfile_name.c_str(), O_CREAT|O_EXCL|O_WRONLY|O_NOFOLLOW, MC_MAP_PERM);
 		if (tempfd == -1)
 			throw xif::sys_error("failed to open destination file for transferring");
 		try {
@@ -664,10 +690,10 @@ void minecraft::processTemplateFile (const char* fpath, std::map<std::string,std
 	fpath_final = fpath_final.substr(0, fpath_final.find(".in"));
 	FILE* f = ::fopen(fpath, "r");
 	if (f == NULL)
-		throw xif::sys_error(_s("can't open template file ",fpath));
+		throw xif::sys_error(_S("can't open template file ",fpath));
 	FILE* ff = ::fopen(fpath_final.c_str(), "w");
 	if (ff == NULL)
-		throw xif::sys_error(_s("can't open dest file for untemplating ",fpath_final));
+		throw xif::sys_error(_S("can't open dest file for untemplating ",fpath_final));
 	std::string keybuf;
 	bool keymode = false;
 	int c;
@@ -921,9 +947,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 				throw ioslaves::requestException(ioslaves::answer_code::EXISTS, "FILES", MCLOGSCLI(s) << "Can't use temporary map '" << s->s_map << "' : a permanent server folder exists with this name");
 				// Permanent map folder found
 			{ DIR* dir = ::opendir(working_dir.c_str());
-				RAII_AT_END({
-					::closedir(dir);
-				});
+				RAII_AT_END_L( ::closedir(dir) );
 				if (dir == NULL) 
 					throw xif::sys_error("can't open working_dir for scanning");
 				dirent* dp = NULL;

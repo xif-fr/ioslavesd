@@ -13,9 +13,10 @@
 #ifdef XIFNET
 	#define XIFNET_MC_DOM "mc.xif.fr"
 #endif
+#define MC_MAP_PERM 0640
 
 	// Protocol version
-#define IOSLAVES_MINECRAFT_PROTO_VERS 0x16
+#define IOSLAVES_MINECRAFT_PROTO_VERS 0x17
 
 	// Minecraft service
 namespace minecraft {

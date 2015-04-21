@@ -428,7 +428,7 @@ int main (int argc, char* const argv[]) {
 				EXIT_FAILURE = EXIT_FAILURE_COMM;
 				return EXIT_FAILURE;
 			}
-			fd_t f = ::open(lockpath.c_str(), O_CREAT|O_RDONLY|O_EXCL, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
+			fd_t f = ::open(lockpath.c_str(), O_CREAT|O_RDONLY|O_EXCL|O_NOFOLLOW, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
 			if (f == -1 and errno == EEXIST) {
 				::sleep(1);
 				continue;
@@ -696,7 +696,7 @@ void MServPre () {
 					__log__ << NICE_WARNING << "Lock file for server '" << $server_name << "' (" << lockpath << ") was locked for 10 seconds." << std::flush;
 					throw EXCEPT_ERROR_IGNORE;
 				}
-				fd_t f = ::open(lockpath.c_str(), O_CREAT|O_RDONLY|O_EXCL, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
+				fd_t f = ::open(lockpath.c_str(), O_CREAT|O_RDONLY|O_EXCL|O_NOFOLLOW, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
 				if (f == -1 and errno == EEXIST) {
 					if (counter == 0) 
 						__log__ << COLOR_YELLOW << "Waiting for lock file..." << COLOR_RESET << std::flush;
@@ -744,7 +744,9 @@ void verifyMapList (std::string slave_id, std::string server_name, socketxx::io:
 		size_t sz = sock.i_int<uint32_t>();
 		while (sz --> 0) {
 			std::string map = sock.i_str();
+			time_t lastsave = sock.i_int<uint64_t>();
 			std::string map_folder = _S( IOSLAVES_MINECRAFT_MASTER_DIR,"/",server_name,"/maps/",map );
+			bool want_get = false;
 			r = ::access(map_folder.c_str(), F_OK);
 			if (r == -1) {
 				__log__ << COLOR_YELLOW << "Warning !" << COLOR_RESET << " Map '" << map << "' for server '" << server_name << "' on slave '" << slave_id << "' doesn't exist locally !" << std::flush;
@@ -756,7 +758,32 @@ void verifyMapList (std::string slave_id, std::string server_name, socketxx::io:
 				ioslaves::infofile_set(_s(map_folder,"/truesave"), "false");
 				ioslaves::infofile_set(_s(map_folder,"/lastsave_from"), slave_id);
 				__log__ << LOG_AROBASE_OK << "Map folder '" << map << "' created." << std::flush;
+				if (lastsave != 0)
+					want_get = true;
+			} else {
+				time_t lastsave_local = getLastSaveTime(server_name, map);
+				if (lastsave_local < lastsave) {
+					__log__ << COLOR_YELLOW << "Warning !" << COLOR_RESET << " Slave '" << slave_id << "' have a more recent version of map '" << map << "'." << std::flush;
+					want_get = true;
+				}
 			}
+			if (want_get and not $refuse_save) {
+				__log__ << LOG_AROBASE << "Retrieving map save at " << lastsave << "..." << std::flush;
+				sock.o_char((char)ioslaves::answer_code::WANT_GET);
+				lastsave = sock.i_int<int64_t>();
+				sock.o_bool(true);
+				std::string savepath = _S( map_folder,'/',map,'_',::ixtoa(lastsave,IX_HEX_MAJ),".zip" );
+				fd_t save_f = ::open(savepath.c_str(), O_CREAT|O_EXCL|O_WRONLY|O_NOFOLLOW, MC_MAP_PERM);
+				if (save_f == -1)
+					throw xif::sys_error("can't open map save file");
+				RAII_AT_END_L( ::close(save_f) );
+				sock.i_file(save_f);
+				ioslaves::infofile_set(_s(map_folder,"/lastsave"), ::ixtoa(lastsave));
+				ioslaves::infofile_set(_s(map_folder,"/truesave"), "false");
+				ioslaves::infofile_set(_s(map_folder,"/lastsave_from"), slave_id);
+				__log__ << LOG_AROBASE_OK << "Retrieving done !" << std::flush;
+			} else
+				sock.o_char((char)ioslaves::answer_code::OK);
 		}
 	} catch (socketxx::error& e) {
 		__log__ << LOG_AROBASE_ERR << "Net error while getting map list for server " << server_name << " : " << e.what() << std::flush;
@@ -1147,12 +1174,12 @@ _try_start:
 		if (o == ioslaves::answer_code::WANT_GET) {
 			minecraft::transferWhat what = (minecraft::transferWhat)sock->i_char();
 			if (not $forced_file.empty() and (what == minecraft::transferWhat::SERVFOLD or what == minecraft::transferWhat::MAP)) {
-				__log__ << " Want get map : sending forced file" << std::flush;
+				__log__ << LOG_AROBASE << " Want get map : sending forced file" << std::flush;
 				sock->o_bool(true);
 				sock->o_file($forced_file.c_str());
 			} 
 			else if ($granmaster and what == minecraft::transferWhat::JAR) {
-				__log__ << " Want get jar" << std::flush;
+				__log__ << LOG_AROBASE << " Want get jar" << std::flush;
 				bool vanilla = sock->i_bool();
 				std::string jar_ver = $start_jar_ver;
 				if (vanilla) { jar_ver = ioslaves::version(jar_ver, true).strdigits(); }
@@ -1175,7 +1202,7 @@ _try_start:
 				sock->o_file(jar_path.c_str());
 			} else if ($granmaster and what == minecraft::transferWhat::BIGFILE) {
 				std::string bigfile_name = sock->i_str();
-				__log__ << " Want get bigfile named '" << bigfile_name << "'" << std::flush;
+				__log__ << LOG_AROBASE << " Want get bigfile named '" << bigfile_name << "'" << std::flush;
 				std::string bigfile_path = _S( IOSLAVES_MINECRAFT_MASTER_BIGFILES_DIR,'/',bigfile_name );
 				struct stat fst;
 				int r = ::stat(bigfile_path.c_str(), &fst);
@@ -1189,7 +1216,7 @@ _try_start:
 				sock->o_bool(true);
 				sock->o_file(bigfile_path.c_str());
 			} else if ($granmaster) {
-				__log__ << " Want get map (" << (char)what << ") : ";
+				__log__ << LOG_AROBASE << " Want get map (" << (char)what << ") : ";
 				if (not $start_is_perm) {
 					__log__ << "sending temporary map " << $start_map << std::flush;
 					if (what != minecraft::transferWhat::MAP) { sock->o_bool(false); continue; }
@@ -1232,10 +1259,11 @@ _try_start:
 			if ($granmaster) 
 				acceptFileSave(*sock, $server_name, $start_map, $slave_id);
 			else {
+				sock->i_int<int64_t>();
 				sock->o_bool(false);
-				__log__ << LOG_AROBASE_ERR << "Ingoring send request" << std::flush;
+				__log__ << LOG_AROBASE_ERR << "Not granmaster : ignoring send request" << std::flush;
 			}
-		} else
+		} else 
 			throw o;
 	}
 	if ($start_is_perm) {

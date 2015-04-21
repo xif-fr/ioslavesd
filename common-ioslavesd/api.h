@@ -112,7 +112,7 @@ struct _block_asroot {
 #endif
 
 /// Definitions for ioslaves plugin service
-// Never trust other plugins and ioslavesd about global or side-effect opperations or vars (like chdir...)
+// Never trust other plugins and ioslavesd about global or side-effect opperations or vars (like chdir...), and non reentrant functions
 
 #ifdef IOSLAVESD_API_SERVICE
 
