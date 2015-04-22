@@ -1147,9 +1147,8 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			cli.o_char((char)ioslaves::answer_code::OK);
 			
 		} catch (...) {
-			::pthread_cancel(s->s_thread);
 			if (s->s_java_pid != -1)
-				::kill(s->s_java_pid, SIGKILL);
+				::kill(s->s_java_pid, SIGKILL); // Killing java is a sufficient sign to the thread, it should NOT be canceled
 			throw;
 		}
 		
@@ -1258,23 +1257,19 @@ void* minecraft::serv_thread (void* arg) {
 		__log__(log_lvl::LOG, THLOGSCLI(s), logstream << "Launching java with `" << _args << "`");
 		
 			// Forking process and executing java
-		std::pair<pid_t,pipe_proc_t> fork_pair = ioslaves::fork_exec("java", args, true, s->s_wdir.c_str(), true, minecraft::java_user_id, minecraft::java_group_id, false);
+		pipe_proc_t java_pipes;
+		std::tie(s->s_java_pid, java_pipes)
+			= ioslaves::fork_exec("java", args, true, s->s_wdir.c_str(), true, minecraft::java_user_id, minecraft::java_group_id, false);
 		
 			// Java StdIO handling
-		pid_t java_pid = s->s_java_pid = fork_pair.first;
-		pipe_proc_t java_pipes = fork_pair.second;
-		fd_t java_pipe_out = java_pipes.err;
-		if (s->s_serv_type == minecraft::serv_type::VANILLA) {
-			if (s->s_mc_ver >= ioslaves::version(1,7,0)) java_pipe_out = java_pipes.out;
-			else java_pipe_out = java_pipes.err;
-		} else if (s->s_serv_type == minecraft::serv_type::BUKKIT) {
-			if (s->s_mc_ver >= ioslaves::version(1,7,0)) java_pipe_out = java_pipes.out;
-			else java_pipe_out = java_pipes.err;
-		} else if (s->s_serv_type == minecraft::serv_type::FORGE) {
-			java_pipe_out = java_pipes.out;
-		} else __log__(log_lvl::WARNING, THLOGSCLI(s), logstream << "No defined choice for java output : using stderr");
-		FD_SET(java_pipe_out, &select_set);
-		if (java_pipe_out > select_max) select_max = java_pipe_out;
+		FD_SET(java_pipes.out, &select_set);
+		FD_SET(java_pipes.err, &select_set);
+		select_max = std::max({java_pipes.out, java_pipes.err, select_max});
+		RAII_AT_END_N(pipes, {
+			::close(java_pipes.err);
+			::close(java_pipes.out);
+			::close(java_pipes.in);
+		});
 		
 			// Java is now launched
 		WriteEarlyState('j');
@@ -1370,16 +1365,18 @@ void* minecraft::serv_thread (void* arg) {
 				else if (r >= 1) {
 					
 						// Check for java output
-					if (FD_ISSET(java_pipe_out, &sel_set)) {
+					if (FD_ISSET(java_pipes.out, &sel_set) or FD_ISSET(java_pipes.err, &sel_set)) {
 						errno = 0;
 						char lbuf[1024];
-						ssize_t rs = ::read(java_pipe_out, lbuf, sizeof(lbuf));
+						fd_t out = FD_ISSET(java_pipes.out, &sel_set) ? java_pipes.out : java_pipes.err;
+						ssize_t rs = ::read(out, lbuf, sizeof(lbuf));
 						if (rs == 0) { 
 							if (stopInfo.why == (minecraft::whyStopped)0) 
 								throw xif::sys_error("read from java pipe", "pipe closed");
 							else {
 								__log__(log_lvl::NOTICE, THLOGSCLI(s), "Java pipe closed during closing");
-								FD_CLR(java_pipe_out, &select_set);
+								FD_CLR(java_pipes.out, &select_set);
+								FD_CLR(java_pipes.err, &select_set);
 								goto __retry;
 							}
 						}
@@ -1496,7 +1493,7 @@ void* minecraft::serv_thread (void* arg) {
 							case minecraft::internal_serv_op_code::KILL_THREAD: {
 								__log__(log_lvl::WARNING, THLOGSCLI(s), "Killing myself : everything will be loss !");
 								stopInfo.why = minecraft::whyStopped::ERROR_INTERNAL;
-								::kill(java_pid, SIGTERM);
+								::kill(s->s_java_pid, SIGTERM);
 								::pthread_exit(NULL);
 							} break;
 							
@@ -1602,7 +1599,7 @@ void* minecraft::serv_thread (void* arg) {
 		}
 
 			// Maybe the server is closed. Else, close server ungracefully but softly with SIGHUP.
-		r = ::kill(java_pid, SIGHUP);
+		r = ::kill(s->s_java_pid, SIGHUP);
 		if (r == -1) {
 			if (errno == ESRCH) 
 				__log__(log_lvl::LOG, THLOGSCLI(s), logstream << "Java is already stopped", LOG_WAIT, &l);
@@ -1612,8 +1609,8 @@ void* minecraft::serv_thread (void* arg) {
 			stopInfo.why = minecraft::whyStopped::ERROR_INTERNAL;
 		}
 		int status;
-		pid_t r_pid = ::waitpid(java_pid, &status, WUNTRACED);
-		if (r_pid == java_pid) {
+		pid_t r_pid = ::waitpid(s->s_java_pid, &status, WUNTRACED);
+		if (r_pid == s->s_java_pid) {
 			log_lvl r_pid_lvl = (WEXITSTATUS(status) == 0) ? log_lvl::DONE : log_lvl::WARNING;
 			__log__(r_pid_lvl, NULL, logstream << "(ret code " << WEXITSTATUS(status) << ")", LOG_ADD, &l);
 		}
