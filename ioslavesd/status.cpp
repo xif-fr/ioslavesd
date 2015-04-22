@@ -171,7 +171,7 @@ void ioslaves::statusEnd () {
 #ifndef IOSLAVESD_NO_TOPP
 	std::tuple<time_t,time_t,time_t> times = topp::GetUptime();
 	try {
-		topparsing::FieldsFile F_uptime(IOSLAVESD_UPTIME_FILE);
+		topparsing::FieldsFile F_uptime(IOSLAVESD_UPTIME_FILE, ' ', 3);
 		std::get<0>(times) += iosl_uptime;
 		float factor = (float)iosl_uptime/(float)F_uptime.numi(0);
 		std::get<1>(times) += (time_t)((float)F_uptime.numi(1)*factor);

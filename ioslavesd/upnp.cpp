@@ -50,7 +50,7 @@ void ioslaves::upnpInit () {
 				if (sz > 10) {
 					::lseek(cache_f.f, 0, SEEK_SET);
 					char* url_str = new char[sz+1];
-					RAII_AT_END_N(url_str, { delete[] url_str; });
+					RAII_AT_END_L( delete[] url_str );
 					rs = ::read(cache_f.f, url_str, (size_t)sz);
 					if (rs == sz) {
 						url_str[sz] = '\0';

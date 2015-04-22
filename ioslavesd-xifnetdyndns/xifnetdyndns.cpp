@@ -276,9 +276,7 @@ void xdyndns::NSD_reload () {
 void xdyndns::NSD_zone_parser (std::string domain, const std::list<xdyndns::srv_t>* srvs, xdyndns::a_record_t* slave_ip_set) {
 	fd_t f = ::open(_s( XIFNETDYNDNS_ZONES_DIR,'/',domain,XIFNETDYNDNS_ZONE_EXT ), O_RDWR);
 	if (f == INVALID_HANDLE) throw xif::sys_error("can't open zone file for modifying");
-	RAII_AT_END({ 
-		::close(f);
-	});
+	RAII_AT_END_L( ::close(f) );
 	char c;
 	enum { CTX_PRE_SOA, CTX_SOA, CTX_SOA_PARTH, CTX_SOA_SERIAL, CTX_SOA_SERIAL_WRITE, CTX_WAIT_DYN, CTX_BEG_DYN, CTX_DYN_HOST, CTX_DYN_FOO, CTX_DYN_IP, CTX_DYNPART_WAIT, CTX_DYNPART_WRITE } ctx = CTX_PRE_SOA;
 	size_t tok = 0;
