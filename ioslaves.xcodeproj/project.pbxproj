@@ -21,8 +21,6 @@
 		AA41B7341ADEC2E200B369BE /* common.hpp in Headers */ = {isa = PBXBuildFile; fileRef = AA41B72C1ADEC2E200B369BE /* common.hpp */; };
 		AA41B7381ADEC2FE00B369BE /* api.h in Headers */ = {isa = PBXBuildFile; fileRef = AA41B7351ADEC2FE00B369BE /* api.h */; };
 		AA41B7391ADEC2FE00B369BE /* api.h in Headers */ = {isa = PBXBuildFile; fileRef = AA41B7351ADEC2FE00B369BE /* api.h */; };
-		AA41B73C1ADEC2FE00B369BE /* log.h in Headers */ = {isa = PBXBuildFile; fileRef = AA41B7371ADEC2FE00B369BE /* log.h */; };
-		AA41B73D1ADEC2FE00B369BE /* log.h in Headers */ = {isa = PBXBuildFile; fileRef = AA41B7371ADEC2FE00B369BE /* log.h */; };
 		AA41B73F1ADEC32B00B369BE /* xifnetdyndns.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B73E1ADEC32B00B369BE /* xifnetdyndns.cpp */; };
 		AA41B74B1ADEC34500B369BE /* log_slave.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B7431ADEC34500B369BE /* log_slave.cpp */; };
 		AA41B74D1ADEC34500B369BE /* slave.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B7471ADEC34500B369BE /* slave.cpp */; };
@@ -38,10 +36,12 @@
 		AA41B7681ADECB3900B369BE /* master.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B7651ADECB3900B369BE /* master.cpp */; };
 		AA41B76D1ADECB9B00B369BE /* minecraft-master.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B76A1ADECB9B00B369BE /* minecraft-master.cpp */; };
 		AA41B76E1ADECBE200B369BE /* master-impl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B75B1ADECB1700B369BE /* master-impl.cpp */; };
+		AA6B99FD1AED9F1700146475 /* log.h in Headers */ = {isa = PBXBuildFile; fileRef = AA6B99FC1AED9F1700146475 /* log.h */; };
+		AA6B99FE1AED9F1700146475 /* log.h in Headers */ = {isa = PBXBuildFile; fileRef = AA6B99FC1AED9F1700146475 /* log.h */; };
+		AA6B99FF1AED9F1700146475 /* log.h in Headers */ = {isa = PBXBuildFile; fileRef = AA6B99FC1AED9F1700146475 /* log.h */; };
 		AA8397921AE97AF4007FDF06 /* dyn_slaves.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B75A1ADECB1600B369BE /* dyn_slaves.cpp */; };
 		AA8397941AE97AF9007FDF06 /* master-impl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B75B1ADECB1700B369BE /* master-impl.cpp */; };
 		AA8397961AE97B22007FDF06 /* api.h in Headers */ = {isa = PBXBuildFile; fileRef = AA41B7351ADEC2FE00B369BE /* api.h */; };
-		AA8397971AE97B28007FDF06 /* log.h in Headers */ = {isa = PBXBuildFile; fileRef = AA41B7371ADEC2FE00B369BE /* log.h */; };
 		AA8397981AE97B3D007FDF06 /* common.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B72B1ADEC2E200B369BE /* common.cpp */; };
 		AAD214891AE974E30062A678 /* wol.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B75D1ADECB1700B369BE /* wol.cpp */; };
 /* End PBXBuildFile section */
@@ -60,7 +60,6 @@
 		AA41B72B1ADEC2E200B369BE /* common.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = common.cpp; path = common/common.cpp; sourceTree = "<group>"; };
 		AA41B72C1ADEC2E200B369BE /* common.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = common.hpp; path = common/common.hpp; sourceTree = "<group>"; };
 		AA41B7351ADEC2FE00B369BE /* api.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = api.h; path = "common-ioslavesd/api.h"; sourceTree = "<group>"; };
-		AA41B7371ADEC2FE00B369BE /* log.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = log.h; path = "common-ioslavesd/log.h"; sourceTree = "<group>"; };
 		AA41B73E1ADEC32B00B369BE /* xifnetdyndns.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = xifnetdyndns.cpp; path = "ioslavesd-xifnetdyndns/xifnetdyndns.cpp"; sourceTree = "<group>"; };
 		AA41B7431ADEC34500B369BE /* log_slave.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = log_slave.cpp; path = ioslavesd/log_slave.cpp; sourceTree = "<group>"; };
 		AA41B7441ADEC34500B369BE /* main.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = main.h; path = ioslavesd/main.h; sourceTree = "<group>"; };
@@ -76,6 +75,7 @@
 		AA41B75D1ADECB1700B369BE /* wol.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = wol.cpp; path = "common-master/wol.cpp"; sourceTree = SOURCE_ROOT; };
 		AA41B7651ADECB3900B369BE /* master.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = master.cpp; sourceTree = "<group>"; };
 		AA41B76A1ADECB9B00B369BE /* minecraft-master.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "minecraft-master.cpp"; path = "ioslaves-master-minecraft/minecraft-master.cpp"; sourceTree = SOURCE_ROOT; };
+		AA6B99FC1AED9F1700146475 /* log.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = log.h; path = common/log.h; sourceTree = "<group>"; };
 		AA7EEC49193C9221002AD7E4 /* libxifnetdyndns.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = libxifnetdyndns.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA90C531189F7461003A8C60 /* libminecraft.ioslaves.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = libminecraft.ioslaves.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA99F1B0184C65DD00BB6836 /* ioslavesd */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ioslavesd; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -183,7 +183,7 @@
 		AA99F1A5184C65DD00BB6836 = {
 			isa = PBXGroup;
 			children = (
-				AA41B7371ADEC2FE00B369BE /* log.h */,
+				AA6B99FC1AED9F1700146475 /* log.h */,
 				AA41B72C1ADEC2E200B369BE /* common.hpp */,
 				AA41B72B1ADEC2E200B369BE /* common.cpp */,
 				AAC7F7B31861FEB500033009 /* slave */,
@@ -253,7 +253,7 @@
 			files = (
 				AA41B7341ADEC2E200B369BE /* common.hpp in Headers */,
 				AA41B7391ADEC2FE00B369BE /* api.h in Headers */,
-				AA41B73D1ADEC2FE00B369BE /* log.h in Headers */,
+				AA6B99FE1AED9F1700146475 /* log.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -263,7 +263,7 @@
 			files = (
 				AA41B7331ADEC2E200B369BE /* common.hpp in Headers */,
 				AA41B7381ADEC2FE00B369BE /* api.h in Headers */,
-				AA41B73C1ADEC2FE00B369BE /* log.h in Headers */,
+				AA6B99FD1AED9F1700146475 /* log.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -272,7 +272,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				AA8397961AE97B22007FDF06 /* api.h in Headers */,
-				AA8397971AE97B28007FDF06 /* log.h in Headers */,
+				AA6B99FF1AED9F1700146475 /* log.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

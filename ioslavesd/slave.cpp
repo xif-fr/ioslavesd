@@ -947,7 +947,7 @@ void ioslaves::loadService (std::string name, FILE* service_file) {
 				break;
 		}
 	} catch (std::exception& e) {
-		__log__(log_lvl::ERROR, "SERVICE", logstream << _IOSLAVES_SERVICE_CONF_ERROR_STR << ce.what());
+		__log__(log_lvl::ERROR, "SERVICE", logstream << _IOSLAVES_SERVICE_CONF_ERROR_STR << e.what());
 		return;
 	}
 	__log__(log_lvl::LOG, "SERVICE", logstream << "Service '" << s->s_name << "' of type " << s->typeToStr() << " loaded");

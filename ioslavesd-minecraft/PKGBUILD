@@ -13,16 +13,16 @@ backup=()
 options=()
 install='ioslavesd-mc.install'
 
-source=('../common/common.hpp' '../common/common.cpp'
-        '../common-ioslavesd/api.h' '../common-ioslavesd/log.h'
+source=('../common/common.hpp' '../common/common.cpp' '../common/log.h'
+        '../common-ioslavesd/api.h'
         '../common-minecraft/minecraft.h'
         'minecraft.cpp' 'ftp-auth-mc.cpp'
         'Makefile'
         'minecraft.service'
         'maptpl.zip' 'permtpl.zip' 'ioslmc.conf')
 noextract=('maptpl.zip' 'permtpl.zip')
-sha256sums=('SKIP' 'SKIP'
-            'SKIP' 'SKIP'
+sha256sums=('SKIP' 'SKIP' 'SKIP'
+            'SKIP'
             'SKIP' 'SKIP'
             'SKIP'
             'SKIP'

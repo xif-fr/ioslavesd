@@ -13,15 +13,15 @@ backup=()
 options=()
 install=''
 
-source=('../common/common.hpp' '../common/common.cpp'
+source=('../common/common.hpp' '../common/common.cpp' '../common/log.h'
         'master.cpp' '../common-master/master.hpp' '../common-master/master-impl.cpp' '../common-master/dyn_slaves.cpp' '../common-master/wol.cpp'
         'Makefile')
-sha256sums=('SKIP' 'SKIP'
+sha256sums=('SKIP' 'SKIP' 'SKIP'
             'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
             'SKIP')
 
 build() {
-	export CXXFLAGS="${CXXFLAGS} -DXIFNET -DIOSLAVES_MASTER_DIR=\"__get_homedir__()+\\\"/ioslaves-master\\\"\"
+	export CXXFLAGS="${CXXFLAGS} -DXIFNET -DIOSLAVES_MASTER_DIR=\"__get_homedir__()+\\\"/ioslaves-master\\\"\" "
 	make 
 }
 
