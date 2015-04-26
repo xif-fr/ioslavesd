@@ -10,6 +10,7 @@
 		AA1D3ACF1ADECD7600E2C7F6 /* master-impl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B75B1ADECB1700B369BE /* master-impl.cpp */; };
 		AA1D3AD71ADECDAF00E2C7F6 /* ftp-auth-mc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA1D3AD21ADECDAF00E2C7F6 /* ftp-auth-mc.cpp */; };
 		AA1D3AD91ADECDAF00E2C7F6 /* minecraft.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA1D3AD41ADECDAF00E2C7F6 /* minecraft.cpp */; };
+		AA2F821A1AED6CE100DFBBDF /* wake-gateway.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA2F82191AED6CE100DFBBDF /* wake-gateway.cpp */; };
 		AA41B72D1ADEC2E200B369BE /* common.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B72B1ADEC2E200B369BE /* common.cpp */; };
 		AA41B72E1ADEC2E200B369BE /* common.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B72B1ADEC2E200B369BE /* common.cpp */; };
 		AA41B72F1ADEC2E200B369BE /* common.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B72B1ADEC2E200B369BE /* common.cpp */; };
@@ -20,8 +21,6 @@
 		AA41B7341ADEC2E200B369BE /* common.hpp in Headers */ = {isa = PBXBuildFile; fileRef = AA41B72C1ADEC2E200B369BE /* common.hpp */; };
 		AA41B7381ADEC2FE00B369BE /* api.h in Headers */ = {isa = PBXBuildFile; fileRef = AA41B7351ADEC2FE00B369BE /* api.h */; };
 		AA41B7391ADEC2FE00B369BE /* api.h in Headers */ = {isa = PBXBuildFile; fileRef = AA41B7351ADEC2FE00B369BE /* api.h */; };
-		AA41B73A1ADEC2FE00B369BE /* log_api.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B7361ADEC2FE00B369BE /* log_api.cpp */; };
-		AA41B73B1ADEC2FE00B369BE /* log_api.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B7361ADEC2FE00B369BE /* log_api.cpp */; };
 		AA41B73C1ADEC2FE00B369BE /* log.h in Headers */ = {isa = PBXBuildFile; fileRef = AA41B7371ADEC2FE00B369BE /* log.h */; };
 		AA41B73D1ADEC2FE00B369BE /* log.h in Headers */ = {isa = PBXBuildFile; fileRef = AA41B7371ADEC2FE00B369BE /* log.h */; };
 		AA41B73F1ADEC32B00B369BE /* xifnetdyndns.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B73E1ADEC32B00B369BE /* xifnetdyndns.cpp */; };
@@ -39,6 +38,12 @@
 		AA41B7681ADECB3900B369BE /* master.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B7651ADECB3900B369BE /* master.cpp */; };
 		AA41B76D1ADECB9B00B369BE /* minecraft-master.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B76A1ADECB9B00B369BE /* minecraft-master.cpp */; };
 		AA41B76E1ADECBE200B369BE /* master-impl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B75B1ADECB1700B369BE /* master-impl.cpp */; };
+		AA8397921AE97AF4007FDF06 /* dyn_slaves.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B75A1ADECB1600B369BE /* dyn_slaves.cpp */; };
+		AA8397941AE97AF9007FDF06 /* master-impl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B75B1ADECB1700B369BE /* master-impl.cpp */; };
+		AA8397961AE97B22007FDF06 /* api.h in Headers */ = {isa = PBXBuildFile; fileRef = AA41B7351ADEC2FE00B369BE /* api.h */; };
+		AA8397971AE97B28007FDF06 /* log.h in Headers */ = {isa = PBXBuildFile; fileRef = AA41B7371ADEC2FE00B369BE /* log.h */; };
+		AA8397981AE97B3D007FDF06 /* common.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B72B1ADEC2E200B369BE /* common.cpp */; };
+		AAD214891AE974E30062A678 /* wol.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B75D1ADECB1700B369BE /* wol.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -51,10 +56,10 @@
 		AA2333981AE06F4A009433E3 /* PKGBUILD */ = {isa = PBXFileReference; lastKnownFileType = text; name = PKGBUILD; path = "ioslavesd-xifnetdyndns/PKGBUILD"; sourceTree = "<group>"; };
 		AA2333991AE06F65009433E3 /* PKGBUILD */ = {isa = PBXFileReference; lastKnownFileType = text; name = PKGBUILD; path = "ioslavesd-minecraft/PKGBUILD"; sourceTree = "<group>"; };
 		AA23339A1AE06F7A009433E3 /* PKGBUILD */ = {isa = PBXFileReference; lastKnownFileType = text; name = PKGBUILD; path = ioslavesd/PKGBUILD; sourceTree = "<group>"; };
+		AA2F82191AED6CE100DFBBDF /* wake-gateway.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "wake-gateway.cpp"; path = "ioslavesd-wake-gateway/wake-gateway.cpp"; sourceTree = "<group>"; };
 		AA41B72B1ADEC2E200B369BE /* common.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = common.cpp; path = common/common.cpp; sourceTree = "<group>"; };
 		AA41B72C1ADEC2E200B369BE /* common.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = common.hpp; path = common/common.hpp; sourceTree = "<group>"; };
 		AA41B7351ADEC2FE00B369BE /* api.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = api.h; path = "common-ioslavesd/api.h"; sourceTree = "<group>"; };
-		AA41B7361ADEC2FE00B369BE /* log_api.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = log_api.cpp; path = "common-ioslavesd/log_api.cpp"; sourceTree = "<group>"; };
 		AA41B7371ADEC2FE00B369BE /* log.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = log.h; path = "common-ioslavesd/log.h"; sourceTree = "<group>"; };
 		AA41B73E1ADEC32B00B369BE /* xifnetdyndns.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = xifnetdyndns.cpp; path = "ioslavesd-xifnetdyndns/xifnetdyndns.cpp"; sourceTree = "<group>"; };
 		AA41B7431ADEC34500B369BE /* log_slave.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = log_slave.cpp; path = ioslavesd/log_slave.cpp; sourceTree = "<group>"; };
@@ -76,6 +81,7 @@
 		AA99F1B0184C65DD00BB6836 /* ioslavesd */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ioslavesd; sourceTree = BUILT_PRODUCTS_DIR; };
 		AAB552F418F44E8C00DC3ED9 /* minecraft-master */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "minecraft-master"; sourceTree = BUILT_PRODUCTS_DIR; };
 		AAC7F7A81861FEA600033009 /* ioslaves-master */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "ioslaves-master"; sourceTree = BUILT_PRODUCTS_DIR; };
+		AAD214831AE971C50062A678 /* wake-gateway.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = "wake-gateway.dylib"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -121,6 +127,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AAD214801AE971C50062A678 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -160,10 +173,9 @@
 			isa = PBXGroup;
 			children = (
 				AA41B7351ADEC2FE00B369BE /* api.h */,
-				AA41B7371ADEC2FE00B369BE /* log.h */,
-				AA41B7361ADEC2FE00B369BE /* log_api.cpp */,
 				AAA44D88189F8A7600FB480A /* Minecraft */,
 				AA7EEC43193C9193002AD7E4 /* XifNetDynDns */,
+				AAD2147D1AE970EE0062A678 /* Wake Gateway */,
 			);
 			name = "API Services";
 			sourceTree = "<group>";
@@ -171,6 +183,7 @@
 		AA99F1A5184C65DD00BB6836 = {
 			isa = PBXGroup;
 			children = (
+				AA41B7371ADEC2FE00B369BE /* log.h */,
 				AA41B72C1ADEC2E200B369BE /* common.hpp */,
 				AA41B72B1ADEC2E200B369BE /* common.cpp */,
 				AAC7F7B31861FEB500033009 /* slave */,
@@ -222,6 +235,15 @@
 			name = slave;
 			sourceTree = "<group>";
 		};
+		AAD2147D1AE970EE0062A678 /* Wake Gateway */ = {
+			isa = PBXGroup;
+			children = (
+				AA2F82191AED6CE100DFBBDF /* wake-gateway.cpp */,
+				AAD214831AE971C50062A678 /* wake-gateway.dylib */,
+			);
+			name = "Wake Gateway";
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXHeadersBuildPhase section */
@@ -242,6 +264,15 @@
 				AA41B7331ADEC2E200B369BE /* common.hpp in Headers */,
 				AA41B7381ADEC2FE00B369BE /* api.h in Headers */,
 				AA41B73C1ADEC2FE00B369BE /* log.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AAD214811AE971C50062A678 /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA8397961AE97B22007FDF06 /* api.h in Headers */,
+				AA8397971AE97B28007FDF06 /* log.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -346,6 +377,23 @@
 			productReference = AAC7F7A81861FEA600033009 /* ioslaves-master */;
 			productType = "com.apple.product-type.tool";
 		};
+		AAD214821AE971C50062A678 /* wake-gateway */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AAD214841AE971C50062A678 /* Build configuration list for PBXNativeTarget "wake-gateway" */;
+			buildPhases = (
+				AAD2147F1AE971C50062A678 /* Sources */,
+				AAD214801AE971C50062A678 /* Frameworks */,
+				AAD214811AE971C50062A678 /* Headers */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "wake-gateway";
+			productName = "wake-gateway";
+			productReference = AAD214831AE971C50062A678 /* wake-gateway.dylib */;
+			productType = "com.apple.product-type.library.dynamic";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -372,6 +420,7 @@
 				AAB552F318F44E8C00DC3ED9 /* minecraft-master */,
 				AA7EEC48193C9221002AD7E4 /* xifnetdyndns */,
 				AA129CEA1A90E83E009A2B42 /* ioslstatd */,
+				AAD214821AE971C50062A678 /* wake-gateway */,
 			);
 		};
 /* End PBXProject section */
@@ -392,7 +441,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				AA41B7311ADEC2E200B369BE /* common.cpp in Sources */,
-				AA41B73B1ADEC2FE00B369BE /* log_api.cpp in Sources */,
 				AA41B73F1ADEC32B00B369BE /* xifnetdyndns.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -402,7 +450,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				AA41B72E1ADEC2E200B369BE /* common.cpp in Sources */,
-				AA41B73A1ADEC2FE00B369BE /* log_api.cpp in Sources */,
 				AA1D3AD71ADECDAF00E2C7F6 /* ftp-auth-mc.cpp in Sources */,
 				AA1D3AD91ADECDAF00E2C7F6 /* minecraft.cpp in Sources */,
 			);
@@ -445,14 +492,24 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AAD2147F1AE971C50062A678 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AAD214891AE974E30062A678 /* wol.cpp in Sources */,
+				AA8397921AE97AF4007FDF06 /* dyn_slaves.cpp in Sources */,
+				AA8397941AE97AF9007FDF06 /* master-impl.cpp in Sources */,
+				AA8397981AE97B3D007FDF06 /* common.cpp in Sources */,
+				AA2F821A1AED6CE100DFBBDF /* wake-gateway.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
 		AA129CF21A90E83E009A2B42 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = "$(NATIVE_ARCH_ACTUAL)";
-				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
 				HEADER_SEARCH_PATHS = (
 					../Libs,
 					/usr/local/include/nopoll,
@@ -469,8 +526,6 @@
 		AA129CF31A90E83E009A2B42 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = "$(NATIVE_ARCH_ACTUAL)";
-				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
 				HEADER_SEARCH_PATHS = (
 					../Libs,
 					/usr/local/include/nopoll,
@@ -487,9 +542,7 @@
 		AA7EEC4B193C9221002AD7E4 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = "$(NATIVE_ARCH_ACTUAL)";
 				EXECUTABLE_PREFIX = lib;
-				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -497,7 +550,6 @@
 		AA7EEC4C193C9221002AD7E4 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = "$(NATIVE_ARCH_ACTUAL)";
 				EXECUTABLE_PREFIX = lib;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
@@ -510,10 +562,6 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"MINECRAFT_SRV_DIR=\"\\\"/var/ioslaves/minecraft\\\"\"",
 					"$(inherited)",
-				);
-				OTHER_CPLUSPLUSFLAGS = (
-					"-Wall",
-					"$(OTHER_CFLAGS)",
 				);
 				OTHER_LDFLAGS = (
 					"-lconfig++",
@@ -530,10 +578,6 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"MINECRAFT_SRV_DIR=\"\\\"/var/ioslaves/minecraft\\\"\"",
 					"$(inherited)",
-				);
-				OTHER_CPLUSPLUSFLAGS = (
-					"-Wall",
-					"$(OTHER_CFLAGS)",
 				);
 				OTHER_LDFLAGS = (
 					"-lconfig++",
@@ -713,6 +757,30 @@
 			};
 			name = Release;
 		};
+		AAD214851AE971C50062A678 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				OTHER_LDFLAGS = (
+					"-lldns",
+					"-lconfig++",
+					"$(inherited)",
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		AAD214861AE971C50062A678 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				OTHER_LDFLAGS = (
+					"-lldns",
+					"-lconfig++",
+					"$(inherited)",
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -775,6 +843,15 @@
 			buildConfigurations = (
 				AAC7F7AF1861FEA600033009 /* Debug */,
 				AAC7F7B01861FEA600033009 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AAD214841AE971C50062A678 /* Build configuration list for PBXNativeTarget "wake-gateway" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AAD214851AE971C50062A678 /* Debug */,
+				AAD214861AE971C50062A678 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

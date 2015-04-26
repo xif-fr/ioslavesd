@@ -8,11 +8,10 @@ endif
 
 all: xifnetdyndns.iosldl
 
-xifnetdyndns.iosldl: common.o log_api.o xifnetdyndns.o
+xifnetdyndns.iosldl: common.o xifnetdyndns.o
 	$(LD) -o $@ $^ $(LDFLAGS) -shared
 
 common.o: common.cpp common.hpp 
-log_api.o: api.h log.h log_api.cpp
 xifnetdyndns.o: xifnetdyndns.cpp
 
 %.o: %.cpp

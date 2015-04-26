@@ -1,17 +1,16 @@
 /**********************************************************\
  *                 -== Xif Network project ==-
  *                 ioslaves master : Minecraft
- *      Masters control program for for Minecraft API serice
+ *   Masters control program for for Minecraft API service
  * *********************************************************
  * Copyright © Félix Faisant 2013-2014. All rights reserved
  * This software is under the GNU General Public License
  \**********************************************************/
 
 	// Commons
-#include "common.hpp"
-#include "minecraft.h"
 #define IOSLAVES_MASTER_FINAL
 #include "master.hpp"
+#include "minecraft.h"
 
 	// Other
 #include <iostream>
@@ -148,6 +147,23 @@ public:
 } _cwlog_buf;
 std::ostream __log__ (&_cwlog_buf);
 
+pthread_mutex_t xlog::logstream_impl::mutex = PTHREAD_MUTEX_INITIALIZER;
+std::ostringstream xlog::logstream_impl::stream;
+bool _log_wait_flag = false;
+void xlog::logstream_impl::log (log_lvl lvl, const char* part, std::string msg, int m, logl_t* lid) noexcept {
+	if (_log_wait_flag and not (m & LOG_ADD)) { ::__log__ << std::flush; _log_wait_flag = false; }
+	switch (lvl) {
+		case log_lvl::LOG: case log_lvl::NOTICE: case log_lvl::IMPORTANT: case log_lvl::MAJOR: break;
+		case log_lvl::FATAL: case log_lvl::ERROR: case log_lvl::OOPS: ::__log__ << COLOR_RED << "Error : " << COLOR_RESET; break;
+		case log_lvl::WARNING: ::__log__ << COLOR_YELLOW << "Warning : " << COLOR_RESET; break;
+		case log_lvl::DONE: return; ::__log__ << COLOR_GREEN << "Done ! " << COLOR_RESET; break;
+	}
+	std::clog << msg;
+	if (m & LOG_WAIT) { _log_wait_flag = true; ::__log__ << ' '; } 
+	else ::__log__ << std::flush;
+}
+
+	// Main
 int main (int argc, char* const argv[]) {
 	int r;
 	
@@ -550,7 +566,7 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 			if (e.down and not secondtry and autostart) {
 				time_t time_up = 0;
 				try {
-					time_up = iosl_master::slave_start($slave_id, __log__);
+					time_up = iosl_master::slave_start($slave_id);
 				} catch (std::exception& e) {
 					__log__ << LOG_AROBASE_ERR << "Power up error : " << e.what() << std::flush;
 					EXIT_FAILURE = EXIT_FAILURE_CONN;
@@ -1108,7 +1124,7 @@ _try_start:
 			__log__ << LOG_AROBASE_OK << "Ok, we choose " << $slave_id << " with " << slaves.front().sl_total_points << " points" << std::flush;
 			if (slaves.front().sl_status == -1) {
 				try {
-					iosl_master::slave_start($slave_id, __log__);
+					iosl_master::slave_start($slave_id);
 				} catch (std::exception& e) {
 					__log__ << LOG_AROBASE_ERR << "Power up error : " << e.what() << std::flush;
 					goto _retry_start;

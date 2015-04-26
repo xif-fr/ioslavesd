@@ -12,16 +12,13 @@
 #ifndef _IOSLAVESD_MAIN_H
 #define _IOSLAVESD_MAIN_H
 
-	// Log
+	// Common / General
+#define XIF_LOG_DEFAULT_LOGSTREAM
 #include "log.h"
-#include <vector>
-#include <list>
-extern std::vector<log_entry> log_history;
-
-	// Common
-#define IOSLAVES_NEED_requestException_CLASS
 #include "common.hpp"
 #include <xifutils/cxx.hpp>
+#include <list>
+#include <vector>
 
 	/// UPnP port mapping
 #include <sys/time.h>
@@ -92,6 +89,17 @@ extern char hostname[64];
 extern bool shutdown_ignore_err;
 extern time_t start_time;
 
+	// Log
+#include "log.h"
+struct log_entry {
+	time_t le_time;
+	const char* le_part;
+	std::string le_msg;
+	xlog::log_lvl le_lvl;
+};
+extern std::vector<log_entry> log_history;
+extern const char* log_file_path;
+
 	// ioslavesd
 namespace ioslaves {
 	
@@ -120,7 +128,7 @@ namespace ioslaves {
 	extern std::list<ioslaves::service*> services_list;
 	
 		/// Services opperations
-	ioslaves::service* getServiceByName (std::string name) throw(ioslaves::requestException);
+	ioslaves::service* getServiceByName (std::string name);
 	void controlService (ioslaves::service* service_stat, bool start, const char* controlling_master);
 	extern time_t services_lookup_activity_interval;
 	void loadService (std::string name, FILE* service_file);

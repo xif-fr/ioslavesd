@@ -9,6 +9,7 @@
  \**********************************************************/
 
 #include "main.h"
+using namespace xlog;
 
 	// Topp linux system monitor library
 #ifndef IOSLAVESD_NO_TOPP
@@ -173,7 +174,7 @@ void ioslaves::statusEnd () {
 #ifndef IOSLAVESD_NO_TOPP
 	topparsing::FieldsFile F_uptime("/proc/uptime", ' ', 2);
 	time_t uptime = (time_t)::atof(F_uptime.stri(0).c_str());
-	time_t idletime = (time_t)( ::atof(F_uptime.stri(1).c_str()) / system_stat["cpu#"] );
+	time_t idletime = (time_t)( ::atof(F_uptime.stri(1).c_str()) / system_stat["cpu#"].i() );
 	time_t usedtime = uptime - idletime;
 	try {
 		topparsing::FieldsFile F_totuptime(IOSLAVESD_UPTIME_FILE, ' ', 3);

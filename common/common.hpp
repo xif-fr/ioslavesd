@@ -17,6 +17,9 @@
 #include <inttypes.h>
 #include <vector>
 
+	// Log
+#include "log.h"
+
 	// Time
 #include <sys/time.h>
 #include <time.h>
@@ -94,16 +97,17 @@ namespace ioslaves {
 	bool validateSlaveName (std::string str);
 		
 		// Exceptions
-	#ifdef IOSLAVES_NEED_requestException_CLASS
-	class requestException : public std::exception {
+	class req_err : public std::exception {
 	public:
 		ioslaves::answer_code answ_code;
-		requestException (answer_code err_code) : answ_code(err_code) {}
-		requestException (answer_code err_code, const char* part, const char* log_msg) : answ_code(err_code) { __log__(log_lvl::ERROR, part, log_msg); }
-		requestException (answer_code err_code, const char* part, std::ostream& s) : answ_code(err_code) { __log__(log_lvl::ERROR, part, s); }
-		virtual const char* what () const noexcept { return "Request error exception !"; }
+		std::string descr;
+		req_err (answer_code answ, std::string msg) noexcept : answ_code(answ), descr(msg) {}
+		req_err (answer_code answ, std::ostream& s) noexcept : answ_code(answ), descr(xlog::logstream_retrieve()) {}
+		req_err (answer_code answ, const char* part, std::string msg) noexcept : answ_code(answ), descr(msg) { xlog::__log__(xlog::log_lvl::ERROR, part, msg); }
+		req_err (answer_code answ, const char* part, std::ostream& s) noexcept : answ_code(answ), descr(xlog::logstream_retrieve()) { xlog::__log__(xlog::log_lvl::ERROR, part, descr); }
+		virtual const char* what () const noexcept { return descr.c_str(); }
+		virtual ~req_err() {}
 	};
-	#endif
 	
 		// Version object
 	struct version {

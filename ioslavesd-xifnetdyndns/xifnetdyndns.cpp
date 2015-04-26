@@ -12,15 +12,11 @@
  *  modified IP. This can leave the door opened to DNS spoofing
  \**********************************************************/
 
-	// Log
-#include "log.h"
-
-	// ioslaves API and commons
-#define IOSLAVES_NEED_requestException_CLASS
-#include "common.hpp"
+	// ioslaves API
 #define IOSLAVESD_API_SERVICE
 #define IOSLAVESD_API_SERVICE_IMPL
 #include "api.h"
+using namespace xlog;
 
 	// General
 #include <xifutils/cxx.hpp>
@@ -82,7 +78,7 @@ namespace xdyndns {
 /**       Opperations   		**/
 /** -----------------------	**/
 
-	// Start Minecraft service
+	// Start service
 extern "C" bool ioslapi_start (const char*) {
 	logl_t l;
 	int r;
@@ -98,7 +94,7 @@ extern "C" bool ioslapi_start (const char*) {
 	return true;
 }
 
-	// Stop Minecraft service
+	// Stop service
 extern "C" void ioslapi_stop (void) {
 	__log__(log_lvl::IMPORTANT, NULL, logstream << "XifNet Dynamic DNS Service is saying good bye");
 }

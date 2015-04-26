@@ -21,7 +21,7 @@ sha256sums=('SKIP' 'SKIP'
             'SKIP')
 
 build() {
-	export CXXFLAGS="${CXXFLAGS} -DXIFNET -DIOSLAVES_MASTER_DIR=\"__get_homedir__()+\\\"/ioslaves-master\\\"\" -DXIFNET_HELP_HEADER=\"\\\"Xif Network\\\"\""
+	export CXXFLAGS="${CXXFLAGS} -DXIFNET -DIOSLAVES_MASTER_DIR=\"__get_homedir__()+\\\"/ioslaves-master\\\"\"
 	make 
 }
 

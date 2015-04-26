@@ -8,10 +8,8 @@
  \**********************************************************/
 
 	// Common
-#include "common.hpp"
 #define IOSLAVES_MASTER_FINAL
 #include "master.hpp"
-using namespace ioslaves;
 
 	// Other
 #include <memory>
@@ -33,6 +31,23 @@ using namespace ioslaves;
 #include <socket++/base_unixsock.hpp>
 #include <socket++/base_inet.hpp>
 #include <socket++/quickdefs.h>
+
+	// Log
+pthread_mutex_t xlog::logstream_impl::mutex = PTHREAD_MUTEX_INITIALIZER;
+std::ostringstream xlog::logstream_impl::stream;
+bool _log_wait_flag = false;
+void xlog::logstream_impl::log (log_lvl lvl, const char* part, std::string msg, int m, logl_t* lid) noexcept {
+	if (_log_wait_flag and not (m & LOG_ADD)) { std::clog << std::endl; _log_wait_flag = false; }
+	switch (lvl) {
+		case log_lvl::LOG: case log_lvl::NOTICE: case log_lvl::IMPORTANT: case log_lvl::MAJOR: break;
+		case log_lvl::FATAL: case log_lvl::ERROR: case log_lvl::OOPS: std::clog << COLOR_RED << "Error : " << COLOR_RESET; break;
+		case log_lvl::WARNING: std::clog << COLOR_YELLOW << "Warning : " << COLOR_RESET; break;
+		case log_lvl::DONE: std::clog << COLOR_GREEN << "Done ! " << COLOR_RESET; break;
+	}
+	std::clog << msg;
+	if (m & LOG_WAIT) { _log_wait_flag = true; std::clog << ' '; } 
+	else std::clog << std::endl;
+}
 
 	// Exit
 int _exit_failure_code = 29;
@@ -57,7 +72,6 @@ uint16_t $on_psu_id = -1;
 std::string $new_key_file_path;
 std::string $api_co_unix_sock_path;
 bool $need_auth = false;
-bool $net_verbose = false;
 timeval $connect_timeout = {1,000000};
 timeval $comm_timeout = {4,000000};
 bool $ignore_net_errors = false;
@@ -173,10 +187,6 @@ int main (int argc, char* const argv[]) {
 	while ((opt = ::getopt_long(argc, argv, "-hviCfp:S:soa:P:X:RDGL::KO::", long_options, &opt_charind)) != -1) {
 		switch (opt) {
 			case 'h':
-#ifdef XIFNET_HELP_HEADER
-				if (optctx::interactive && ::isatty(STDOUT_FILENO))
-					::puts("\n               \033[1;33m-== " XIFNET_HELP_HEADER " ==-\033[0m\n");
-#endif
 				::puts("ioslaves-master | ioslaves control programm for network masters\n"
 						 "Usage: ioslaves-master MASTER-ID SLAVE-ID/ADDR --ACTION [--COMMAND [OPTIONS] ...]\n"
 						 "\n"
@@ -184,7 +194,6 @@ int main (int argc, char* const argv[]) {
 						 "      MASTER-ID             The master ID, used for authentification.\n"
 						 "      SLAVE-ID/ADDR         If the slave ID is used, IP and port are automatically retrieved.\n"
 						 "                            Else, the ADDR can be an IP or an hostname, with optionally :PORT\n"
-						 "  -v, --verbose             Print informations about what is being done.\n"
 						 "  -i, --no-interactive      Disable prompting. Log in HTML.\n"
 						 "\n"
 						 "Actions :\n"
@@ -227,12 +236,6 @@ int main (int argc, char* const argv[]) {
 						 "                                        protocol. Takes the output ID of the PSU.\n"
 						 "\n");
 				return EXIT_SUCCESS;
-			case 'v':
-				optctx::verbose = true;
-				if (optarg != NULL) 
-					$net_verbose = true;
-				try_parse_IDs(argc, argv);
-				break;
 			case 'i':
 				optctx::interactive = false;
 				try_parse_IDs(argc, argv);
@@ -441,8 +444,7 @@ void IPreSlaveCo () {
 		if (not $slave_id.empty() and not $addr_defined) {
 			in_port_t $connect_port = IOSLAVES_MASTER_DEFAULT_PORT;
 			try { // Retriving port number with SRV records
-				if (optctx::verbose)
-					std::cerr << "Retriving port number from SRV record _ioslavesd._tcp." << $slave_id << '.' << XIFNET_SLAVES_DOM << "..." << std::endl;
+				std::cerr << "Retriving port number from SRV record _ioslavesd._tcp." << $slave_id << '.' << XIFNET_SLAVES_DOM << "..." << std::endl;
 				$connect_port = iosl_master::slave_get_port_dns($slave_id);
 			} catch (iosl_master::ldns_error& e) {
 				std::cerr << (optctx::interactive?COLOR_YELLOW:COLOR_RED) << "Failed to retrive port number : " << e.what();
@@ -462,8 +464,7 @@ void IPreSlaveCo () {
 		// Connecting
 	std::string slave_name = ($slave_id.empty()) ? "slave" : _S('`',$slave_id,'`');
 	try {
-		if (optctx::verbose)
-			std::cerr << "Connecting to " << slave_name << " at " << $connect_addr.get_ip_str() << ":" << $connect_addr.get_port() << "..." << std::endl;
+		std::cerr << "Connecting to " << slave_name << " at " << $connect_addr.get_ip_str() << ":" << $connect_addr.get_port() << "..." << std::endl;
 		$slave_sock = new socketxx::simple_socket_client<socketxx::base_netsock> ($connect_addr, $connect_timeout);
 		$slave_sock->set_read_timeout($comm_timeout);
 	} catch (socketxx::error& e) {
@@ -480,7 +481,7 @@ void IPreSlaveCo () {
 $need_auth = false;
 		$slave_sock->o_bool($need_auth);
 		if ($need_auth) {
-			if (optctx::verbose) std::cerr << "Authentification..." << std::endl;
+			std::cerr << "Authentification..." << std::endl;
 			iosl_master::authentificate(*$slave_sock, $slave_id);
 		}
 	} catch (socketxx::error& e) {
@@ -507,20 +508,17 @@ void IPostSlaveCo (ioslaves::answer_code e) {
 	///---- Service managing ----///
 
 void IPreService () {
-	if (optctx::verbose)
-		std::cerr << "Managing slave's service '" << $service_name << "'" << std::endl;
+	std::cerr << "Managing slave's service '" << $service_name << "'" << std::endl;
 }
 
 void IServStart () {
-	if (optctx::verbose)
-		std::cerr << "Starting service..." << std::endl;
+	std::cerr << "Starting service..." << std::endl;
 	$slave_sock->o_char((char)ioslaves::op_code::SERVICE_START);
 	$slave_sock->o_str($service_name);
 }
 
 void IServStop () {
-	if (optctx::verbose)
-		std::cerr << "Stopping service..." << std::endl;
+	std::cerr << "Stopping service..." << std::endl;
 	$slave_sock->o_char((char)ioslaves::op_code::SERVICE_STOP);
 	$slave_sock->o_str($service_name);
 }
@@ -546,8 +544,7 @@ void IPostService (ioslaves::answer_code e) {
 
 void api_tunnel_intercept_fnct (bool this_to_other, void** buf, size_t* len, size_t max_buf_len);
 void IApi () {
-	if (optctx::verbose)
-		std::cerr << "Connecting to API service..." << std::endl;
+	std::cerr << "Connecting to API service..." << std::endl;
 	$slave_sock->o_char((char)ioslaves::op_code::CALL_API_SERVICE);
 	$slave_sock->o_str($service_name);
 	try {
@@ -581,7 +578,7 @@ void IApi () {
 	std::cerr << "Letting flow the Data !" << std::endl;
 	std::auto_ptr< socketxx::base_unixsock > _auto_cli(cli);
 	socketxx::io::tunnel<socketxx::base_netsock, socketxx::base_unixsock> tunnel (*$slave_sock);
-	tunnel.start_tunneling(*cli, /*($net_verbose?&api_tunnel_intercept_fnct:NULL)*/NULL);
+	tunnel.start_tunneling(*cli, NULL);
 	delete $slave_sock;
 	::exit(EXIT_SUCCESS);
 }
@@ -590,15 +587,13 @@ void IApi () {
 
 void IPort () {
 	if ($port_open) {
-		if (optctx::verbose) {
-			if ($port_end != 0) std::cerr << "Opening ports " << $port << " to " << $port_end << " on distant slave's gateway..." << std::endl;
-			else std::cerr << "Opening port " << $port << " on distant slave's gateway..." << std::endl;
-		}
+		if ($port_end != 0) std::cerr << "Opening ports " << $port << " to " << $port_end << " on distant slave's gateway..." << std::endl;
+		else std::cerr << "Opening port " << $port << " on distant slave's gateway..." << std::endl;
 		$slave_sock->o_char((char)ioslaves::op_code::IGD_PORT_OPEN);
 		if ($port_descr.empty()) $port_descr = "ioslaves";
 		$slave_sock->o_str($port_descr);
 	} else {
-		if (optctx::verbose) std::cerr << "Closing port(s) on distant slave's gateway..." << std::endl;
+		std::cerr << "Closing port(s) on distant slave's gateway..." << std::endl;
 		$slave_sock->o_char((char)ioslaves::op_code::IGD_PORT_CLOSE);
 	}
 	if ($port_end != 0) $slave_sock->o_char($port_tcp?'T':'U');
@@ -619,32 +614,30 @@ void IPort () {
 
 void IShutd () {
 	if ($autoshutdown == -1) {
-		if (optctx::verbose) std::cerr << "Trying to shut down distant slave..." << std::endl;
+		std::cerr << "Trying to shut down distant slave..." << std::endl;
 		if ($shutd_reboot)
 			$slave_sock->o_char((char)ioslaves::op_code::SLAVE_REBOOT);
 		else
 			$slave_sock->o_char((char)ioslaves::op_code::SLAVE_SHUTDOWN);
 		$ignore_net_errors = true;
 	} else {
-		if (optctx::verbose) {
-			if ($autoshutdown == 0) std::cerr << "Disabling auto-shutdown..." << std::endl;
-			else std::cerr << "Set shutdown time in " << $autoshutdown << "min..." << std::endl;
-		}
+		if ($autoshutdown == 0) std::cerr << "Disabling auto-shutdown..." << std::endl;
+		else std::cerr << "Set shutdown time in " << $autoshutdown << "min..." << std::endl;
 		$slave_sock->o_char((char)ioslaves::op_code::SHUTDOWN_CTRL);
 		$slave_sock->o_int<uint32_t>($autoshutdown*60);
 	}
 }
 
 void IStat () {
-	if (optctx::verbose) std::cerr << "Getting slave status and infos..." << std::endl;
+	std::cerr << "Getting slave status and infos..." << std::endl;
 	$slave_sock->o_char((char)ioslaves::op_code::GET_STATUS);
 	xif::polyvar info = $slave_sock->i_var();
 	std::cout << info.to_json().c_str() << std::endl;
 }
 
+const char* log_lvl_strs[] = { "FATAL", "ERROR", "OOPS", "WARNING", "NOTICE", "LOG", "IMP", "MAJOR", "DONE" };
 void ILog () {
-	const char* log_lvl_strs[] = { "FATAL", "ERROR", "OOPS", "WARNING", "NOTICE", "LOG", "IMP", "MAJOR", "DONE" };
-	if (optctx::verbose) std::cerr << "Getting slave's log lines from " << $log_begin << " to " << $log_end << "..." << std::endl;
+	std::cerr << "Getting slave's log lines from " << $log_begin << " to " << $log_end << "..." << std::endl;
 	$slave_sock->o_char((char)ioslaves::op_code::LOG_HISTORY);
 	$slave_sock->o_int<uint64_t>($log_begin);
 	$slave_sock->o_int<uint64_t>($log_end);
@@ -690,8 +683,7 @@ void IPowerup () {
 		}
 		time_t delay;
 		try {
-			std::ostream nulstream(NULL);
-			delay = iosl_master::slave_start($slave_id, (optctx::verbose? std::cerr : nulstream));
+			delay = iosl_master::slave_start($slave_id);
 		} catch (std::exception& e) {
 			std::cerr << COLOR_RED << "Power up error" << COLOR_RESET << " : " << e.what() << std::endl;
 			EXIT_FAILURE = EXIT_FAILURE_IOSL;
@@ -738,7 +730,7 @@ void IPowerup () {
 	///---- Keys ----///
 
 void IKeygen () {
-	if (optctx::verbose) std::cerr << "Generating key for slave '" << $slave_id << "'..." << std::endl;
+	std::cerr << "Generating key for slave '" << $slave_id << "'..." << std::endl;
 	std::string key;
 	key += ioslaves::hash($slave_id);
 	key += ioslaves::hash($master_id);
@@ -775,7 +767,7 @@ void IPost (ioslaves::answer_code e) {
 	if (e == EXCEPT_ERROR_IGNORE) throw EXCEPT_ERROR_IGNORE;
 	if (e != ctx_postfnct_excpt_default) {
 		switch (e) {
-			case ioslaves::answer_code::OK: if (optctx::verbose) std::cerr << COLOR_GREEN << "Success !" << COLOR_RESET << std::endl; break;
+			case ioslaves::answer_code::OK: std::cerr << COLOR_GREEN << "Success !" << COLOR_RESET << std::endl; break;
 			case ioslaves::answer_code::MAY_HAVE_FAIL: std::cerr << COLOR_YELLOW << "Opperation may have fail !" << COLOR_RESET << std::endl; break;
 			default: goto __error;
 		}

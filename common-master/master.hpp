@@ -8,16 +8,14 @@
  \**********************************************************/
 
 	/// Common
+#define XIF_LOG_DEFAULT_LOGSTREAM
+#include "log.h"
 #include "common.hpp"
 #include <xifutils/cxx.hpp>
 
 #ifdef IOSLAVES_MASTER_FINAL
 
-	/// Misc
-extern std::string $master_id;
-
 	/// Logging
-#include <ostream>
 #include <xifutils/optctx.hpp>
 #define LOG_ARROW       (optctx::interactive ? "\033[34;1m=> \033[0m"   : "<log_arrow imp/>")
 #define LOG_ARROW_OK    (optctx::interactive ? "\033[32;1m=> \033[0m"   : "<log_arrow ok/>")
@@ -49,10 +47,9 @@ extern std::string $master_id;
 #include <ldns/ldns.h>
 
 	/// Master errors
-class master_err : std::runtime_error { 
+class master_err : public std::runtime_error { 
 	public: int ret; bool down;
 	master_err (std::string descr, int retcode, bool down = false) : std::runtime_error(descr), ret(retcode), down(down) {} 
-	virtual const char* what() const noexcept { return this->std::runtime_error::what(); }
 };
 #define EXIT_FAILURE_CONN 20
 #define EXIT_FAILURE_AUTH 21
@@ -67,7 +64,7 @@ namespace iosl_master {
 	bool slave_test (std::string slave_id);
 		// Start slave
 	enum class on_type { _AUTO, WoL, WoW, GATEWAY, PSU };
-	time_t slave_start (std::string slave_id, std::ostream& log);
+	time_t slave_start (std::string slave_id);
 	
 		// Connect to API service with authentification
 	socketxx::base_netsock slave_api_service_connect (std::string slave_id, std::string master_id, std::string api_service, timeval timeout = {1,0});

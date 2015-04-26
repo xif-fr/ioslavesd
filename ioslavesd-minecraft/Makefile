@@ -8,11 +8,10 @@ endif
 
 all: minecraft.iosldl
 
-minecraft.iosldl: common.o log_api.o minecraft.o ftp-auth-mc.o
+minecraft.iosldl: common.o minecraft.o ftp-auth-mc.o
 	$(LD) -o $@ $^ $(LDFLAGS) -shared -fPIC
 
 common.o: common.cpp common.hpp 
-log_api.o: api.h log.h log_api.cpp
 minecraft.o: minecraft.h minecraft.cpp
 ftp-auth-mc.o: minecraft.h ftp-auth-mc.cpp
 

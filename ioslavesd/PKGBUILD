@@ -8,7 +8,7 @@ license=('custom')
 arch=('i686' 'x86_64')
 depends=('socketxx' 'libconfig' 'miniupnpc>=1.9' 'topp')
 makedepends=('xifutils')
-backup=('etc/ioslavesd/ioslavesd.conf')
+backup=('etc/ioslavesd/ioslavesd.conf' 'etc/ioslavesd/services/ssh.service')
 install='ioslavesd.install'
 
 source=('../common/common.hpp' '../common/common.cpp'

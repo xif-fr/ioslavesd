@@ -7,19 +7,15 @@
  * This software is under the GNU General Public License
  \**********************************************************/
 
-	// Log
-#include "log.h"
-
-	// ioslaves commons
-#define IOSLAVES_NEED_requestException_CLASS
-#include "common.hpp"
-#define IOSLAVESD_MINECRAFT
-#include "minecraft.h"
-	
 	// ioslavesd API
 #define IOSLAVESD_API_SERVICE
 #define IOSLAVESD_API_SERVICE_IMPL
 #include "api.h"
+using namespace xlog;
+
+	// Common
+#define IOSLAVESD_MINECRAFT
+#include "minecraft.h"
 
 	// General and misc
 #include <xifutils/cxx.hpp>
@@ -498,7 +494,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 						minecraft::ftp_register_user(username, md5passwd, s_servid, s->s_map, validity);
 						cli.o_char((char)ioslaves::answer_code::OK);
 						cli.o_str(minecraft::ftp_serv_addr);
-					} catch (ioslaves::requestException& re) {
+					} catch (ioslaves::req_err& re) {
 						cli.o_char((char)re.answ_code);
 					}
 				} catch (std::out_of_range) {
@@ -591,7 +587,7 @@ void minecraft::transferAndExtract (socketxx::io::simple_socket<socketxx::base_s
 	else if (what == minecraft::transferWhat::JAR)
 		sock.o_bool(alt);
 	if (!sock.i_bool()) 
-		throw ioslaves::requestException(ioslaves::answer_code::DENY, "FILES", logstream << "Master refused sending file '" << name << "'");
+		throw ioslaves::req_err(ioslaves::answer_code::DENY, "FILES", logstream << "Master refused sending file '" << name << "'");
 	std::string tempfile_name;
 	logl_t l;
 	__log__(log_lvl::LOG, "FILES", logstream << "Downloading file '" << name << "' of type '" << (char)what << "' from master...", LOG_WAIT, &l);
@@ -835,19 +831,19 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 		time_t s_running_time = cli.i_int<uint32_t>();
 		time_t time_rest = *ioslaves::api::common_vars->shutdown_time - ::time(NULL);
 		if (*ioslaves::api::common_vars->shutdown_time != 0 and time_rest < s_running_time) 
-			throw ioslaves::requestException(ioslaves::answer_code::LACK_RSRC, "SERV", MCLOGSCLI(s) << "Server wants ~" << s_running_time/60 << "min, but slave would shutdown in " << time_rest/60 << "min. " << "Refusing start request.");
+			throw ioslaves::req_err(ioslaves::answer_code::LACK_RSRC, "SERV", MCLOGSCLI(s) << "Server wants ~" << s_running_time/60 << "min, but slave would shutdown in " << time_rest/60 << "min. " << "Refusing start request.");
 		s->s_map = cli.i_str();
 		time_t s_lastsavetime = (time_t)cli.i_int<int64_t>();
 		bool early_console = cli.i_bool();
 		if (!ioslaves::validateName(s->s_map)) 
-			throw ioslaves::requestException(ioslaves::answer_code::SECURITY_ERROR, "PARAM", MCLOGSCLI(s) << "'" << s->s_map << "' is not a valid map name");
+			throw ioslaves::req_err(ioslaves::answer_code::SECURITY_ERROR, "PARAM", MCLOGSCLI(s) << "'" << s->s_map << "' is not a valid map name");
 		
 			// Check free memory
 		xif::polyvar::map sysinfo = *ioslaves::api::common_vars->system_stat;
 		int16_t usable_mem = sysinfo["mem_usable"];
 		if (s->s_megs_ram < 512) s->s_megs_ram = 512;
 		if (usable_mem < s->s_megs_ram) 
-			throw ioslaves::requestException(ioslaves::answer_code::LACK_RSRC, "SERV", MCLOGSCLI(s) << "Server needs at least " << s->s_megs_ram << "MB of memory, but only " << usable_mem << "MB of RAM is usable. " << "Refusing start request.");
+			throw ioslaves::req_err(ioslaves::answer_code::LACK_RSRC, "SERV", MCLOGSCLI(s) << "Server needs at least " << s->s_megs_ram << "MB of memory, but only " << usable_mem << "MB of RAM is usable. " << "Refusing start request.");
 		if (s->s_megs_ram < 1024) s->s_megs_ram = 1024;
 		
 			// Check things with other servers
@@ -858,17 +854,17 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			int8_t itry = -0xF;
 		__new_port:
 			if (++itry == MINECRAFT_PORT_RANGE_SZ)
-				throw ioslaves::requestException(ioslaves::answer_code::INTERNAL_ERROR, "PORT", "Port range entierly used !");
+				throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "PORT", "Port range entierly used !");
 			s->s_port = ::rand()%MINECRAFT_PORT_RANGE_SZ + MINECRAFT_PORT_RANGE_BEG;
 			if (minecraft::servs.find(servid) != minecraft::servs.end())
-				throw ioslaves::requestException(ioslaves::answer_code::BAD_STATE, "SERV", MCLOGSCLI(s) << "Server already opened");
+				throw ioslaves::req_err(ioslaves::answer_code::BAD_STATE, "SERV", MCLOGSCLI(s) << "Server already opened");
 			for (std::pair<std::string,minecraft::serv*> p : minecraft::servs) {
 				if (p.second->s_port == s->s_port) 
 					goto __new_port;
 			}
 			for (minecraft::serv* oth_s : minecraft::openning_servs) {
 				if (oth_s->s_servid == servid) 
-					throw ioslaves::requestException(ioslaves::answer_code::BAD_STATE, "SERV", MCLOGSCLI(s) << "Server already openning");
+					throw ioslaves::req_err(ioslaves::answer_code::BAD_STATE, "SERV", MCLOGSCLI(s) << "Server already openning");
 				if (oth_s->s_port == s->s_port)
 					goto __new_port;
 			}
@@ -877,7 +873,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			if (open_port_answ != ioslaves::answer_code::OK) {
 				if (open_port_answ == ioslaves::answer_code::EXISTS or errno == 718 /*ConflictInMappingEntry*/)
 					goto __new_port;
-				throw ioslaves::requestException(ioslaves::answer_code::ERROR, "SERV", MCLOGSCLI(s) << "Failed to open port " << s->s_port);
+				throw ioslaves::req_err(ioslaves::answer_code::ERROR, "SERV", MCLOGSCLI(s) << "Failed to open port " << s->s_port);
 			}
 			__autodelete_serv.close_port = true;
 			__autorm_openning_state.it = minecraft::openning_servs.insert( minecraft::openning_servs.end(), s );
@@ -944,7 +940,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			}
 		} else if (S_ISDIR(wdir_stat.st_mode)) {
 			if (not s->s_is_perm_map) 
-				throw ioslaves::requestException(ioslaves::answer_code::EXISTS, "FILES", MCLOGSCLI(s) << "Can't use temporary map '" << s->s_map << "' : a permanent server folder exists with this name");
+				throw ioslaves::req_err(ioslaves::answer_code::EXISTS, "FILES", MCLOGSCLI(s) << "Can't use temporary map '" << s->s_map << "' : a permanent server folder exists with this name");
 				// Permanent map folder found
 			{ DIR* dir = ::opendir(working_dir.c_str());
 				RAII_AT_END_L( ::closedir(dir) );
@@ -953,7 +949,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 				dirent* dp = NULL;
 				while ((dp = ::readdir(dir)) != NULL) {
 					if (std::string(dp->d_name).find("lck") != std::string::npos) 
-						throw ioslaves::requestException(ioslaves::answer_code::BAD_STATE, "SERV", MCLOGSCLI(s) << "Server folder contains .lck files : server has crashed or seems to be running");
+						throw ioslaves::req_err(ioslaves::answer_code::BAD_STATE, "SERV", MCLOGSCLI(s) << "Server folder contains .lck files : server has crashed or seems to be running");
 				}
 			}
 			if (s_lastsavetime == -1) {
@@ -1039,7 +1035,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			r = ::access(jar_path.c_str(), R_OK);
 			if (r == -1) {
 				if (errno == ENOENT)
-					throw ioslaves::requestException(ioslaves::answer_code::NOT_FOUND, "FILES", MCLOGSCLI(s) << "Custom jar `" << jar_name << "` not found in server folder");
+					throw ioslaves::req_err(ioslaves::answer_code::NOT_FOUND, "FILES", MCLOGSCLI(s) << "Custom jar `" << jar_name << "` not found in server folder");
 				else throw xif::sys_error("testing for custom .jar in server dir failed");
 			}
 		} else {
@@ -1120,14 +1116,14 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 				// Wait thread steps
 			cli.o_char((char)ioslaves::answer_code::OK);
 			ReadEarlyStateIfNot('y',1) {
-				throw ioslaves::requestException(ioslaves::answer_code::INTERNAL_ERROR, "START", MCLOGCLI(servid) << "Start failed before java start");
+				throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "START", MCLOGCLI(servid) << "Start failed before java start");
 			}
 			__log__(log_lvl::LOG, "START", MCLOGSCLI(s) << "Java will start...");
 			ReadEarlyStateIfNot('j',1) {
-				throw ioslaves::requestException(ioslaves::answer_code::INTERNAL_ERROR, "START", MCLOGCLI(servid) << "Java start failed !");
+				throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "START", MCLOGCLI(servid) << "Java start failed !");
 			}
 			ReadEarlyStateIfNot('l',15) {
-				throw ioslaves::requestException(ioslaves::answer_code::EXTERNAL_ERROR, "START", MCLOGCLI(servid) << "Didn't received ack of first line");
+				throw ioslaves::req_err(ioslaves::answer_code::EXTERNAL_ERROR, "START", MCLOGCLI(servid) << "Didn't received ack of first line");
 			}
 			__log__(log_lvl::LOG, "START", "Java process is alive !");
 			cli.o_char((char)ioslaves::answer_code::OK);
@@ -1139,7 +1135,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 				_read_pipe_state_(40);
 			} while (_stat == 'l');
 			if (_stat != 'd') {
-				throw ioslaves::requestException(ioslaves::answer_code::EXTERNAL_ERROR, "START", MCLOGCLI(servid) << "Didn't received ack of \"Done\"");
+				throw ioslaves::req_err(ioslaves::answer_code::EXTERNAL_ERROR, "START", MCLOGCLI(servid) << "Didn't received ack of \"Done\"");
 			}
 			__log__(log_lvl::DONE, "START", MCLOGCLI(servid) << "Minecraft wrote \"Done !\"");
 			
@@ -1152,7 +1148,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			throw;
 		}
 		
-	} catch (ioslaves::requestException& re) {
+	} catch (ioslaves::req_err& re) {
 		cli.o_char((char)re.answ_code);
 	} catch (xif::sys_error& se) {
 		__log__(log_lvl::ERROR, "START", MCLOGCLI(servid) << "Internal sys error : " << se.what());
@@ -1443,9 +1439,9 @@ void* minecraft::serv_thread (void* arg) {
 											MC_write_command(s, java_pipes, cmd);
 											cli.o_char((char)ioslaves::answer_code::OK);
 										} break;
-										default: throw ioslaves::requestException(ioslaves::answer_code::OP_NOT_DEF, THLOGSCLI(s), MCLOGSCLI(s) << "Server external request : invalid '" << (char)op << "' opperation");
+										default: throw ioslaves::req_err(ioslaves::answer_code::OP_NOT_DEF, THLOGSCLI(s), MCLOGSCLI(s) << "Server external request : invalid '" << (char)op << "' opperation");
 									}
-								} catch (ioslaves::requestException& re) {
+								} catch (ioslaves::req_err& re) {
 									cli.o_char((char)re.answ_code);
 								}
 							} break;
@@ -1784,7 +1780,7 @@ void minecraft::stopServer (socketxx::io::simple_socket<socketxx::base_socket> c
 		
 			// Waiting for stop
 		ReadEarlyStateIfNot('s',5) {
-			throw ioslaves::requestException(ioslaves::answer_code::INTERNAL_ERROR, "STOP", MCLOGSCLI(s) << "Failed to send stop command");
+			throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "STOP", MCLOGSCLI(s) << "Failed to send stop command");
 		}
 		cli.o_char((char)ioslaves::answer_code::OK);
 		do {
@@ -1793,10 +1789,10 @@ void minecraft::stopServer (socketxx::io::simple_socket<socketxx::base_socket> c
 		} while (_stat == 'S' or _stat == 'l');
 		cli.o_char((char)ioslaves::answer_code::OK);
 		if (_stat != 'g') {
-			throw ioslaves::requestException(ioslaves::answer_code::ERROR, "STOP", MCLOGSCLI(s) << "Didn't received sigchild ack (" << _stat << ")");
+			throw ioslaves::req_err(ioslaves::answer_code::ERROR, "STOP", MCLOGSCLI(s) << "Didn't received sigchild ack (" << _stat << ")");
 		}
 		ReadEarlyStateIfNot('E',6) {
-			throw ioslaves::requestException(ioslaves::answer_code::ERROR, "STOP", MCLOGSCLI(s) << "Didn't received ack of thread exiting");
+			throw ioslaves::req_err(ioslaves::answer_code::ERROR, "STOP", MCLOGSCLI(s) << "Didn't received ack of thread exiting");
 		}
 		__log__(log_lvl::LOG, "STOP", "Ok, thread is exited");
 		cli.o_char((char)ioslaves::answer_code::OK);
@@ -1812,13 +1808,13 @@ void minecraft::stopServer (socketxx::io::simple_socket<socketxx::base_socket> c
 			if (accept) {
 				minecraft::compressAndSend(cli, s->s_servid, s->s_map);
 			} else 
-				throw ioslaves::requestException(ioslaves::answer_code::DENY, "STOP", MCLOGSCLI(s) << "Master refused stop report ! Scandal !");
+				throw ioslaves::req_err(ioslaves::answer_code::DENY, "STOP", MCLOGSCLI(s) << "Master refused stop report ! Scandal !");
 		}
 		
 		cli.o_char((char)ioslaves::answer_code::OK);
 		__log__(log_lvl::DONE, "STOP", MCLOGSCLI(s) << "Server successfully stopped");
 		
-	} catch (ioslaves::requestException& re) {
+	} catch (ioslaves::req_err& re) {
 		cli.o_char((char)re.answ_code);
 	} catch (xif::sys_error& se) {
 		__log__(log_lvl::ERROR, "STOP", MCLOGSCLI(s) << "Internal sys error : " << se.what());

@@ -14,7 +14,7 @@ options=()
 install='ioslavesd-mc.install'
 
 source=('../common/common.hpp' '../common/common.cpp'
-        '../common-ioslavesd/api.h' '../common-ioslavesd/log.h' '../common-ioslavesd/log_api.cpp'
+        '../common-ioslavesd/api.h' '../common-ioslavesd/log.h'
         '../common-minecraft/minecraft.h'
         'minecraft.cpp' 'ftp-auth-mc.cpp'
         'Makefile'
@@ -22,7 +22,7 @@ source=('../common/common.hpp' '../common/common.cpp'
         'maptpl.zip' 'permtpl.zip')
 noextract=('maptpl.zip' 'permtpl.zip')
 sha256sums=('SKIP' 'SKIP'
-            'SKIP' 'SKIP' 'SKIP'
+            'SKIP' 'SKIP'
             'SKIP' 'SKIP'
             'SKIP'
             'SKIP'

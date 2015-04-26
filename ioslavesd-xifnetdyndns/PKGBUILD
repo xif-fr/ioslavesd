@@ -13,13 +13,13 @@ backup=(etc/nsd/zones/net.xif.fr.zone)
 options=()
 
 source=('../common/common.hpp' '../common/common.cpp'
-        '../common-ioslavesd/api.h' '../common-ioslavesd/log.h' '../common-ioslavesd/log_api.cpp'
+        '../common-ioslavesd/api.h' '../common-ioslavesd/log.h'
         'xifnetdyndns.cpp'
         'Makefile'
         'xifnetdyndns.service'
         'net.xif.fr.zone')
 sha256sums=('SKIP' 'SKIP'
-            'SKIP' 'SKIP' 'SKIP'
+            'SKIP' 'SKIP'
             'SKIP'
             'SKIP'
             'SKIP'

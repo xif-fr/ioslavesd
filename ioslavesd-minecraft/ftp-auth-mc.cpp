@@ -8,13 +8,11 @@
  \**********************************************************/
 
 	// Common
-#include "log.h"
-#define IOSLAVES_NEED_requestException_CLASS
-#include "common.hpp"
-#define IOSLAVESD_MINECRAFT
-#include "minecraft.h"
 #define IOSLAVESD_API_SERVICE
 #include "api.h"
+using namespace xlog;
+#define IOSLAVESD_MINECRAFT
+#include "minecraft.h"
 
 	// Misc
 #include <xifutils/cxx.hpp>
@@ -86,7 +84,7 @@ void minecraft::ftp_start_thread () {
 		::usleep(100000);
 		if (i == 20) {
 			minecraft::ftp_th_started = false;
-			throw ioslaves::requestException(ioslaves::answer_code::ERROR, "FTP", "Auth thread not responding after 2 seconds");
+			throw ioslaves::req_err(ioslaves::answer_code::ERROR, "FTP", "Auth thread not responding after 2 seconds");
 		}
 		i++;
 	} while (minecraft::ftp_serv_addr.empty());
@@ -283,7 +281,7 @@ void minecraft::ftp_register_user (std::string username, std::string md5passwd, 
 			auto p_it = it++; minecraft::ftp_sessions.erase(p_it);
 		} else {
 			if (username == it->username) 
-				throw ioslaves::requestException(ioslaves::answer_code::EXISTS, "FTP", logstream << "A valid session for username '" << username << "' for server '" << it->server << "' already exists");
+				throw ioslaves::req_err(ioslaves::answer_code::EXISTS, "FTP", logstream << "A valid session for username '" << username << "' for server '" << it->server << "' already exists");
 			++it;
 		}
 	}

@@ -35,6 +35,8 @@ struct _block_sigchild {
 };
 #define sigchild_block() _block_sigchild _block_sigchild_handle
 
+#define XIF_LOG_DEFAULT_LOGSTREAM
+#include "log.h"
 #include "common.hpp"
 #include <xifutils/polyvar.hpp>
 
@@ -58,7 +60,7 @@ namespace ioslaves { namespace api {
 /// Common callbacks definitions
 namespace ioslaves { namespace api {
 	
-	typedef void (*report_log_f) (ioslaves::service*, log_lvl, const char*, std::string&, int, logl_t*); // Report a log line
+	typedef void (*report_log_f) (ioslaves::service*, xlog::log_lvl, const char*, std::string&, int, xlog::logl_t*); // Report a log line
 	typedef ioslaves::answer_code (*open_port_f) (in_port_t, bool, in_port_t, uint16_t, std::string); // Open port on gateway
 	typedef void (*close_port_f) (in_port_t, uint16_t, bool); // Close port on gateway
 	typedef ioslaves::answer_code (*dns_srv_create_f) (const char*, std::string, std::string, bool, in_port_t, bool); // Create SRV entry
@@ -93,7 +95,7 @@ namespace ioslaves { namespace api {
 		(ioslaves::api::dns_srv_del_f)ioslaves::api::dns_srv_del,                 \
 		(ioslaves::api::run_as_root_f)ioslaves::api::run_as_root                  \
 		
-	void report_log (ioslaves::service*, log_lvl, const char* part, std::string& msg, int f, logl_t*) noexcept;
+	void report_log (ioslaves::service*, xlog::log_lvl, const char* part, std::string& msg, int f, xlog::logl_t*) noexcept;
 	ioslaves::answer_code open_port (in_port_t ext, bool is_tcp, in_port_t loc, uint16_t range_sz, std::string descr) noexcept;
 	void close_port (in_port_t ext, uint16_t range_sz, bool is_tcp) noexcept;
 	ioslaves::answer_code dns_srv_create (const char* service_name, std::string domain, std::string host, bool with_cname, in_port_t port, bool is_tcp) noexcept;
@@ -170,6 +172,13 @@ extern "C" void ioslapi_set_callbacks (ioslaves::service* _me, sig_atomic_t* _si
 	ioslaves::api::callbacks::dns_srv_create = _dns_srv_create;
 	ioslaves::api::callbacks::dns_srv_del = _dns_srv_del;
 	ioslaves::api::callbacks::run_as_root = _run_as_root;
+}
+
+	// API Log
+pthread_mutex_t xlog::logstream_impl::mutex = PTHREAD_MUTEX_INITIALIZER;
+std::ostringstream xlog::logstream_impl::stream;
+void xlog::logstream_impl::log (log_lvl lvl, const char* part, std::string msg, int m, logl_t* lid) noexcept {
+	(*ioslaves::api::callbacks::report_log)(ioslaves::api::service_me, lvl, part, msg, m, lid);
 }
 
 #endif

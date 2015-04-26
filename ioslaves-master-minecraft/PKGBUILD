@@ -6,7 +6,7 @@ pkgrel=1
 pkgdesc='Xif Network - ioslaves master sub-program for controlling minecraft service on slaves'
 license=('custom')
 arch=('i686' 'x86_64')
-depends=('zip' 'unzip' 'libconfig' 'nopoll')
+depends=('zip' 'unzip' 'libconfig' 'nopoll' 'ioslaves-master')
 makedepends=('xifutils')
 
 source=('../common/common.hpp' '../common/common.cpp'

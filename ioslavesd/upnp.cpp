@@ -9,6 +9,7 @@
  \**********************************************************/
 
 #include "main.h"
+using namespace xlog;
 
 	/// Vars
 bool enable_upnp = true;

@@ -1,4 +1,5 @@
 #include "master.hpp"
+using namespace xlog;
 
 	// Misc
 #include <math.h>
@@ -216,7 +217,8 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::select_slaves (const c
 	return slaves_list;
 }
 
-time_t iosl_master::slave_start (std::string slave_id, std::ostream& _log_) {
+time_t iosl_master::slave_start (std::string slave_id) {
+	logl_t l;
 	iosl_master::on_type $poweron_type = iosl_master::on_type::_AUTO;
 	socketxx::base_netsock::addr_info $on_addr = {in_addr{0},0};
 	time_t $start_delay = 0;
@@ -225,13 +227,13 @@ time_t iosl_master::slave_start (std::string slave_id, std::ostream& _log_) {
 	uint16_t $on_psu_id = -1;
 	std::string fname = _S( IOSLAVES_MASTER_SLAVES_DIR,"/",slave_id,".conf" );
 	if (::access(fname.c_str(), F_OK) == -1) 
-		throw std::runtime_error(_S("conf file not found for slave ",slave_id));
+		throw ioslaves::req_err(ioslaves::answer_code::NOT_FOUND, "WAKE", logstream << "Slave settings file not found for '" << slave_id << "'");
 	try {
 		libconfig::Config conf;
 		conf.readFile(fname.c_str());
 		$start_delay = (int)conf.lookup("start_delay");
 		if ($start_delay == 0)
-			throw std::runtime_error("must be started manually");
+			throw ioslaves::req_err(ioslaves::answer_code::BAD_TYPE, "WAKE", logstream << "Slave '" << slave_id << "' must be started manually");
 		libconfig::Setting& poweron_grp = conf.lookup("poweron");
 		std::string type = poweron_grp["type"].operator std::string();
 		if (type == "wol") {
@@ -247,23 +249,26 @@ time_t iosl_master::slave_start (std::string slave_id, std::ostream& _log_) {
 		} else if (type == "gateway") {
 			$poweron_type = iosl_master::on_type::GATEWAY;
 			$on_gateway = poweron_grp["gateway"].operator std::string();
-		} else
+		} else 
 			throw std::runtime_error("invalid poweron type");
 	} catch (std::exception& e) {
-		throw std::runtime_error(_S("settings error for slave ",slave_id," : ",e.what()));
+		throw ioslaves::req_err(ioslaves::answer_code::INVALID_DATA, "WAKE", logstream << "Setting error in conf file of '" << slave_id << "' : " << e.what());
 	}
-	_log_ << "Waking up slave " << slave_id;
+	__log__(log_lvl::LOG, "WAKE", logstream << "Waking up slave '" << slave_id << "'", LOG_WAIT, &l);
 	if ($poweron_type == iosl_master::on_type::WoW) {
-		_log_ << " using a magic packet for " << $on_mac << " to " << $on_addr.get_ip_str() << ":" << $on_addr.get_port() << std::endl;
+		__log__(log_lvl::LOG, "WAKE", logstream << "using a magic packet for " << $on_mac << " to " << $on_addr.get_ip_str() << ":" << $on_addr.get_port(), LOG_ADD, &l);
 		ioslaves::wol::magic_send($on_mac.c_str(), true, $on_addr.get_ip_addr().s_addr, $on_addr.get_port());
-	} else if ($poweron_type == iosl_master::on_type::WoL) {
-		_log_ << " using a magic packet for " << $on_mac << " in local" << std::endl;
+	} 
+	else if ($poweron_type == iosl_master::on_type::WoL) {
+		__log__(log_lvl::LOG, "WAKE", logstream << "using a magic packet for " << $on_mac << " to local broadcast.", LOG_ADD, &l);
 		ioslaves::wol::magic_send($on_mac.c_str(), false);
-	} else if ($poweron_type == iosl_master::on_type::GATEWAY) {
-		_log_ << " via gateway '" << $on_gateway << "'" << std::endl;
+	} 
+	else if ($poweron_type == iosl_master::on_type::GATEWAY) {
+		__log__(log_lvl::LOG, "WAKE", logstream << "via gateway '" << $on_gateway << "'...", LOG_ADD, &l);
 		#warning TO DO : wol gateway connection
-	} else if ($poweron_type == iosl_master::on_type::PSU) {
-		_log_ << " via psu id " << $on_psu_id << std::endl;
+	} 
+	else if ($poweron_type == iosl_master::on_type::PSU) {
+		__log__(log_lvl::LOG, "WAKE", logstream << "via serial PSU #" << $on_psu_id << "...", LOG_ADD, &l);
 		#warning TO DO : serial psu module
 	}
 	return $start_delay;
