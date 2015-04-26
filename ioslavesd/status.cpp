@@ -27,6 +27,7 @@
 
 xif::polyvar::map ioslaves::system_stat ({
 	{"proc_%", 0.0f},
+	{"cpu#", 0},
 	{"mem_tot", 0},
 	{"mem_free", 0},
 	{"mem_usable", 0},
@@ -54,6 +55,7 @@ void ioslaves::statusFrame () {
 		topp::cputimes cputimes = topp::GetCpuUsage(cpu.c_tot_cores, F_procstat);
 		float cpu_percent = (cputimes.tot_sys+cputimes.tot_usr)/(float)cputimes.tot_tot *100.f;
 		system_stat["proc_%"] = cpu_percent;
+		system_stat["cpu#"] = cpu.c_tot_cores;
 	}
 	{ // RAM
 		topparsing::PropertiesFile F_meminfo ("/proc/meminfo");
@@ -169,16 +171,19 @@ void ioslaves::statusEnd () {
 	time_t iosl_uptime = ::time(NULL) - start_time;
 	__log__(log_lvl::LOG, NULL, logstream << "ioslavesd was running for " << iosl_uptime/60 << " minutes");
 #ifndef IOSLAVESD_NO_TOPP
-	std::tuple<time_t,time_t,time_t> times = topp::GetUptime();
+	topparsing::FieldsFile F_uptime("/proc/uptime", ' ', 2);
+	time_t uptime = (time_t)::atof(F_uptime.stri(0).c_str());
+	time_t idletime = (time_t)( ::atof(F_uptime.stri(1).c_str()) / system_stat["cpu#"] );
+	time_t usedtime = uptime - idletime;
 	try {
-		topparsing::FieldsFile F_uptime(IOSLAVESD_UPTIME_FILE, ' ', 3);
-		std::get<0>(times) += iosl_uptime;
-		float factor = (float)iosl_uptime/(float)F_uptime.numi(0);
-		std::get<1>(times) += (time_t)((float)F_uptime.numi(1)*factor);
-		std::get<2>(times) += (time_t)((float)F_uptime.numi(2)*factor);
+		topparsing::FieldsFile F_totuptime(IOSLAVESD_UPTIME_FILE, ' ', 3);
+		float factor = (float)iosl_uptime/(float)uptime;
+		uptime = F_totuptime.numi(0) + iosl_uptime;
+		idletime = F_totuptime.numi(1) + (time_t)((float)idletime*factor);
+		usedtime = F_totuptime.numi(2) + (time_t)((float)usedtime*factor);
 	} catch (...) {}
-	std::ofstream F_uptime (IOSLAVESD_UPTIME_FILE, std::fstream::out|std::fstream::trunc);
-	F_uptime << std::get<0>(times) << ' ' << std::get<1>(times) << ' ' << std::get<2>(times);
+	std::ofstream totuptime_F (IOSLAVESD_UPTIME_FILE, std::fstream::out|std::fstream::trunc);
+	totuptime_F << uptime << ' ' << idletime << ' ' << usedtime;
 #endif
 }
 
