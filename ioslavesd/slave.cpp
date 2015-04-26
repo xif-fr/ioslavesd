@@ -946,7 +946,7 @@ void ioslaves::loadService (std::string name, FILE* service_file) {
 				::strcpy(s->spec.exec.execnam, execnam.c_str());
 				break;
 		}
-	} catch (libconfig::ConfigException& ce) {
+	} catch (std::exception& e) {
 		__log__(log_lvl::ERROR, "SERVICE", logstream << _IOSLAVES_SERVICE_CONF_ERROR_STR << ce.what());
 		return;
 	}
