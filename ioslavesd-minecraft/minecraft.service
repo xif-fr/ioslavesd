@@ -1,4 +1,4 @@
 /* Minecraft Servers Distributed Hosting service */
 
-type: "SLAVE_PROG";
+type: "IOSLPLUGIN";
 command: "minecraft";

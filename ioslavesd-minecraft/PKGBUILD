@@ -19,7 +19,7 @@ source=('../common/common.hpp' '../common/common.cpp'
         'minecraft.cpp' 'ftp-auth-mc.cpp'
         'Makefile'
         'minecraft.service'
-        'maptpl.zip' 'permtpl.zip')
+        'maptpl.zip' 'permtpl.zip' 'ioslmc.conf')
 noextract=('maptpl.zip' 'permtpl.zip')
 sha256sums=('SKIP' 'SKIP'
             'SKIP' 'SKIP'
@@ -27,7 +27,7 @@ sha256sums=('SKIP' 'SKIP'
             'SKIP'
             'SKIP'
             'SKIP'
-            'SKIP' 'SKIP')
+            'SKIP' 'SKIP' 'SKIP')
 
 build() {
 	make CXXFLAGS="${CXXFLAGS} -DMINECRAFT_SRV_DIR=\\\"\"/srv/mc\"\\\" -DXIFNET"
@@ -39,6 +39,7 @@ package() {
 	install -D -m644 $srcdir/minecraft.service $pkgdir/etc/ioslavesd/services/minecraft.service
 	install -D -m644 $srcdir/minecraft.iosldl $pkgdir/usr/lib/ioslavesd/api-services/minecraft.iosldl
 	install -d -m775 $pkgdir/srv/mc/{_jars,_maps,_bigfiles}
+	install -D -m644 $srcdir/ioslmc.conf $pkgdir/srv/mc/ioslmc.conf
 	cd $pkgdir/srv/mc/
 	unzip $srcdir/maptpl.zip
 	unzip $srcdir/permtpl.zip
