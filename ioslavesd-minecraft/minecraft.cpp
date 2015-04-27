@@ -942,6 +942,8 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			if (not s->s_is_perm_map) 
 				throw ioslaves::req_err(ioslaves::answer_code::EXISTS, "FILES", MCLOGSCLI(s) << "Can't use temporary map '" << s->s_map << "' : a permanent server folder exists with this name");
 				// Permanent map folder found
+				// Checking for .lck files
+			if (s->s_serv_type != minecraft::serv_type::FORGE)
 			{ DIR* dir = ::opendir(working_dir.c_str());
 				RAII_AT_END_L( ::closedir(dir) );
 				if (dir == NULL) 
