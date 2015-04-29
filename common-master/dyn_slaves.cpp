@@ -14,7 +14,13 @@ using namespace xlog;
 #include <socket++/quickdefs.h>
 #include <pthread.h>
 
-std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::select_slaves (const char* needed_service, ram_megs_t needed_ram, proc_power_t needed_power, bool comfortably, efficiency_ratio_t eff, bool quickly, std::function<points_t(const iosl_dyn_slaves::slave_info&)> additional_filter) {
+std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::select_slaves (const char* needed_service, 
+																								 ram_megs_t needed_ram, proc_power_t needed_power, 
+																								 bool comfortably, 
+																								 efficiency_ratio_t eff, 
+																								 bool quickly, 
+																								 std::vector<std::string> needed_tags,
+																								 std::function<points_t(const iosl_dyn_slaves::slave_info&)> additional_filter) {
 	
 		/// List slaves and open info files
 	std::vector<std::pair<iosl_dyn_slaves::slave_info,libconfig::Config*>> slaves_list_cfg;
@@ -81,6 +87,10 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::select_slaves (const c
 				float value = (float)(other_indices_group[i]);
 				info.sl_fixed_indices.insert(std::pair<std::string,float>( name, value ));
 			}
+			libconfig::Setting& tags_list = cfg.lookup("tags");
+			for (int i = 0; i < tags_list.getLength(); i++) {
+				info.sl_tags.push_back( tags_list[i].operator std::string() );
+			}
 		} catch (libconfig::ConfigException& ce) {
 			throw xif::sys_error(_S("missing/bad fields in slave info file for ",info.sl_name), ce.what());
 		}
@@ -146,6 +156,16 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::select_slaves (const c
 		if (needed_service != NULL and info.sl_status == 0 and info.sl_services_status.find(needed_service) == info.sl_services_status.end()) {
 			info.sl_status = -5;
 			continue;
+		}
+			// Checking tags
+		for (const std::string& needed_tag : needed_tags) {
+			for (const std::string& present_tag : info.sl_tags) {
+				if (needed_tag == present_tag) 
+					goto _next;
+			}
+			info.sl_status = -4;
+			goto bye;
+		_next:;
 		}
 		
 		{ // Memory

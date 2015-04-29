@@ -1065,6 +1065,7 @@ _try_start:
 				"minecraft", 
 				$needed_ram, $needed_cpu, true,
 				$needed_eff, $need_quickly,
+				{ "dyn-hosting" },
 				[&] (const slave_info& info) -> points_t {
 					for (const std::string& sl : excluded_slaves) 
 						if (info.sl_name == sl) return INT32_MIN;
@@ -1094,6 +1095,7 @@ _try_start:
 				t << "<table>" << std::setprecision(2);
 				t << "<tr> <th>slave</th> <th>stat</th> <th>∆ram</th> <th>pt.ram</th> <th>q.proc</th> <th>pt.proc</th> <th>pt.eff</th> <th>pt.wait</th> <th>pt.net</th> <th>pt.total</th> </tr>";
 				for (slave_info& info : slaves) {
+					if (info.sl_status == -4 or info.sl_status == -5) continue;
 					t << "<tr>";
 					bool is_bye = info.sl_total_points == INT32_MIN;
 					t << "<th>" << (is_bye?"<del>":"") << info.sl_name << (is_bye?"</del>":"") << "</th>";
