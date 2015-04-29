@@ -16,12 +16,12 @@
 #define MC_MAP_PERM 0640
 
 	// Protocol version
-#define IOSLAVES_MINECRAFT_PROTO_VERS 0x17
+#define IOSLAVES_MINECRAFT_PROTO_VERS 0x18
 
 	// Minecraft service
 namespace minecraft {
 	
-	enum class serv_type : char { VANILLA = 'V', BUKKIT = 'B', FORGE = 'F', MCPC = 'M', SPIGOT = 'S', CUSTOM = 'J' };
+	enum class serv_type : char { VANILLA = 'V', BUKKIT = 'B', FORGE = 'F', CAULDRON = 'L', SPIGOT = 'S', CUSTOM = 'J' };
 	
 	enum class op_code : char {
 		START_SERVER = 'S',

@@ -997,10 +997,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 		infos_keys["PORT"] = ::ixtoa(s->s_port);
 		infos_keys["VIEWDIST"] = ::ixtoa(s->s_viewdist);
 		infos_keys["CLI"] = s->s_servid;
-		if (s->s_serv_type == minecraft::serv_type::SPIGOT or s->s_serv_type == minecraft::serv_type::MCPC)
-			minecraft::processTemplateFile(_s( working_dir,"/spigot.yml.in" ), infos_keys);
-		else 
-			minecraft::processTemplateFile(_s( working_dir,"/server.properties.in" ), infos_keys);
+		minecraft::processTemplateFile(_s( working_dir,"/server.properties.in" ), infos_keys);
 		const char* tplsbeg[] = { /*"ops.txt",*/ NULL };
 		for (size_t i = 0; tplsbeg[i] != NULL; ++i) {
 			std::string fpth = _S( working_dir,"/",tplsbeg[i],".in" );
@@ -1013,8 +1010,10 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 		
 			// Handling big-files (chached big immutables files, like mods or plugins) -> create sym links in serv folder
 		std::vector<minecraft::_BigFiles_entry> bigfiles = minecraft::getBigFilesIndex(working_dir);
-		if (s->s_serv_type == minecraft::serv_type::FORGE or s->s_serv_type == minecraft::serv_type::MCPC)
+		if (s->s_serv_type == minecraft::serv_type::FORGE or s->s_serv_type == minecraft::serv_type::CAULDRON)
 			bigfiles.push_back( minecraft::_BigFiles_entry{ "forge_libs", _S(working_dir,"/libraries") } );
+		if (s->s_serv_type == minecraft::serv_type::CAULDRON) 
+			bigfiles.push_back( minecraft::_BigFiles_entry{ _S("cauldronbukkit-",s->s_mc_ver.str(),".jar") } );
 		for (minecraft::_BigFiles_entry entry : bigfiles) {
 			std::string file_path = _S( MINECRAFT_BIGFILES_DIR,'/',entry.name );
 			r = ::access(file_path.c_str(), R_OK);
@@ -1023,6 +1022,8 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 				minecraft::transferAndExtract(cli, minecraft::transferWhat::BIGFILE, entry.name, MINECRAFT_BIGFILES_DIR);
 			}
 			__log__(log_lvl::LOG, "FILES", logstream << "Creating symlink to big-file '" << entry.name << "'");
+			if (entry.final_path.empty()) 
+				entry.final_path = _S( working_dir,'/',entry.name );
 			r = ::symlink(file_path.c_str(), entry.final_path.c_str());
 			if (r == -1) {
 				if (errno != EEXIST) throw xif::sys_error("failed to create symlink to big-file");
@@ -1041,12 +1042,14 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 				else throw xif::sys_error("testing for custom .jar in server dir failed");
 			}
 		} else {
-			const char* jar_prefix;
+			const char* jar_prefix = NULL;
 			     if (s->s_serv_type == minecraft::serv_type::VANILLA) jar_prefix = "mc_vanilla_";
 			else if (s->s_serv_type == minecraft::serv_type::BUKKIT) jar_prefix = "mc_bukkit_";
-			else if (s->s_serv_type == minecraft::serv_type::FORGE) {
-				jar_prefix = "mc_forge_";
-				__log__(log_lvl::LOG, "FILES", logstream << "Using forge -> Creating symlink to minecraft_server.jar and mc_forge.jar");
+			else if (s->s_serv_type == minecraft::serv_type::FORGE or s->s_serv_type == minecraft::serv_type::CAULDRON) {
+				// Special treatment here : minecraft_server.jar will be patched by Forge and need to be in the folder
+				if (s->s_serv_type == minecraft::serv_type::CAULDRON) jar_prefix = "mc_cauldron_";
+				else if (s->s_serv_type == minecraft::serv_type::FORGE) jar_prefix = "mc_forge_";
+				__log__(log_lvl::LOG, "FILES", logstream << "Using forge -> Creating symlink to minecraft_server.jar");
 				jar_path = _s( MINECRAFT_JAR_DIR,'/',(jar_name=_s("mc_vanilla_",s->s_mc_ver.strdigits(),".jar")) );
 				r = ::access(jar_path.c_str(), R_OK);
 				if (r == -1) {
@@ -1057,10 +1060,10 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 				if (r == -1 and errno != EEXIST) 
 					throw xif::sys_error("failed to create symlink to minecraft_server.jar");
 			}
-			else if (s->s_serv_type == minecraft::serv_type::MCPC) jar_prefix = "mc_mcpc_";
 			else if (s->s_serv_type == minecraft::serv_type::SPIGOT) jar_prefix = "mc_spigot_";
-			else 
+			else  
 				throw xif::sys_error("Minecraft .JAR type", "invalid value");
+				// Get jar if needed and link in server directory
 			jar_path = _s( MINECRAFT_JAR_DIR,'/',(jar_name=_s(jar_prefix,s->s_mc_ver.str(),".jar")) );
 			r = ::access(jar_path.c_str(), R_OK);
 			if (r == -1) {
@@ -1649,8 +1652,8 @@ void* minecraft::serv_thread (void* arg) {
 	for (minecraft::_BigFiles_entry entry : bigfiles) {
 		r = ::unlink(entry.final_path.c_str());
 	}
-	if (s->s_serv_type == minecraft::serv_type::FORGE or s->s_serv_type == minecraft::serv_type::MCPC) {
-		r = ::unlink(_s( MINECRAFT_SRV_DIR,"/mc_",s->s_servid,'/',s->s_map,"/minecraft_server.",s->s_mc_ver.str(),".jar" ));
+	if (s->s_serv_type == minecraft::serv_type::FORGE or s->s_serv_type == minecraft::serv_type::CAULDRON) {
+		r = ::unlink(_s( MINECRAFT_SRV_DIR,"/mc_",s->s_servid,'/',s->s_map,"/minecraft_server.",s->s_mc_ver.strdigits(),".jar" ));
 		r = ::unlink(_s( MINECRAFT_SRV_DIR,"/mc_",s->s_servid,'/',s->s_map,"/libraries" ));
 		r = ::unlink(s->s_jar_path.c_str());
 	}
@@ -1684,7 +1687,7 @@ std::string MC_log_interpret (const std::string line, minecraft::serv* s, minecr
 	bool hour_and_part = false;
 	if (s->s_serv_type == minecraft::serv_type::VANILLA) {
 		if (s->s_mc_ver >= ioslaves::version(1,7,0)) hour_brackets = true;
-	} else if (s->s_serv_type == minecraft::serv_type::BUKKIT) {
+	} else if (s->s_serv_type == minecraft::serv_type::BUKKIT or s->s_serv_type == minecraft::serv_type::CAULDRON) {
 		if (s->s_mc_ver >= ioslaves::version(1,7,0)) { hour_brackets = true; hour_and_part = true; }
 	} else if (s->s_serv_type == minecraft::serv_type::FORGE) {
 		hour_brackets = true;
