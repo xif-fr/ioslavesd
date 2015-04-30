@@ -154,7 +154,7 @@ int main (int argc, char* const argv[]) {
 				} else 
 					last_zerocli = 0;
 				std::cerr << "Sending to " << ws_clients.size() << " clients..." << std::endl;
-				std::string json = aggregated.to_json();
+				std::string json = aggregated.to_json(3);
 				for (auto it = ws_clients.begin(); it != ws_clients.end();) {
 					noPollConn* cli = (*it);
 					int rs = nopoll_conn_send_text(cli, json.c_str(), json.length());

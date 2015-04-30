@@ -1,6 +1,6 @@
 /* Xif Network Dynamic DNS service using NSD */
 
-type: "SLAVE_PROG";
+type: "IOSLPLUGIN";
 command: "xifnetdyndns";
 port: 53;
 port_proto: "TCP+UDP";

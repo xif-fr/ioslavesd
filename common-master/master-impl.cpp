@@ -11,9 +11,6 @@
 #include "common.hpp"
 #include "master.hpp"
 
-	// Conf
-#include <libconfig.h++>
-
 	// Network
 #include <socket++/handler/socket_client.hpp>
 #include <socket++/base_inet.hpp>

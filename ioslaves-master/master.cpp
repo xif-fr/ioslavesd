@@ -19,7 +19,9 @@
 #include <iostream>
 
 	// Config
+#define private public
 #include <libconfig.h++>
+#undef private
 
 	// Files
 #include <sys/stat.h>
@@ -92,6 +94,7 @@ int16_t $autoshutdown = -1;
 	void IPostSlaveCo (ioslaves::answer_code);
 	void IKeygen ();
 	void IPowerup ();
+	void IioslFile2JSON ();
 void IPost (ioslaves::answer_code);
 
 	// Commmand line arguments
@@ -101,11 +104,11 @@ void IPost (ioslaves::answer_code);
 #define OPTCTX_POSTFNCT_EXCEPT_DEFAULT (ioslaves::answer_code)0
 #define EXCEPT_ERROR_IGNORE (ioslaves::answer_code)1
 
-#define OPTCTX_CTXS                              slctrl                         , slctrl_Ser                     , slctrl_Sstart    , slctrl_Sstop    , slctrl_Sapi       , slctrl_port , slctrl_shutd , slctrl_stat , slctrl_log , keygen        , powerup
-#define OPTCTX_PARENTS                           ROOT                           , slctrl                         , slctrl_Ser       , slctrl_Ser      , slctrl_Ser        , slctrl      , slctrl       , slctrl      , slctrl     , ROOT          , ROOT
-#define OPTCTX_PARENTS_NAMES  "action"         , "slave command"                , "service opperation"           , NULL             , NULL            , NULL              , NULL        , NULL         , NULL        , NULL       , NULL          , NULL
-#define OPTCTX_PARENTS_FNCTS  CTXFP(NULL,IPost), CTXFP(IPreSlaveCo,IPostSlaveCo), CTXFP(IPreService,IPostService), CTXFO(IServStart), CTXFO(IServStop), CTXFO(IApi)       , CTXFO(IPort), CTXFO(IShutd), CTXFO(IStat), CTXFO(ILog), CTXFO(IKeygen), CTXFO(IPowerup)
-#define OPTCTX_NAMES                             "--control"                    , "--service"                    , "--start"        , "--stop"        , "--api-service-co", "--xxx-port", "--shutdown" , "--status"  , "--log"    , "--add-key"   , "--on"   
+#define OPTCTX_CTXS                              slctrl                         , slctrl_Ser                     , slctrl_Sstart    , slctrl_Sstop    , slctrl_Sapi       , slctrl_port , slctrl_shutd , slctrl_stat , slctrl_log , keygen        , powerup        , tojson
+#define OPTCTX_PARENTS                           ROOT                           , slctrl                         , slctrl_Ser       , slctrl_Ser      , slctrl_Ser        , slctrl      , slctrl       , slctrl      , slctrl     , ROOT          , ROOT           , ROOT
+#define OPTCTX_PARENTS_NAMES  "action"         , "slave command"                , "service opperation"           , NULL             , NULL            , NULL              , NULL        , NULL         , NULL        , NULL       , NULL          , NULL           , NULL
+#define OPTCTX_PARENTS_FNCTS  CTXFP(NULL,IPost), CTXFP(IPreSlaveCo,IPostSlaveCo), CTXFP(IPreService,IPostService), CTXFO(IServStart), CTXFO(IServStop), CTXFO(IApi)       , CTXFO(IPort), CTXFO(IShutd), CTXFO(IStat), CTXFO(ILog), CTXFO(IKeygen), CTXFO(IPowerup), CTXFO(IioslFile2JSON)
+#define OPTCTX_NAMES                             "--control"                    , "--service"                    , "--start"        , "--stop"        , "--api-service-co", "--xxx-port", "--shutdown" , "--status"  , "--log"    , "--add-key"   , "--on"         , "--to-json"
 
 #define OPTCTX_PROG_NAME "ioslaves-master"
 #include <xifutils/optctx.hpp>
@@ -167,6 +170,7 @@ int main (int argc, char* const argv[]) {
 			{"log", optional_argument, NULL, 'L'},
 		{"keygen", no_argument, NULL, 'K'},
 		{"on", optional_argument, NULL, 'O'},
+		{"to-json", no_argument, NULL, 'J'},
 		{NULL, 0, NULL, 0}
 	};
 	
@@ -184,7 +188,7 @@ int main (int argc, char* const argv[]) {
 	try_parse_IDs(argc, argv);
 	
 	int opt, opt_charind = 0;
-	while ((opt = ::getopt_long(argc, argv, "-hviCfp:S:soa:P:X:RDGL::KO::", long_options, &opt_charind)) != -1) {
+	while ((opt = ::getopt_long(argc, argv, "-hiCfp:S:soa:P:X:RDGL::KO::", long_options, &opt_charind)) != -1) {
 		switch (opt) {
 			case 'h':
 				::puts("ioslaves-master | ioslaves control programm for network masters\n"
@@ -234,6 +238,7 @@ int main (int argc, char* const argv[]) {
 						 "                                           cannot traverse the NAT. Takes gateway's name or address.\n"
 						 "                            SERIAL_PSU: command a centralized PSU via serial port using xif PSU's\n"
 						 "                                        protocol. Takes the output ID of the PSU.\n"
+						 "  -J, --to-json            Convert slave info file in ~/ioslaves-master/slaves/[slave].conf into JSON.\n"
 						 "\n");
 				return EXIT_SUCCESS;
 			case 'i':
@@ -402,6 +407,9 @@ int main (int argc, char* const argv[]) {
 					try_help("--on : invalid mode\n");
 				}
 			} break;
+			case 'J':
+				optctx::optctx_set(optctx::tojson);
+				break;
 			default: 
 				try_help();
 		}
@@ -632,7 +640,7 @@ void IStat () {
 	std::cerr << "Getting slave status and infos..." << std::endl;
 	$slave_sock->o_char((char)ioslaves::op_code::GET_STATUS);
 	xif::polyvar info = $slave_sock->i_var();
-	std::cout << info.to_json().c_str() << std::endl;
+	std::cout << info.to_json(3) << std::endl;
 }
 
 const char* log_lvl_strs[] = { "FATAL", "ERROR", "OOPS", "WARNING", "NOTICE", "LOG", "IMP", "MAJOR", "DONE" };
@@ -759,6 +767,66 @@ void IKeygen () {
 	::close(f);
 	if (optctx::interactive) std::cerr << "Key footprint of '" << key_path << "' : " << std::flush;
 	std::cout << ioslaves::md5(key) << std::endl;
+}
+		
+	///---- Convert slave file to JSON ----////
+
+void IioslFile2JSON () {
+	int r;
+	if ($slave_id.empty()) {
+		std::cerr << COLOR_RED << "Slave ID must be defined" << COLOR_RESET << std::endl;
+		throw EXCEPT_ERROR_IGNORE;
+	}
+	std::string fname = _S( IOSLAVES_MASTER_SLAVES_DIR,"/",$slave_id,".conf" );
+	r = ::access(fname.c_str(), F_OK);
+	if (r == -1) 
+		std::cerr << COLOR_RED << "Slave settings file not found for '" << $slave_id << "'" << COLOR_RESET << std::endl;
+	xif::polyvar infos;
+	try {
+		libconfig::Config conf;
+		conf.readFile(fname.c_str());
+		std::function< xif::polyvar(libconfig::Setting&) > conf_recuse = [&conf_recuse] (libconfig::Setting& sett) -> xif::polyvar {
+			xif::polyvar var;
+			switch (sett.getType()) {
+				case libconfig::Setting::TypeArray:
+				case libconfig::Setting::TypeList:
+					var = xif::polyvar::vec();
+					for (int i = 0; i < sett.getLength(); ++i) {
+						var.v().push_back( conf_recuse(sett[i]) );
+					}
+					break;
+				case libconfig::Setting::TypeGroup:
+					var = xif::polyvar::map();
+					for (int i = 0; i < sett.getLength(); ++i) {
+						std::string name = sett[i].getName();
+						var.m().insert( { name, conf_recuse(sett[i]) } );
+					}
+					break;
+				case libconfig::Setting::TypeNone:
+					break;
+				case libconfig::Setting::TypeBoolean:
+					var = sett.operator bool();
+					break;
+				case libconfig::Setting::TypeInt64:
+					var = sett.operator long long();
+					break;
+				case libconfig::Setting::TypeInt:
+					var = sett.operator int();
+					break;
+				case libconfig::Setting::TypeFloat:
+					var = sett.operator float();
+					break;
+				case libconfig::Setting::TypeString:
+					var = sett.operator std::string();
+					break;
+			}
+			return var;
+		};
+		xif::polyvar var = conf_recuse(conf.libconfig::Config::getRoot());
+		std::cout << var.to_json(3) << std::endl;
+	} catch (std::exception& e) {
+		std::cerr << COLOR_RED << "Setting error in conf file of '" << $slave_id << "'" << COLOR_RESET << " : " << e.what() << std::endl;
+	}
 }
 
 	///---- Bye ----///

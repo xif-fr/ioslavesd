@@ -5,7 +5,9 @@ using namespace xlog;
 #include <math.h>
 
 	// Conf files
+#define private public
 #include <libconfig.h++>
+#undef private
 #include <sys/dir.h>
 
 	// Slave connections : Network and threads
@@ -71,16 +73,19 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::select_slaves (const c
 	std::vector<iosl_dyn_slaves::slave_info> slaves_list;
 	for (const std::pair<iosl_dyn_slaves::slave_info,libconfig::Config*>& p : slaves_list_cfg) {
 		iosl_dyn_slaves::slave_info info = p.first;
+		info.sl_status = -1;
 		libconfig::Config& cfg = *p.second;
 		try {
 			libconfig::Setting& caracts_grp = cfg.lookup("caracts");
+			caracts_grp.assertType(libconfig::Setting::TypeGroup);
 			info._sl_categs_infos = std::make_tuple(0,INT32_MIN,0.f,INT32_MIN,INT32_MIN,INT32_MIN,INT32_MIN);
-			info.sl_total_points = INT32_MIN;
+			info.sl_total_points = (points_t)INT32_MIN;
 			info.sl_start_delay = (int)cfg.lookup("start_delay");
 			info.sl_power_use_full = (int)caracts_grp["power_use"];
 			info.sl_usable_mem = (int)caracts_grp["tot_mem"];
-			info.sl_usable_proc = (float)caracts_grp["proc_power_APPeq"];
+			info.sl_usable_proc = (float)caracts_grp["proc_power"];
 			libconfig::Setting& other_indices_group = caracts_grp["other_indices"];
+			other_indices_group.assertType(libconfig::Setting::TypeGroup);
 			for (int i = 0; i < other_indices_group.getLength(); i++) {
 				const char* name = other_indices_group[i].getName();
 				if (name == NULL) throw libconfig::ConfigException();
@@ -88,8 +93,19 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::select_slaves (const c
 				info.sl_fixed_indices.insert(std::pair<std::string,float>( name, value ));
 			}
 			libconfig::Setting& tags_list = cfg.lookup("tags");
+			tags_list.assertType(libconfig::Setting::TypeArray);
 			for (int i = 0; i < tags_list.getLength(); i++) {
 				info.sl_tags.push_back( tags_list[i].operator std::string() );
+			}
+				// Checking tags
+			for (const std::string& needed_tag : needed_tags) {
+				for (const std::string& present_tag : info.sl_tags) {
+					if (needed_tag == present_tag) 
+						goto _next;
+				}
+				info.sl_status = -4;
+				break;
+			_next:;
 			}
 		} catch (libconfig::ConfigException& ce) {
 			throw xif::sys_error(_S("missing/bad fields in slave info file for ",info.sl_name), ce.what());
@@ -135,6 +151,7 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::select_slaves (const c
 	pthread_t thread_ids[slaves_list.size()];
 	for (size_t i = 0; i < slaves_list.size(); i++) {
 		iosl_dyn_slaves::slave_info& info = slaves_list[i];
+		if (info.sl_status != -1) continue;
 		::pthread_create(&thread_ids[i], NULL, &_slave_contact::contact_thread, &info);
 		::usleep(40000);
 	}
@@ -156,16 +173,6 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::select_slaves (const c
 		if (needed_service != NULL and info.sl_status == 0 and info.sl_services_status.find(needed_service) == info.sl_services_status.end()) {
 			info.sl_status = -5;
 			continue;
-		}
-			// Checking tags
-		for (const std::string& needed_tag : needed_tags) {
-			for (const std::string& present_tag : info.sl_tags) {
-				if (needed_tag == present_tag) 
-					goto _next;
-			}
-			info.sl_status = -4;
-			goto bye;
-		_next:;
 		}
 		
 		{ // Memory
@@ -255,6 +262,7 @@ time_t iosl_master::slave_start (std::string slave_id) {
 		if ($start_delay == 0)
 			throw ioslaves::req_err(ioslaves::answer_code::BAD_TYPE, "WAKE", logstream << "Slave '" << slave_id << "' must be started manually");
 		libconfig::Setting& poweron_grp = conf.lookup("poweron");
+		poweron_grp.assertType(libconfig::Setting::TypeGroup);
 		std::string type = poweron_grp["type"].operator std::string();
 		if (type == "wol") {
 			$poweron_type = iosl_master::on_type::WoL;

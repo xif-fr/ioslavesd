@@ -57,7 +57,9 @@ extern time_t ports_check_interval;
 
 	// ioslaves' files
 #define IOSLAVESD_SERVICE_FILE_EXT ".service"
+#define private public
 #include <libconfig.h++>
+#undef private
 #include <sys/dir.h>
 #ifdef IOSLAVES_DIR					/* centralised ioslavesd dir */
 	#define IOSLAVESD_ETC_DIR			IOSLAVES_DIR

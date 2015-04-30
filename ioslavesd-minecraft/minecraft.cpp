@@ -36,7 +36,9 @@ using namespace xlog;
 #include <fstream>
 
 	// Conf files
+#define private public
 #include <libconfig.h++>
+#undef private
 #define MINECRAFT_CONF_FILE MINECRAFT_SRV_DIR"/ioslmc.conf"
 #define MINECRAFT_REPORTS_FILE MINECRAFT_SRV_DIR"/ioslmc-reports.conf"
 
@@ -168,8 +170,9 @@ extern "C" bool ioslapi_start (const char* by_master) {
 		try {
 			for (int i = 0; i < replist.getLength(); i++) {
 				libconfig::Setting& rep = replist[i];
+				rep.assertType(libconfig::Setting::TypeGroup);
 				minecraft::serv_stopped ss;
-				ss.serv = rep.getName();
+				ss.serv = std::string(rep.getName());
 				ss.map_to_save = rep["maptosave"].operator std::string();
 				ss.why = (minecraft::whyStopped)(int)rep["why"];
 				ss.gracefully = (bool)rep["gracefully"];
