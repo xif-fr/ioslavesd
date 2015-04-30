@@ -64,6 +64,8 @@ iosl_dyn_slaves::efficiency_ratio_t $needed_eff = iosl_dyn_slaves::efficiency_ra
 time_t $needed_time = 0;
 bool $need_quickly = false;
 std::string $ftp_user, $ftp_hash_passwd;
+uint8_t $mc_viewdist = 7;
+time_t $autoclose_time = (time_t)-1;
 
 	// minecraft-master's core functionnality functions
 time_t getLastSaveTime (std::string serv, std::string map);
@@ -210,6 +212,8 @@ int main (int argc, char* const argv[]) {
 				{"ram", required_argument, NULL, 'a'},
 				{"cpu", required_argument, NULL, 'u'},
 				{"duration", required_argument, NULL, 'd'},
+				{"autoclose", required_argument, NULL, 'j'},
+				{"viewdist", required_argument, NULL, 'e'},
 				{"quickly", no_argument, NULL, 'q'},
 			{"stop", no_argument, NULL, 'o'},
 			{"status", no_argument, NULL, 't'},
@@ -252,6 +256,10 @@ int main (int argc, char* const argv[]) {
 						 "                                     Zipped dir must have the same name than the map.\n"
 						 "                                     Use it for starting server with an old save of a perm map.\n"
 						 "              --duration=TIME     Server running duration, in seconds. Must be a good estimation.\n"
+						 "            Optional :\n"
+						 "              --autoclose=TIME    Server will close after TIME sec. without players.\n"
+						 "                                   Default = --duration; 0 = disabled\n"
+						 "              --viewdist=CHUNKS   Minecraft view distance. Default = 7\n"
 						 "            Slave selection :\n"
 						 "              --cpu=CPU           Needed CPU, using CPU unit (1.0 = Core2Duo E4400).\n"
 						 "              --ram=MEGS          Needed memory, in megabytes.\n"
@@ -362,6 +370,22 @@ int main (int argc, char* const argv[]) {
 					$needed_time = ::atoix<uint32_t>(optarg);
 				} catch (...) {
 					try_help("--duration : invalid param\n");
+				}
+				break;
+			case 'e':
+				optctx::optctx_test("--viewdist", optctx::servStart);
+				try {
+					$mc_viewdist = ::atoix<uint8_t>(optarg);
+				} catch (...) {
+					try_help("--viewdist : invalid view distance\n");
+				}
+				break;
+			case 'j':
+				optctx::optctx_test("--autoclose", optctx::servStart);
+				try {
+					$autoclose_time = ::atoix<uint32_t>(optarg);
+				} catch (...) {
+					try_help("--autoclose : invalid time\n");
 				}
 				break;
 			case 'q':
@@ -1147,11 +1171,16 @@ _try_start:
 	__log__ << "Sending infos..." << std::flush;
 	sock->o_char((char)$start_serv_type);
 	sock->o_str($start_jar_ver);
-	sock->o_int<uint16_t>(($needed_ram*3)/2);
+	sock->o_int<uint16_t>($needed_ram);
 	sock->o_bool($start_is_perm);
 	__log__ << " - " << ($start_is_perm?"permanent":"temporary") << " map : " << $start_map << std::flush;
-	sock->o_int<uint32_t>(15*60/*<#s_delay_noplayers#>*/);
-	sock->o_int<uint8_t>(10/*<#s_viewdist#>*/);
+	if ($autoclose_time == (time_t)-1) $autoclose_time = $needed_time;
+	if ($autoclose_time != 0) 
+		__log__ << " - autoclose time : " << $autoclose_time/60 << "min" << std::flush;
+	sock->o_int<uint32_t>((uint32_t)$autoclose_time);
+	__log__ << " - view distance : " << (int)$mc_viewdist << std::flush;
+	sock->o_int<uint8_t>($mc_viewdist);
+	__log__ << " - time estimation : " << $needed_time/60 << "min" << std::flush;
 	sock->o_int<uint32_t>((uint32_t)$needed_time);
 	sock->o_str($start_map);
 	time_t lastsavetime;
