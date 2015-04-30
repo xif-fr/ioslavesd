@@ -15,7 +15,9 @@ using namespace xlog;
 #ifndef IOSLAVESD_NO_TOPP
 	#include <toppapi.hpp>
 	#include <fstream>
-	std::tuple<time_t,time_t,time_t> ioslaves::statusLinuxCalculateUptimes ();
+	namespace ioslaves {
+		std::tuple<time_t,time_t,time_t> statusLinuxCalculateUptimes ();
+	}
 #else
 	// Mach headers & cie.
 	#ifdef __MACH__
@@ -193,6 +195,7 @@ void ioslaves::statusEnd () {
 
 #ifndef IOSLAVESD_NO_TOPP
 std::tuple<time_t,time_t,time_t> ioslaves::statusLinuxCalculateUptimes () { 
+	time_t iosl_uptime = ::time(NULL) - start_time;
 	topparsing::FieldsFile F_uptime("/proc/uptime", ' ', 2);
 	time_t uptime = (time_t)::atof(F_uptime.stri(0).c_str());
 	time_t idletime = (time_t)( ::atof(F_uptime.stri(1).c_str()) / system_stat["cpu#"].i() );
