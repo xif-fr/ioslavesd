@@ -204,7 +204,7 @@ bool upnp_port_check (in_port_t p_ext_port, ioslaves::upnpPort::proto p_prot) {
 	if (r != UPNPCOMMAND_SUCCESS) 
 		throw ioslaves::upnpError(_S("Failed to verify port status : ",strupnperror(r)), r, false);
 	if (_S(verif_int_ip) != _S(upnp_lanIP)) 
-		throw ioslaves::upnpError(_S("Checking for port status : Port ",e_port," doesn't belong to us"), -1, false);
+		throw ioslaves::upnpError(_S("Checking for port status : Port ",e_port," doesn't belong to us, but to ",verif_int_ip), -1, false);
 	return true;
 }
 

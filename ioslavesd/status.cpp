@@ -15,6 +15,7 @@ using namespace xlog;
 #ifndef IOSLAVESD_NO_TOPP
 	#include <toppapi.hpp>
 	#include <fstream>
+	std::tuple<time_t,time_t,time_t> ioslaves::statusLinuxCalculateUptimes ();
 #else
 	// Mach headers & cie.
 	#ifdef __MACH__
@@ -43,6 +44,8 @@ xif::polyvar::map ioslaves::system_stat ({
 });
 
 void ioslaves::statusFrame () {
+	
+	/// Linux status, using ToppAPI
 #ifndef IOSLAVESD_NO_TOPP
 		// Time
 	timeval now;
@@ -68,7 +71,11 @@ void ioslaves::statusFrame () {
 		system_stat["mem_usable"] = (mem.m_usable-mem.m_swapUsed)/MiB;
 		system_stat["memK"] = (mem.m_kernel + mem.m_buffers)/MiB;
 		system_stat["memA"] = (mem.m_activeCache + mem.m_activeAnon)/MiB;
+			system_stat["memAc"] = mem.m_activeCache/MiB;
+			system_stat["memAa"] = mem.m_activeAnon/MiB;
 		system_stat["memI"] = (mem.m_inactiveCache + mem.m_inactiveAnon)/MiB;
+			system_stat["memIc"] = mem.m_inactiveCache/MiB;
+			system_stat["memIa"] = mem.m_inactiveAnon/MiB;
 	}
 	{ // Net
 		topparsing::TableFile F_netdev = topp::Parse_F_netdev();
@@ -80,8 +87,14 @@ void ioslaves::statusFrame () {
 		std::vector<pid_t> pids = topp::GetPIDs();
 		system_stat["process_num"] = pids.size();
 	}
+	{	// Total uptimes
+		std::tuple<time_t,time_t,time_t> uptimes = ioslaves::statusLinuxCalculateUptimes();
+		system_stat["totuptime"] = std::get<0>(uptimes);
+		system_stat["totcputime"] = std::get<2>(uptimes);
+	}
 #else
 	
+	/// Mac OSX status
 	#ifdef __MACH__
 
 	kern_return_t kr;
@@ -171,7 +184,15 @@ void ioslaves::statusFrame () {
 void ioslaves::statusEnd () {
 	time_t iosl_uptime = ::time(NULL) - start_time;
 	__log__(log_lvl::LOG, NULL, logstream << "ioslavesd was running for " << iosl_uptime/60 << " minutes");
+	#ifndef IOSLAVESD_NO_TOPP
+	std::tuple<time_t,time_t,time_t> uptimes = ioslaves::statusLinuxCalculateUptimes();
+	std::ofstream totuptime_F (IOSLAVESD_UPTIME_FILE, std::fstream::out|std::fstream::trunc);
+	totuptime_F << std::get<0>(uptimes) << ' ' << std::get<1>(uptimes) << ' ' << std::get<2>(uptimes);
+	#endif
+}
+
 #ifndef IOSLAVESD_NO_TOPP
+std::tuple<time_t,time_t,time_t> ioslaves::statusLinuxCalculateUptimes () { 
 	topparsing::FieldsFile F_uptime("/proc/uptime", ' ', 2);
 	time_t uptime = (time_t)::atof(F_uptime.stri(0).c_str());
 	time_t idletime = (time_t)( ::atof(F_uptime.stri(1).c_str()) / system_stat["cpu#"].i() );
@@ -183,10 +204,9 @@ void ioslaves::statusEnd () {
 		idletime = F_totuptime.numi(1) + (time_t)((float)idletime*factor);
 		usedtime = F_totuptime.numi(2) + (time_t)((float)usedtime*factor);
 	} catch (...) {}
-	std::ofstream totuptime_F (IOSLAVESD_UPTIME_FILE, std::fstream::out|std::fstream::trunc);
-	totuptime_F << uptime << ' ' << idletime << ' ' << usedtime;
-#endif
+	return std::make_tuple(uptime, idletime, usedtime);
 }
+#endif
 
 xif::polyvar ioslaves::getStatus (bool full) {
 	std::map<std::string,xif::polyvar> info;
