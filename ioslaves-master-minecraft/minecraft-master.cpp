@@ -1085,6 +1085,7 @@ _try_start:
 			if (not $forced_file.empty()) lastsave_from.clear();
 			if (not lastsave_from.empty())
 				 __log__ << "Last slave who ran this map : " << lastsave_from << std::flush;
+			try {
 			std::vector<slave_info> slaves = iosl_dyn_slaves::select_slaves(
 				"minecraft", 
 				$needed_ram, $needed_cpu, true,
@@ -1158,6 +1159,10 @@ _try_start:
 				uint wait_delay = slaves.front().sl_start_delay;
 				__log__ << LOG_AROBASE << "Please wait " << wait_delay << "s for slave starting..." << std::flush;
 				::sleep(wait_delay);
+			}
+			} catch (std::exception& e) {
+				__log__ << LOG_AROBASE_ERR << "Error while selecting slave : " << e.what() << std::flush;
+				throw EXCEPT_ERROR_IGNORE;
 			}
 		}
 	}
