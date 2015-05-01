@@ -150,6 +150,7 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::select_slaves (const c
 	};
 	pthread_t thread_ids[slaves_list.size()];
 	for (size_t i = 0; i < slaves_list.size(); i++) {
+		thread_ids[i] = NULL;
 		iosl_dyn_slaves::slave_info& info = slaves_list[i];
 		if (info.sl_status != -1) continue;
 		::pthread_create(&thread_ids[i], NULL, &_slave_contact::contact_thread, &info);
@@ -157,7 +158,8 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::select_slaves (const c
 	}
 	// Wait for all threads (1 sec timout)
 	for (size_t i = 0; i < slaves_list.size(); i++) {
-		pthread_join(thread_ids[i], NULL);
+		if (thread_ids[i] != NULL)
+			::pthread_join(thread_ids[i], NULL);
 	}
 	
 		/// Apply criteria : select good slaves and sort ascendingly using points
