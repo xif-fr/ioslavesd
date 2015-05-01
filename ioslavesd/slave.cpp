@@ -212,8 +212,14 @@ int main (int argc, const char* argv[]) { try {
 			if (shutdown_time != 0) 
 				__log__(log_lvl::NOTICE, "SHUTDOWN", logstream << "Slave will try to shutdown in " << (shutdown_time-::time(NULL))/60 << " minutes");
 		}
-	} catch (libconfig::ConfigException& ce) {
-		__log__(log_lvl::FATAL, "CONF", logstream << "Reading configuration file failed : " << ce.what());
+	} catch (libconfig::ParseException& e) {
+		__log__(log_lvl::FATAL, "CONF", logstream << "Parse error in configuration file at line " << e.getLine() << " : " << e.getError());
+		return 1;
+	} catch (libconfig::FileIOException& e) {
+		__log__(log_lvl::FATAL, "CONF", logstream << "Can't read configuration file : " << e.what());
+		return 1;
+	} catch (libconfig::SettingException& e) {
+		__log__(log_lvl::FATAL, "CONF", logstream << "Missing/bad setting @" << e.getPath() << " in configuration file");
 		return 1;
 	}
 	
@@ -827,7 +833,6 @@ std::string ioslaves::service::typeToStr () {
 
 	/// Load from file and add service to service list
 void ioslaves::loadService (std::string name, FILE* service_file) {
-	#define _IOSLAVES_SERVICE_CONF_ERROR_STR "Skipping service : Unable to read description file of service `" << name << "` : "
 	bool autostart = false;
 	ioslaves::service* s = new ioslaves::service;
 	s->s_name = name;
@@ -852,10 +857,8 @@ void ioslaves::loadService (std::string name, FILE* service_file) {
 			} else {
 				     if (proto == "TCP") p.p_proto = ioslaves::upnpPort::TCP;
 				else if (proto == "UDP") p.p_proto = ioslaves::upnpPort::UDP;
-				else {
-					__log__(log_lvl::ERROR, "SERVICE", logstream << _IOSLAVES_SERVICE_CONF_ERROR_STR << "Invalid protocol for port opening");
-					return;
-				}
+				else 
+					throw std::runtime_error("ports : invalid protocol");
 				s->s_ports.push_back(p);
 			}
 		} else if (service_conf.exists("ports")) {
@@ -871,10 +874,8 @@ void ioslaves::loadService (std::string name, FILE* service_file) {
 					p.p_range_sz = 1;
 					     if (str[i] == 'T') p.p_proto = ioslaves::upnpPort::TCP;
 					else if (str[i] == 'U') p.p_proto = ioslaves::upnpPort::UDP;
-					else { 
-						__log__(log_lvl::ERROR, "SERVICE", logstream << _IOSLAVES_SERVICE_CONF_ERROR_STR << "ports : Invalid protocol letter '" << str[i] << "'");
-						return;
-					}
+					else 
+						throw std::runtime_error(_S( "ports : invalid protocol letter '",str[i],"'" ));
 					st = PORT_NUM;
 					portnum = 0;
 					p.p_ext_port = 0;
@@ -903,12 +904,10 @@ void ioslaves::loadService (std::string name, FILE* service_file) {
 								st = PORT_NEW;
 							}
 						} catch (std::runtime_error& e) {
-							__log__(log_lvl::ERROR, "SERVICE", logstream << _IOSLAVES_SERVICE_CONF_ERROR_STR << "ports : port number : " << e.what());
-							return;
+							throw std::runtime_error(_S( "port numer : ",e.what() ));
 						}
 					} else {
-						__log__(log_lvl::ERROR, "SERVICE", logstream << _IOSLAVES_SERVICE_CONF_ERROR_STR << "ports : char '" << str[i] << "' not allowed in port number");
-						return;
+						throw std::runtime_error(_S( "char '",str[i],"' not allowed in port number" ));
 					}
 				}
 			}
@@ -929,7 +928,7 @@ void ioslaves::loadService (std::string name, FILE* service_file) {
 			case ioslaves::service::type::IOSLPLUGIN:
 			case ioslaves::service::type::SYSTEMCTL:
 				if (!ioslaves::validateShellProgramName(s->s_command)) {
-					__log__(log_lvl::ERROR, "SECURITY", logstream << "Service " << s->s_name << " : `" << s->s_command << "` is not a valid command name !");
+					__log__(log_lvl::ERROR, "SECURITY", logstream << "Service " << s->s_name << " : `" << s->s_command << "` is not a valid name !");
 					return;
 				}
 				break;
@@ -938,7 +937,7 @@ void ioslaves::loadService (std::string name, FILE* service_file) {
 					std::string pidfile = service_conf.lookup("pid_file").operator std::string();
 					s->spec.exec.pid_file = new char[pidfile.length()+1];
 					::strcpy(s->spec.exec.pid_file, pidfile.c_str());
-				} catch (libconfig::SettingException&) {
+				} catch (libconfig::SettingNotFoundException&) {
 					__log__(log_lvl::WARNING, "SERVICE", logstream << "Service '" << s->s_name << "' have no PID file defined : will be not stoppable");
 				}
 				std::string execnam = service_conf.lookup("proc_name").operator std::string();
@@ -946,8 +945,11 @@ void ioslaves::loadService (std::string name, FILE* service_file) {
 				::strcpy(s->spec.exec.execnam, execnam.c_str());
 				break;
 		}
+	} catch (libconfig::SettingException& e) {
+		__log__(log_lvl::ERROR, "SERVICE", logstream << "Skipping service : Missing/bad field @" << e.getPath() << " in description file of service `" << name << "`");
+		return;
 	} catch (std::exception& e) {
-		__log__(log_lvl::ERROR, "SERVICE", logstream << _IOSLAVES_SERVICE_CONF_ERROR_STR << e.what());
+		__log__(log_lvl::ERROR, "SERVICE", logstream << "Skipping service : Error in description file of service `" << name << "` : " << e.what());
 		return;
 	}
 	__log__(log_lvl::LOG, "SERVICE", logstream << "Service '" << s->s_name << "' of type " << s->typeToStr() << " loaded");

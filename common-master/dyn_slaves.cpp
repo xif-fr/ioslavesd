@@ -1,5 +1,6 @@
 #include "master.hpp"
 using namespace xlog;
+using ioslaves::answer_code;
 
 	// Misc
 #include <math.h>
@@ -57,8 +58,8 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::select_slaves (const c
 			libconfig::Config* conf = new libconfig::Config;
 			try {
 				conf->read(ser_f);
-			} catch (libconfig::ConfigException& e) {
-				throw xif::sys_error(_S("error in slave info file for ",info.sl_name), e.what());
+			} catch (libconfig::ParseException& e) {
+				throw ioslaves::req_err(answer_code::INVALID_DATA, logstream << "Parse error in slave file of " << info.sl_name << " at line " << e.getLine() << " : " << e.getError());
 			}
 			slaves_list_cfg.push_back( std::pair<slave_info,libconfig::Config*>( info, conf ) );
 			::fclose(ser_f);
@@ -87,10 +88,9 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::select_slaves (const c
 			libconfig::Setting& other_indices_group = caracts_grp["other_indices"];
 			other_indices_group.assertType(libconfig::Setting::TypeGroup);
 			for (int i = 0; i < other_indices_group.getLength(); i++) {
-				const char* name = other_indices_group[i].getName();
-				if (name == NULL) throw libconfig::ConfigException();
+				std::string name = other_indices_group[i].getName();
 				float value = (float)(other_indices_group[i]);
-				info.sl_fixed_indices.insert(std::pair<std::string,float>( name, value ));
+				info.sl_fixed_indices.insert({ name, value });
 			}
 			libconfig::Setting& tags_list = cfg.lookup("tags");
 			tags_list.assertType(libconfig::Setting::TypeArray);
@@ -107,8 +107,8 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::select_slaves (const c
 				break;
 			_next:;
 			}
-		} catch (libconfig::ConfigException& ce) {
-			throw xif::sys_error(_S("missing/bad fields in slave info file for ",info.sl_name), ce.what());
+		} catch (libconfig::SettingException& e) {
+			throw ioslaves::req_err(answer_code::INVALID_DATA, logstream << "Missing/bad field @" << e.getPath() << " in slave file of " << info.sl_name);
 		}
 		slaves_list.push_back(info);
 	}
@@ -278,9 +278,11 @@ time_t iosl_master::slave_start (std::string slave_id) {
 			$poweron_type = iosl_master::on_type::GATEWAY;
 			$on_gateway = poweron_grp["gateway"].operator std::string();
 		} else 
-			throw std::runtime_error("invalid poweron type");
-	} catch (std::exception& e) {
-		throw ioslaves::req_err(ioslaves::answer_code::INVALID_DATA, "WAKE", logstream << "Setting error in conf file of '" << slave_id << "' : " << e.what());
+			throw ioslaves::req_err(answer_code::INVALID_DATA, "WAKE", logstream << "Invalid poweron type in slave file of '" << slave_id << "'");
+	} catch (libconfig::SettingException& e) {
+		throw ioslaves::req_err(answer_code::INVALID_DATA, "WAKE", logstream << "Missing/bad setting @" << e.getPath() << " in slave file of '" << slave_id << "'");
+	} catch (libconfig::ConfigException& e) {
+		throw ioslaves::req_err(answer_code::INVALID_DATA, "WAKE", logstream << "Error in slave file of '" << slave_id << "' : " << e.what());
 	}
 	__log__(log_lvl::LOG, "WAKE", logstream << "Waking up slave '" << slave_id << "'", LOG_WAIT, &l);
 	if ($poweron_type == iosl_master::on_type::WoW) {

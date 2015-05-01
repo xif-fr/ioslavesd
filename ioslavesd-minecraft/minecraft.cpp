@@ -184,7 +184,7 @@ extern "C" bool ioslapi_start (const char* by_master) {
 			__log__(log_lvl::ERROR, NULL, logstream << "Error while loading stop report : " << e.what());
 		}
 	} catch (libconfig::ParseException& e) {
-		__log__(log_lvl::ERROR, NULL, logstream << "Error while loading stop reports save file : " << e.what());
+		__log__(log_lvl::ERROR, NULL, logstream << "Parse error in stop reports save file at line " << e.getLine());
 	} catch (libconfig::FileIOException&) {
 	}
 	r = ::unlink(MINECRAFT_REPORTS_FILE);
