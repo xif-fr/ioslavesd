@@ -1,0 +1,5 @@
+/* Xif Network slave wakeup relay */
+
+type: "IOSLPLUGIN";
+command: "wake-gateway";
+autostart: true;

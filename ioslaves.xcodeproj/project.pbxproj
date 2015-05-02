@@ -48,6 +48,7 @@
 
 /* Begin PBXFileReference section */
 		AA129CEB1A90E83E009A2B42 /* ioslstatd */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ioslstatd; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA182FD01AF425CC007F94BD /* PKGBUILD */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = PKGBUILD; path = "ioslavesd-wake-gateway/PKGBUILD"; sourceTree = "<group>"; };
 		AA1D3AD11ADECD9200E2C7F6 /* minecraft.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = minecraft.h; path = "common-minecraft/minecraft.h"; sourceTree = "<group>"; };
 		AA1D3AD21ADECDAF00E2C7F6 /* ftp-auth-mc.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "ftp-auth-mc.cpp"; path = "ioslavesd-minecraft/ftp-auth-mc.cpp"; sourceTree = "<group>"; };
 		AA1D3AD41ADECDAF00E2C7F6 /* minecraft.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = minecraft.cpp; path = "ioslavesd-minecraft/minecraft.cpp"; sourceTree = "<group>"; };
@@ -240,6 +241,7 @@
 			children = (
 				AA2F82191AED6CE100DFBBDF /* wake-gateway.cpp */,
 				AAD214831AE971C50062A678 /* wake-gateway.dylib */,
+				AA182FD01AF425CC007F94BD /* PKGBUILD */,
 			);
 			name = "Wake Gateway";
 			sourceTree = "<group>";
@@ -669,6 +671,7 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					IOSLAVESD_NO_TOPP,
 					"IOSLAVES_DIR=\"\\\"/var/ioslaves\\\"\"",
+					IOSLAVED_FORCE_CREDS,
 					"$(inherited)",
 				);
 				OTHER_LDFLAGS = (
