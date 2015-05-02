@@ -1250,6 +1250,7 @@ void* minecraft::serv_thread (void* arg) {
 #endif*/
 			"-XX:+UseParallelGC",
 			_S("-Xmx",ixtoa(s->s_megs_ram),"M"), _S("-Xms",ixtoa(s->s_megs_ram),"M"),
+			"-XX:MaxPermSize=128M",
 			"-jar", s->s_jar_path,
 			"--world", s->s_map,
 		};
