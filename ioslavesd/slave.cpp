@@ -54,13 +54,28 @@ in_port_t ioslavesd_listening_port = 2929;
 #define IOSLAVES_USER "ioslaves"
 uid_t ioslaves_user_id = 0;
 gid_t ioslaves_group_id = 0;
+#ifdef __linux__
+#include <sys/syscall.h>
+#include <unistd.h>
 void ioslaves::api::run_as_root (bool set) noexcept {
+	int errsave = errno;
+	if (ioslaves_user_id == 0)
+		return;
+	long r_u = ::syscall( SYS_setresuid32, (int)-1, (int)(set? 0 : ioslaves_user_id), (int)-1 );
+	long r_g = ::syscall( SYS_setresgid32, (int)-1, (int)(set? 0 : ioslaves_group_id), (int)-1 );
+	if (r_u == -1 or r_g == -1)
+#else
+pthread_mutex_t cred_mutex = PTHREAD_MUTEX_INITIALIZER;
+void ioslaves::api::run_as_root (bool set) noexcept {
+	if (set) ::pthread_mutex_lock(&cred_mutex);
+	else ::pthread_mutex_unlock(&cred_mutex);
 	int errsave = errno;
 	if (ioslaves_user_id == 0)
 		return;
 	int r = ::seteuid(set?0:ioslaves_user_id)
 	      | ::setegid(set?0:ioslaves_group_id);
 	if (r != 0)
+#endif
 		__log__(log_lvl::ERROR, "SEC", logstream << "Failed to set uid/gid to " << (set?0:ioslaves_user_id) << "/" << (set?0:ioslaves_group_id) << " : " << strerror(errno));
 	errno = errsave;
 }
@@ -86,6 +101,7 @@ int main (int argc, const char* argv[]) { try {
 	
 		// ioslaves user
 	if (::getuid() == 0) {
+		#if defined(__linux__) || defined(IOSLAVED_FORCE_CREDS)
 		long _pwbufsz = ::sysconf(_SC_GETPW_R_SIZE_MAX);
 		if (_pwbufsz < 1) _pwbufsz = 100;
 		char pwbuf[_pwbufsz];
@@ -104,6 +120,9 @@ int main (int argc, const char* argv[]) { try {
 			} else
 				__log__(log_lvl::MAJOR, NULL, logstream << "Starting ioslavesd as user '" IOSLAVES_USER "'...", LOG_WAIT, &l);
 		}
+		#else
+			__log__(log_lvl::MAJOR, NULL, logstream << "Starting ioslavesd as root (isolated thread credentials not supported)...", LOG_WAIT, &l);
+		#endif
 	} else {
 		__log__(log_lvl::MAJOR, NULL, logstream << "Starting ioslavesd as uid " << ::getuid() << "...", LOG_WAIT, &l);
 	}
@@ -546,7 +565,9 @@ int main (int argc, const char* argv[]) { try {
 						sock.o_int<in_port_t>(ioslavesd_listening_port);
 						in_addr_t my_ip = sock.i_int<in_addr_t>();
 						static in_addr_t my_ip_last = 0;
-						if (my_ip_last != my_ip and my_ip_last != 0) 
+						if (my_ip_last == 0) 
+							__log__(log_lvl::MAJOR, "DynDNS", logstream << "Public IP is " << socketxx::base_netsock::addr_info::addr2str(my_ip));
+						else if (my_ip_last != my_ip) 
 							__log__(log_lvl::MAJOR, "DynDNS", logstream << "Public IP changed from " << socketxx::base_netsock::addr_info::addr2str(my_ip_last) << " to " << socketxx::base_netsock::addr_info::addr2str(my_ip));
 						my_ip_last = my_ip;
 						ioslaves::answer_code answ;

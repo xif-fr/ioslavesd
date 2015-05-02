@@ -476,6 +476,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 					return;
 				}
 				try {
+					asroot_block();
 					ioslaves::rmdir_recurse(folder_path.c_str());
 					cli.o_char((char)ioslaves::answer_code::OK);
 				} catch (xif::sys_error& e) {
@@ -520,8 +521,23 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 	/**         Utility functions       	**/
 	/** -------------------------------	**/
 
+#ifdef __linux__
+inline void setusermcjava () {
+	int errsave = errno;
+	if (minecraft::java_user_id == 0)
+		return;
+	long r_u = ::syscall( SYS_setresuid32, (int)-1, (int)(set? 0 : minecraft::java_user_id), (int)-1 );
+	long r_g = ::syscall( SYS_setresgid32, (int)-1, (int)(set? 0 : minecraft::java_group_id), (int)-1 );
+	if (r_u == -1 or r_g == -1)
+		__log__(log_lvl::ERROR, "SEC", logstream << "Failed to set fs uid/gid to mcjava : " << ::strerror(errno));
+	errno = errsave;
+}
+#else
+inline void setusermcjava () {}
+#endif
 
 	/// Transfert and map functions
+	// Should always be running as euid=mcjava
 
 // Read/write the last-save-time file on server folder
 time_t minecraft::lastsaveTimeFile (std::string path, bool set) {
@@ -533,6 +549,7 @@ time_t minecraft::lastsaveTimeFile (std::string path, bool set) {
 	file = ::open(path.c_str(), (set ? O_CREAT|O_WRONLY|O_TRUNC : O_RDONLY), S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP);
 	if (file == INVALID_HANDLE) 
 		throw xif::sys_error(_S("failed to open server for ",(set?"set":"get")," folder last-save-time file (",path,")"));
+	RAII_AT_END_L( ::close(file); );
 	const size_t sz = sizeof(time_t)*2;
 	if (set) {
 		lastsave = utc_time.tv_sec;
@@ -553,7 +570,6 @@ time_t minecraft::lastsaveTimeFile (std::string path, bool set) {
 		if (lastsave > utc_time.tv_sec) 
 			throw xif::sys_error("server folder last-save-time", "is in future !");
 	}
-	::close(file);
 	return lastsave;
 }
 
@@ -563,12 +579,14 @@ void minecraft::unzip (const char* file, const char* in_dir, const char* expecte
 	__log__(log_lvl::LOG, "FILES", logstream << "Unzipping file (expecting '" << expected_dir_name << "')... ", LOG_WAIT, &l);
 	int r;
 	std::string expected_dir = _S( in_dir,'/',expected_dir_name );
-	r = ::access(expected_dir.c_str(), X_OK);
+	r = ::access(expected_dir.c_str(), F_OK);
 	if (r == 0) {
 		__log__(log_lvl::WARNING, "FILES", logstream << "Expected dir ('" << expected_dir_name << "') already exists. Deleting it.");
-		ioslaves::rmdir_recurse(expected_dir.c_str());
+		{ asroot_block();
+			ioslaves::rmdir_recurse(expected_dir.c_str()); }
+		::setusermcjava();
 	}
-	r = ::access(file, F_OK);
+	r = ::access(file, R_OK);
 	if (r == -1) throw xif::sys_error("unzip() : archive file not found");
 	{ sigchild_block();
 		r = ::system(_s( "unzip -nq '",file,"' -d '",in_dir,"'" ));
@@ -641,7 +659,6 @@ void minecraft::compressAndSend (socketxx::io::simple_socket<socketxx::base_sock
 	r = ::unlink(_s( map_dir_path,"/server.log.lck" ));
 	r = ::unlink(_s( map_dir_path,"/server.log" ));
 	r = ::unlink(_s( map_dir_path,"/server.properties" ));
-	try {  ioslaves::rmdir_recurse(_s( map_dir_path+"/__MACOSX" ));      } catch (...) {}
 	try {  ioslaves::rmdir_recurse(_s( map_dir_path+"/crash-reports" )); } catch (...) {}
 	try {  ioslaves::rmdir_recurse(_s( map_dir_path+"/logs" ));          } catch (...) {}
 	r = ::chdir( serv_dir_path.c_str() );
@@ -807,18 +824,21 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 		bool is_set = false;
 		~_autorm_openning_state () { if (is_set) { pthread_mutex_handle_lock(minecraft::servs_mutex); minecraft::openning_servs.erase(it); } }
 	} __autorm_openning_state;
-		// Auto delete server : delete structure, temp map folder, and kill thread
+		// Auto delete server : delete structure, temp map folder, reset effective uid
 	struct _autodelete_serv {
 		minecraft::serv* s = NULL;
 		bool close_port = false;
 		bool can_del_folder = false;
-		bool del_srv = false;
 		_autodelete_serv (minecraft::serv* s) : s(s), can_del_folder(false) {}
-		~_autodelete_serv () { if (s != NULL) { 
-			if (can_del_folder) minecraft::deleteMapFolder(s);
-			if (close_port) try { (*ioslaves::api::callbacks::close_port)(s->s_port, 1, true); } catch (...) {}
-			delete s;
-		}}
+		~_autodelete_serv () {
+			ioslaves::api::run_as_root(true);
+			if (s != NULL) { 
+				if (can_del_folder) try { minecraft::deleteMapFolder(s); } catch (...) {}
+				if (close_port) try { (*ioslaves::api::close_port)(s->s_port, 1, true); } catch (...) {}
+				delete s;
+			}
+			ioslaves::api::run_as_root(false);
+		}
 	} __autodelete_serv(s);
 	
 	try {
@@ -872,7 +892,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 					goto __new_port;
 			}
 			errno = 0;
-			ioslaves::answer_code open_port_answ = (*ioslaves::api::callbacks::open_port)(s->s_port, true, s->s_port, 1, port_descr);
+			ioslaves::answer_code open_port_answ = (*ioslaves::api::open_port)(s->s_port, true, s->s_port, 1, port_descr);
 			if (open_port_answ != ioslaves::answer_code::OK) {
 				if (open_port_answ == ioslaves::answer_code::EXISTS or errno == 718 /*ConflictInMappingEntry*/)
 					goto __new_port;
@@ -889,8 +909,9 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 		__log__(log_lvl::MAJOR, NULL, logstream << "Starting " << s->s_servid << "'s server with " << (s->s_is_perm_map?"permanent":"temporary") << " map '" << s->s_map << "' on port " << s->s_port << " with jar '" << (char)s->s_serv_type << "' " << s->s_mc_ver.str());
 		
 			// Server folder and map
+		::setusermcjava();
 		std::string global_serv_dir = _S( MINECRAFT_SRV_DIR,"/mc_",s->s_servid );
-		r = ::mkdir(global_serv_dir.c_str(), (mode_t)S_IRWXG|S_IRWXU);
+		r = ::mkdir(global_serv_dir.c_str(), (mode_t)MC_MAP_PERM);
 		if (r == -1 and errno != EEXIST)
 			throw xif::sys_error("can't create client server dir");
 		std::string working_dir = s->s_wdir = _S( global_serv_dir,'/',s->s_map );
@@ -1082,9 +1103,11 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 		}
 		s->s_jar_path = jar_path;
 		
-			// Changing folder's owner
+			// Changing folder's owner and reset effective uid
+		ioslaves::api::run_as_root(true);
 		__log__(log_lvl::LOG, NULL, MCLOGSCLI(s) << "Correcting permissions...");
 		ioslaves::chown_recurse(global_serv_dir.c_str(), minecraft::java_user_id, minecraft::java_group_id);
+		ioslaves::api::run_as_root(false);
 		
 			// End of file requests, we can now start server
 		__log__(log_lvl::IMPORTANT, NULL, MCLOGSCLI(s) << "All files are loaded, starting can start !");
@@ -1151,8 +1174,10 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			cli.o_char((char)ioslaves::answer_code::OK);
 			
 		} catch (...) {
-			if (s->s_java_pid != -1)
+			if (s->s_java_pid != -1) {
+				asroot_block();
 				::kill(s->s_java_pid, SIGKILL); // Killing java is a sufficient sign to the thread, it should NOT be canceled
+			}
 			throw;
 		}
 		
@@ -1249,7 +1274,7 @@ void* minecraft::serv_thread (void* arg) {
 			"-d64",
 #endif*/
 			"-XX:+UseParallelGC",
-			_S("-Xmx",ixtoa(s->s_megs_ram),"M"), _S("-Xms",ixtoa(s->s_megs_ram),"M"),
+			_S("-Xmx",::ixtoa(s->s_megs_ram),"M"), _S("-Xms",::ixtoa(s->s_megs_ram),"M"),
 			"-jar", s->s_jar_path,
 			"--world", s->s_map,
 		};
@@ -1262,8 +1287,10 @@ void* minecraft::serv_thread (void* arg) {
 		
 			// Forking process and executing java
 		pipe_proc_t java_pipes;
-		std::tie(s->s_java_pid, java_pipes)
-			= ioslaves::fork_exec("java", args, true, s->s_wdir.c_str(), true, minecraft::java_user_id, minecraft::java_group_id, false);
+		{ asroot_block();
+			std::tie(s->s_java_pid, java_pipes)
+				= ioslaves::fork_exec("java", args, true, s->s_wdir.c_str(), true, minecraft::java_user_id, minecraft::java_group_id, false);
+		}
 		
 			// Java StdIO handling
 		FD_SET(java_pipes.out, &select_set);
@@ -1285,7 +1312,7 @@ void* minecraft::serv_thread (void* arg) {
 		}
 		
 		{	// Add SRV entry on DNS
-			ioslaves::answer_code new_srv_answ = (*ioslaves::api::callbacks::dns_srv_create)("minecraft", XIFNET_MC_DOM, s->s_servid, true, s->s_port, true);
+			ioslaves::answer_code new_srv_answ = (*ioslaves::api::dns_srv_create)("minecraft", XIFNET_MC_DOM, s->s_servid, true, s->s_port, true);
 			if (new_srv_answ != ioslaves::answer_code::OK) 
 				__log__(log_lvl::ERROR, "SERV", MCLOGSCLI(s) << "Failed to create SRV entry on DNS for domain " << s->s_servid << '.' << XIFNET_MC_DOM << " : " << (char)new_srv_answ);
 			else 
@@ -1334,8 +1361,11 @@ void* minecraft::serv_thread (void* arg) {
 				}
 					// Timeout
 				else if (r == 0) {
-					if (::time(NULL)%20 == 0 and stopInfo.doneDone and s->s_is_perm_map) 
+					if (::time(NULL)%20 == 0 and stopInfo.doneDone and s->s_is_perm_map) {
+						asroot_block();
+						::setusermcjava();
 						lastsaveTimeFile(_S( MINECRAFT_SRV_DIR,"/mc_",s->s_servid,'/',s->s_map ), true);
+					}
 					
 						// Autoclose server
 					if (s->s_delay_noplayers != 0 and ::time(NULL)%160 == 0) {
@@ -1497,6 +1527,7 @@ void* minecraft::serv_thread (void* arg) {
 							case minecraft::internal_serv_op_code::KILL_THREAD: {
 								__log__(log_lvl::WARNING, THLOGSCLI(s), "Killing myself : everything will be loss !");
 								stopInfo.why = minecraft::whyStopped::ERROR_INTERNAL;
+								ioslaves::api::run_as_root(true);
 								::kill(s->s_java_pid, SIGTERM);
 								::pthread_exit(NULL);
 							} break;
@@ -1592,6 +1623,8 @@ void* minecraft::serv_thread (void* arg) {
 			// Last-save-time
 		if (stopInfo.doneDone and s->s_is_perm_map) {
 			stopInfo.map_to_save = s->s_map;
+			ioslaves::api::run_as_root(true);
+			::setusermcjava();
 			lastsaveTimeFile(_S( MINECRAFT_SRV_DIR,"/mc_",s->s_servid,'/',s->s_map ), true);
 		}
 		if (stopInfo.doneDone) {
@@ -1603,6 +1636,7 @@ void* minecraft::serv_thread (void* arg) {
 		}
 
 			// Maybe the server is closed. Else, close server ungracefully but softly with SIGHUP.
+		ioslaves::api::run_as_root(true);
 		r = ::kill(s->s_java_pid, SIGHUP);
 		if (r == -1) {
 			if (errno == ESRCH) 
@@ -1618,9 +1652,10 @@ void* minecraft::serv_thread (void* arg) {
 			log_lvl r_pid_lvl = (WEXITSTATUS(status) == 0) ? log_lvl::DONE : log_lvl::WARNING;
 			__log__(r_pid_lvl, NULL, logstream << "(ret code " << WEXITSTATUS(status) << ")", LOG_ADD, &l);
 		}
+		ioslaves::api::run_as_root(false);
 		
 		// Delete SRV entry on DNS
-		(*ioslaves::api::callbacks::dns_srv_del)("minecraft", XIFNET_MC_DOM, s->s_servid, true);
+		(*ioslaves::api::dns_srv_del)("minecraft", XIFNET_MC_DOM, s->s_servid, true);
 
 	} catch (xif::sys_error& sys_err) {
 		__log__(log_lvl::ERROR, THLOGSCLI(s), logstream << "Error in `starting java` state : " << sys_err.what());
@@ -1644,13 +1679,14 @@ void* minecraft::serv_thread (void* arg) {
 
 		// Close port
 	try {
-		(*ioslaves::api::callbacks::close_port)(s->s_port, 1, true);
+		(*ioslaves::api::close_port)(s->s_port, 1, true);
 	} catch (...) {}
 	
 		// If starter is still waiting us, or for stopper
 	if (s->s_early_pipe != INVALID_HANDLE) { WriteEarlyState('E'); }
 	
 		// Delete big-files and jars symlinks
+	ioslaves::api::run_as_root(true);
 	std::vector<minecraft::_BigFiles_entry> bigfiles = minecraft::getBigFilesIndex(_S( MINECRAFT_SRV_DIR,"/mc_",s->s_servid,'/',s->s_map ));
 	for (minecraft::_BigFiles_entry entry : bigfiles) {
 		r = ::unlink(entry.final_path.c_str());
@@ -1814,6 +1850,8 @@ void minecraft::stopServer (socketxx::io::simple_socket<socketxx::base_socket> c
 			cli.o_str(s->s_map);
 			bool accept = cli.i_bool();
 			if (accept) {
+				asroot_block();
+				::setusermcjava();
 				minecraft::compressAndSend(cli, s->s_servid, s->s_map);
 			} else 
 				throw ioslaves::req_err(ioslaves::answer_code::DENY, "STOP", MCLOGSCLI(s) << "Master refused stop report ! Scandal !");

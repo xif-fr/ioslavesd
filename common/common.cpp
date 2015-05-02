@@ -285,14 +285,14 @@ void ioslaves::chown_recurse (const char* dir_path, uid_t uid, gid_t gid) {
 		if (S_ISDIR(info.st_mode)) {
 			ioslaves::chown_recurse(path, uid, gid);
 		} else {
-			r = ::chown(path, uid, gid);
+			r = ::lchown(path, uid, gid);
 			if (r == -1) 
 				throw xif::sys_error(_S("chown_recurse : can't chown file '",path,"'"));
 		}
 	}
 	if (rr == -1)
 		throw xif::sys_error("chown_recurse : readdir_r");
-	r = ::chown(dir_path, uid, gid);
+	r = ::lchown(dir_path, uid, gid);
 	if (r == -1) 
 		throw xif::sys_error(_S("chown_recurse : can't chown directory '",dir_path,"'"));
 }

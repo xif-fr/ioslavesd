@@ -104,14 +104,7 @@ namespace ioslaves { namespace api {
 	
 }}
 
-	// Run a block of code as root (errno is preserved)
-struct _block_asroot {
-	_block_asroot () { ioslaves::api::run_as_root(true); }
-	~_block_asroot () { ioslaves::api::run_as_root(false); }
-};
-#define asroot_block() _block_asroot _block_asroot_handle
-
-#endif
+#endif /* IOSLAVESD_API_MAIN_PROG */
 
 /// Definitions for ioslaves plugin service
 // Never trust other plugins and ioslavesd about global or side-effect opperations or vars (like chdir...), and non reentrant functions
@@ -145,14 +138,12 @@ namespace ioslaves { namespace api {
 	IOSLAVESD_API_SERVICE_EXTERN_SYMBOL ioslaves::service* service_me;
 	IOSLAVESD_API_SERVICE_EXTERN_SYMBOL const char* slave_name;
 	IOSLAVESD_API_SERVICE_EXTERN_SYMBOL common_vars_t* common_vars;
-	namespace callbacks {
-		IOSLAVESD_API_SERVICE_EXTERN_SYMBOL ioslaves::api::report_log_f report_log;
-		IOSLAVESD_API_SERVICE_EXTERN_SYMBOL ioslaves::api::open_port_f open_port;
-		IOSLAVESD_API_SERVICE_EXTERN_SYMBOL ioslaves::api::close_port_f close_port;
-		IOSLAVESD_API_SERVICE_EXTERN_SYMBOL ioslaves::api::dns_srv_create_f dns_srv_create;
-		IOSLAVESD_API_SERVICE_EXTERN_SYMBOL ioslaves::api::dns_srv_del_f dns_srv_del;
-		IOSLAVESD_API_SERVICE_EXTERN_SYMBOL ioslaves::api::run_as_root_f run_as_root;
-	}
+	IOSLAVESD_API_SERVICE_EXTERN_SYMBOL ioslaves::api::report_log_f report_log;
+	IOSLAVESD_API_SERVICE_EXTERN_SYMBOL ioslaves::api::open_port_f open_port;
+	IOSLAVESD_API_SERVICE_EXTERN_SYMBOL ioslaves::api::close_port_f close_port;
+	IOSLAVESD_API_SERVICE_EXTERN_SYMBOL ioslaves::api::dns_srv_create_f dns_srv_create;
+	IOSLAVESD_API_SERVICE_EXTERN_SYMBOL ioslaves::api::dns_srv_del_f dns_srv_del;
+	IOSLAVESD_API_SERVICE_EXTERN_SYMBOL ioslaves::api::run_as_root_f run_as_root;
 }}
 
 #ifdef IOSLAVESD_API_SERVICE_IMPL
@@ -166,30 +157,30 @@ extern "C" void ioslapi_set_callbacks (ioslaves::service* _me, sig_atomic_t* _si
 	ioslaves::api::slave_name = hostname;
 	signal_catch_sigchild_p = _sigchild_p;
 	ioslaves::api::common_vars = _common_vars;
-	ioslaves::api::callbacks::report_log = _report_log;
-	ioslaves::api::callbacks::open_port = _open_port;
-	ioslaves::api::callbacks::close_port = _close_port;
-	ioslaves::api::callbacks::dns_srv_create = _dns_srv_create;
-	ioslaves::api::callbacks::dns_srv_del = _dns_srv_del;
-	ioslaves::api::callbacks::run_as_root = _run_as_root;
+	ioslaves::api::report_log = _report_log;
+	ioslaves::api::open_port = _open_port;
+	ioslaves::api::close_port = _close_port;
+	ioslaves::api::dns_srv_create = _dns_srv_create;
+	ioslaves::api::dns_srv_del = _dns_srv_del;
+	ioslaves::api::run_as_root = _run_as_root;
 }
 
 	// API Log
 pthread_mutex_t xlog::logstream_impl::mutex = PTHREAD_MUTEX_INITIALIZER;
 std::ostringstream xlog::logstream_impl::stream;
 void xlog::logstream_impl::log (log_lvl lvl, const char* part, std::string msg, int m, logl_t* lid) noexcept {
-	(*ioslaves::api::callbacks::report_log)(ioslaves::api::service_me, lvl, part, msg, m, lid);
+	(*ioslaves::api::report_log)(ioslaves::api::service_me, lvl, part, msg, m, lid);
 }
 
-#endif
+#endif /* IOSLAVESD_API_SERVICE_IMPL */
 
-	// Run a block of code as root
+#endif /* IOSLAVESD_API_SERVICE */
+
+	// Run a block of code as root (errno is preserved)
 struct _block_asroot {
-	_block_asroot () { ioslaves::api::callbacks::run_as_root(true); }
-	~_block_asroot () { ioslaves::api::callbacks::run_as_root(false); }
+	_block_asroot () { ioslaves::api::run_as_root(true); }
+	~_block_asroot () { ioslaves::api::run_as_root(false); }
 };
 #define asroot_block() _block_asroot _block_asroot_handle
-
-#endif
 
 #endif

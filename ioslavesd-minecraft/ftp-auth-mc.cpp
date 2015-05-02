@@ -94,6 +94,7 @@ void minecraft::ftp_stop_thead (int why) {
 	if (not minecraft::ftp_th_started) 
 		return;
 	if (why == INT32_MAX) {
+		asroot_block();
 		__log__(log_lvl::LOG, "FTP", "Stopping FTP auth thread...");
 		r = ::kill(pure_ftpd_pid, SIGHUP);
 		if (r == -1) 
@@ -131,7 +132,16 @@ void* minecraft::mc_ftpd_auth_thread (void* arg) {
 	
 	try {
 		
-		socketxx::end::socket_server<socketxx::base_unixsock,void> authsock (socketxx::base_unixsock::addr_info(PURE_AUTHD_AUTH_SOCK_PATH), 2);
+		auto _sock_p = new socketxx::end::socket_server<socketxx::base_unixsock,void> (socketxx::base_unixsock::addr_info(PURE_AUTHD_AUTH_SOCK_PATH));
+		{ asroot_block();
+			_sock_p->listening_start(2, false);
+		}
+		RAII_AT_END_N(sock, {
+			asroot_block();
+			_sock_p->listening_stop();
+			delete _sock_p;
+		});
+		socketxx::end::socket_server<socketxx::base_unixsock,void>& authsock = *_sock_p;
 		authsock.fcntl_flags() += FD_CLOEXEC;
 		
 		__log__(log_lvl::DONE, "FTP", logstream << "Thread pure-authd now listens on local socket");
@@ -139,9 +149,9 @@ void* minecraft::mc_ftpd_auth_thread (void* arg) {
 			// Autoclose ports
 		RAII_AT_END_N(ports, {
 			if (ftp_port != 0) 
-				(*ioslaves::api::callbacks::close_port)(ftp_port, 1, true);
+				(*ioslaves::api::close_port)(ftp_port, 1, true);
 			if (ftp_ports_pasv_beg != 0) 
-				(*ioslaves::api::callbacks::close_port)(ftp_ports_pasv_beg, PURE_FTPD_PASV_RANGE_SZ, true);
+				(*ioslaves::api::close_port)(ftp_ports_pasv_beg, PURE_FTPD_PASV_RANGE_SZ, true);
 		});
 		
 			// FTP listening port
@@ -154,7 +164,7 @@ void* minecraft::mc_ftpd_auth_thread (void* arg) {
 		}
 	__scan:
 		errno = 0;
-		ioslaves::answer_code open_port_answ = (*ioslaves::api::callbacks::open_port)(ftp_port, true, ftp_port, 1, "minecraft ftp server");
+		ioslaves::answer_code open_port_answ = (*ioslaves::api::open_port)(ftp_port, true, ftp_port, 1, "minecraft ftp server");
 		if (open_port_answ != ioslaves::answer_code::OK) {
 			if (open_port_answ == ioslaves::answer_code::EXISTS or errno == 718 /*ConflictInMappingEntry*/)
 				goto __new_port;
@@ -173,7 +183,7 @@ void* minecraft::mc_ftpd_auth_thread (void* arg) {
 		}
 	__test_range:
 		errno = 0;
-		open_port_answ = (*ioslaves::api::callbacks::open_port)(ftp_ports_pasv_beg, true, ftp_ports_pasv_beg, PURE_FTPD_PASV_RANGE_SZ, "minecraft ftp server pasv");
+		open_port_answ = (*ioslaves::api::open_port)(ftp_ports_pasv_beg, true, ftp_ports_pasv_beg, PURE_FTPD_PASV_RANGE_SZ, "minecraft ftp server pasv");
 		if (open_port_answ != ioslaves::answer_code::OK) {
 			if (open_port_answ == ioslaves::answer_code::EXISTS or errno == 718 /*ConflictInMappingEntry*/)
 				goto __new_range;
@@ -184,6 +194,7 @@ void* minecraft::mc_ftpd_auth_thread (void* arg) {
 		minecraft::ftp_serv_addr = _S(ioslaves::api::slave_name,'.',XIFNET_SLAVES_DOM,":",::ixtoa(ftp_port));
 		
 		__log__(log_lvl::LOG, "FTP", logstream << "Starting pure-ftpd on port " << ftp_port << "...", LOG_WAIT, &l);
+		{ asroot_block();
 		pure_ftpd_pid = 
 		ioslaves::fork_exec("pure-ftpd", 
 		                    {
@@ -198,11 +209,12 @@ void* minecraft::mc_ftpd_auth_thread (void* arg) {
 									  _S("--minuid=",::ixtoa(java_user_id))
 								  }, 
 								  false, NULL, true, 0, 0, true).first;
+		}
 		__log__(log_lvl::DONE, "FTP", "Done", LOG_ADD, &l);
 
 		authsock.wait_activity_loop(NULL, 
 				// New client
-			[&](decltype(authsock)::client cli) -> socketxx::pool_ret_t {
+			[&](socketxx::end::socket_server<socketxx::base_unixsock,void>::client cli) -> socketxx::pool_ret_t {
 				__log__(log_lvl::LOG, "FTP", logstream << "New authentification request");
 				pure_in_reqst fields;
 				
