@@ -64,7 +64,7 @@ namespace iosl_master {
 	bool slave_test (std::string slave_id);
 		// Start slave
 	enum class on_type { _AUTO, WoL, WoW, GATEWAY, PSU };
-	time_t slave_start (std::string slave_id);
+	time_t slave_start (std::string slave_id, std::string master_id);
 	
 		// Connect to API service with authentification
 	socketxx::base_netsock slave_api_service_connect (std::string slave_id, std::string master_id, std::string api_service, timeval timeout = {1,0});

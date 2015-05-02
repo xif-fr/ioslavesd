@@ -691,7 +691,7 @@ void IPowerup () {
 		}
 		time_t delay;
 		try {
-			delay = iosl_master::slave_start($slave_id);
+			delay = iosl_master::slave_start($slave_id, $master_id);
 		} catch (std::exception& e) {
 			std::cerr << COLOR_RED << "Power up error" << COLOR_RESET << " : " << e.what() << std::endl;
 			EXIT_FAILURE = EXIT_FAILURE_IOSL;
