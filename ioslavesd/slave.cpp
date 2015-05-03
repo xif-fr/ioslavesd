@@ -23,6 +23,9 @@ using namespace xlog;
 #include <unistd.h>
 #include <time.h>
 
+	// Files
+#include <sys/file.h>
+
 	// Process
 #include <sys/sysctl.h>
 #ifdef __APPLE__
@@ -61,24 +64,15 @@ void ioslaves::api::run_as_root (bool set) noexcept {
 	int errsave = errno;
 	if (ioslaves_user_id == 0)
 		return;
-	long r_u = ::syscall( SYS_setresuid32, (int)-1, (int)(set? 0 : ioslaves_user_id), (int)-1 );
-	long r_g = ::syscall( SYS_setresgid32, (int)-1, (int)(set? 0 : ioslaves_group_id), (int)-1 );
+	long r_u = ::syscall( (set? SYS_setresuid32 : SYS_setresgid32), (int)-1, (int)(set? 0 : ioslaves_group_id), (int)-1 );
+	long r_g = ::syscall( (set? SYS_setresgid32 : SYS_setresuid32), (int)-1, (int)(set? 0 : ioslaves_user_id), (int)-1 );
 	if (r_u == -1 or r_g == -1)
-#else
-pthread_mutex_t cred_mutex = PTHREAD_MUTEX_INITIALIZER;
-void ioslaves::api::run_as_root (bool set) noexcept {
-	if (set) ::pthread_mutex_lock(&cred_mutex);
-	else ::pthread_mutex_unlock(&cred_mutex);
-	int errsave = errno;
-	if (ioslaves_user_id == 0)
-		return;
-	int r = ::seteuid(set?0:ioslaves_user_id)
-	      | ::setegid(set?0:ioslaves_group_id);
-	if (r != 0)
-#endif
 		__log__(log_lvl::ERROR, "SEC", logstream << "Failed to set uid/gid to " << (set?0:ioslaves_user_id) << "/" << (set?0:ioslaves_group_id) << " : " << strerror(errno));
 	errno = errsave;
 }
+#else
+void ioslaves::api::run_as_root (bool set) noexcept {}
+#endif
 
 	// Vars
 char hostname[64];
@@ -102,7 +96,7 @@ int main (int argc, const char* argv[]) { try {
 	
 		// ioslaves user
 	if (::getuid() == 0) {
-		#if defined(__linux__) || defined(IOSLAVED_FORCE_CREDS)
+		#if defined(__linux__)
 		long _pwbufsz = ::sysconf(_SC_GETPW_R_SIZE_MAX);
 		if (_pwbufsz < 1) _pwbufsz = 100;
 		char pwbuf[_pwbufsz];
@@ -116,8 +110,8 @@ int main (int argc, const char* argv[]) { try {
 			r = ::chown(IOSLAVESD_LOG_FILE, (uid_t)ioslaves_user_id, (gid_t)ioslaves_group_id);
 			if (r == -1) 
 				__log__(log_lvl::WARNING, "SEC", logstream << "Failed to chown log file : " << ::strerror(errno));	
-			r = ::seteuid(ioslaves_user_id)
-			  | ::setegid(ioslaves_group_id);
+			r = ::setegid(ioslaves_user_id)
+			  | ::seteuid(ioslaves_group_id);
 			if (r != 0) {
 				__log__(log_lvl::WARNING, "SEC", logstream << "Failed to set effective uid/gid to user '" IOSLAVES_USER "' : " << ::strerror(errno));	
 				ioslaves_user_id = ioslaves_group_id = 0;
