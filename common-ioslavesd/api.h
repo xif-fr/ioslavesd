@@ -178,9 +178,11 @@ void xlog::logstream_impl::log (log_lvl lvl, const char* part, std::string msg, 
 
 	// Run a block of code as root (errno is preserved)
 struct _block_asroot {
-	_block_asroot () { ioslaves::api::run_as_root(true); }
-	~_block_asroot () { ioslaves::api::run_as_root(false); }
+	bool b;
+	_block_asroot (bool cond) : b(true) { if (cond) b = ::geteuid()>0; if (b) ioslaves::api::run_as_root(true); }
+	~_block_asroot () { if (b) ioslaves::api::run_as_root(false); }
 };
-#define asroot_block() _block_asroot _block_asroot_handle
+#define asroot_block_uncond() _block_asroot _block_asroot_handle(false)
+#define asroot_block_cond() _block_asroot _block_asroot_handle(true)
 
 #endif

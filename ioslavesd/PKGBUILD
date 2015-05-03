@@ -25,7 +25,7 @@ sha256sums=('SKIP' 'SKIP' 'SKIP'
             'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 build() {
-	make CXXFLAGS="${CXXFLAGS} -DIOSLAVES_FHS -DXIFNET -DIOSLAVES_MASTER_DIR=\"/var/ioslaves/ioslaves-master\" "
+	make CXXFLAGS="${CXXFLAGS} -DIOSLAVES_FHS -DXIFNET -DIOSLAVES_MASTER_DIR=\"\\\"/var/ioslaves/ioslaves-master\\\"\" "
 }
 
 package() {

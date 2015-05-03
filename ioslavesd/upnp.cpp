@@ -27,6 +27,8 @@ time_t ports_check_interval = 0;
 #define UPNP_DISCOVER_INTERFACE NULL
 
 	/// Don't re-discover each time : caching datas
+#define UPNP_CACHE_FILE IOSLAVESD_RUN_FILES"/upnp_url.cache"
+#define UPNP_URL_MIN_SZ 16
 UPNPUrls upnp_device_url;
 IGDdatas upnp_device_data;
 char upnp_lanIP[16];
@@ -34,39 +36,52 @@ time_t last_init = 0;
 
 void ioslaves::upnpInit () {
 	try {
-		if (last_init != 0)
+		if (last_init != 0) {
 			FreeUPNPUrls(&upnp_device_url);
+		}
 		int r; ssize_t rs;
+		fd_t f = -1;
 			// Skip discover process
-		struct _cache_f {
-			char* url_str = NULL;
-			fd_t f = INVALID_HANDLE;
-			~_cache_f () { if (this->f != INVALID_HANDLE) ::close(f); if (url_str != NULL) delete[] url_str; }
-		} cache_f;
 		if (upnp_cache_deviceurl) {
-			cache_f.f = ::open(IOSLAVESD_RUN_FILES"/upnp_url.cache", O_RDWR|O_CREAT, S_IRUSR|S_IWUSR);
-			if (cache_f.f != INVALID_HANDLE) {
-				::lseek(cache_f.f, 0, SEEK_END);
-				off_t sz = ::lseek(cache_f.f, 0, SEEK_END);
-				if (sz > 10) {
-					::lseek(cache_f.f, 0, SEEK_SET);
-					char* url_str = new char[sz+1];
-					RAII_AT_END_L( delete[] url_str );
-					rs = ::read(cache_f.f, url_str, (size_t)sz);
-					if (rs == sz) {
-						url_str[sz] = '\0';
-						for (size_t i = 0; i < (size_t)sz; i++) 
-							if (url_str[i] == '\n') { url_str[sz] = '\0'; break; }
-						r = UPNP_GetIGDFromUrl(url_str, &upnp_device_url, &upnp_device_data, upnp_lanIP, (size_t)16);
-						if (r == 1) {
-							__log__(log_lvl::LOG, "UPnP", logstream << "Got IGD URL in cache", LOG_DEBUG);
-							last_init = ::time(NULL);
-							return;
-						}
-					}
+			off_t sz;
+			r = ::access(UPNP_CACHE_FILE, W_OK);
+			if (r == -1) { asroot_block_cond();
+				fd_t f = ::open(UPNP_CACHE_FILE, O_RDWR|O_CREAT, 0644);
+				if (f == -1) {
+					__log__(log_lvl::WARNING, "UPnP", logstream << "Failed to create UPnP URL cache file : " << ::strerror(errno));
+					goto _abort_cache;
+				}
+				if (ioslaves_user_id != 0) 
+					r = ::fchown(f, (uid_t)ioslaves_user_id, (gid_t)ioslaves_group_id);
+				::close(f);
+			}
+			f = ::open(UPNP_CACHE_FILE, O_RDWR);
+			if (f == -1) {
+				__log__(log_lvl::WARNING, "UPnP", logstream << "Failed to open UPnP URL cache file : " << ::strerror(errno));
+				goto _abort_cache;
+			}
+			sz = (off_t)::lseek(f, 0, SEEK_END);
+			if (sz >= UPNP_URL_MIN_SZ) {
+				::lseek(f, 0, SEEK_SET);
+				char* url_str = new char[sz+1];
+				RAII_AT_END_L( delete[] url_str );
+				rs = ::read(f, url_str, (size_t)sz);
+				if (rs != sz) 
+					goto _abort_cache;
+				url_str[sz] = '\0';
+				for (size_t i = 0; i < (size_t)sz; i++) 
+					if (url_str[i] == '\n') { url_str[sz] = '\0'; break; }
+				r = UPNP_GetIGDFromUrl(url_str, &upnp_device_url, &upnp_device_data, upnp_lanIP, (size_t)16);
+				if (r == 1) {
+					__log__(log_lvl::LOG, "UPnP", logstream << "Got IGD URL in cache", LOG_DEBUG);
+					last_init = ::time(NULL);
+					::close(f);
+					return;
 				}
 			}
+		_abort_cache:;
 		}
+		RAII_AT_END({ if (f != -1) ::close(f); });
 			// Search for UPnP devices on the network
 		UPNPDev* device_list = upnpDiscover(UPNP_DISCOVER_MAX_DELAY_MS, UPNP_DISCOVER_INTERFACE, NULL, 1, 0, &r);
 		if (device_list == NULL) {
@@ -89,10 +104,10 @@ void ioslaves::upnpInit () {
 			FreeUPNPUrls(&upnp_device_url);
 			throw ioslaves::upnpError("No valid UPnP IGD found");
 		}
-		if (cache_f.f != INVALID_HANDLE) {
-			::ftruncate(cache_f.f, 0);
-			::lseek(cache_f.f, 0, SEEK_SET);
-			rs = ::write(cache_f.f, upnp_device_url.rootdescURL, ::strlen(upnp_device_url.rootdescURL)+1);
+		if (f != -1) {
+			::ftruncate(f, (size_t)0);
+			::lseek(f, (off_t)0, SEEK_SET);
+			rs = ::write(f, upnp_device_url.rootdescURL, ::strlen(upnp_device_url.rootdescURL));
 		}
 		last_init = ::time(NULL);
 	} catch (ioslaves::upnpError& upnperr) {

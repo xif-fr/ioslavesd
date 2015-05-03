@@ -96,6 +96,7 @@ ioslaves::api::common_vars_t ioslaves::api::api_vars = {
 	/// Main
 int main (int argc, const char* argv[]) { try {
 	int r;
+	ssize_t rs;
 	logl_t l;
 	log_file_path = IOSLAVESD_LOG_FILE;
 	
@@ -112,6 +113,9 @@ int main (int argc, const char* argv[]) { try {
 		else {
 			ioslaves_user_id = userinfo.pw_uid;
 			ioslaves_group_id = userinfo.pw_gid;
+			r = ::chown(IOSLAVESD_LOG_FILE, (uid_t)ioslaves_user_id, (gid_t)ioslaves_group_id);
+			if (r == -1) 
+				__log__(log_lvl::WARNING, "SEC", logstream << "Failed to chown log file : " << ::strerror(errno));	
 			r = ::seteuid(ioslaves_user_id)
 			  | ::setegid(ioslaves_group_id);
 			if (r != 0) {
@@ -134,27 +138,39 @@ int main (int argc, const char* argv[]) { try {
 	
 		// Create PID file
 	const char* pid_file = IOSLAVESD_RUN_FILES"/ioslavesd.pid";
-	fd_t pid_f = ::open(pid_file, O_CREAT|O_WRONLY|O_EXCL|O_NOFOLLOW, 0644);
-	if (pid_f == -1 and errno == EEXIST) {
-		__log__(log_lvl::WARNING, NULL, logstream << "PID file at " << pid_file << " already exists ! Overwriting.");
-		pid_f = ::open(pid_file, O_WRONLY|O_TRUNC|O_NOFOLLOW);
-	} {
-		if (pid_f == -1) {
+	fd_t f_pid = -1;
+	{ asroot_block_uncond();
+		f_pid = ::open(pid_file, O_CREAT|O_RDWR|O_EXCL|O_NOFOLLOW|O_SYNC, 0644);
+	}
+	if (f_pid == -1) {
+		if (errno == EEXIST) {
+			__log__(log_lvl::WARNING, NULL, logstream << "PID file at " << pid_file << " already exists ! Checking lock...");
+			f_pid = ::open(pid_file, O_RDWR|O_NOFOLLOW|O_SYNC);
+		}
+		if (f_pid == -1) {
 			__log__(log_lvl::FATAL, NULL, logstream << "Can't create PID file : " << ::strerror(errno));
 			return EXIT_FAILURE;
 		}
-		pid_t pid = ::getpid();
-		std::string pid_str = ::ixtoa(pid);
-		ssize_t rs = ::write(pid_f, pid_str.c_str(), pid_str.length());
-		if (rs != (ssize_t)pid_str.length()) {
-			__log__(log_lvl::FATAL, NULL, logstream << "Can't write to PID file : " << ::strerror(errno));
-			return EXIT_FAILURE;
-		}
-		::close(pid_f);
+	}
+	r = ::flock(f_pid, LOCK_EX|LOCK_NB);
+	if (r == -1 and errno == EWOULDBLOCK) {
+		__log__(log_lvl::FATAL, NULL, logstream << "PID file is locked, ioslavesd seems to be already running !");
+		return EXIT_FAILURE;
+	}
+	::ftruncate(f_pid, (size_t)0);
+	pid_t pid = ::getpid();
+	std::string pid_str = ::ixtoa(pid);
+	rs = ::write(f_pid, pid_str.c_str(), pid_str.length());
+	if (rs != (ssize_t)pid_str.length()) {
+		__log__(log_lvl::FATAL, NULL, logstream << "Can't write to PID file : " << ::strerror(errno));
+		return EXIT_FAILURE;
 	}
 	RAII_AT_END_N(pidfile, {
-		if (pid_file != NULL)
+		if (f_pid != -1) {
+			::close(f_pid);
+			ioslaves::api::run_as_root(true);
 			::unlink(pid_file);
+		}	
 	});
 	
 		// Create signals thread
@@ -1070,7 +1086,7 @@ void ioslaves::controlService (ioslaves::service* s, bool start, const char* con
 		case ioslaves::service::type::SYSTEMCTL: {
 			std::string systemctl_string = _S( "systemctl ",(start?"start ":"stop "),s->s_command,".service" );
 			int r;
-			{ sigchild_block(); asroot_block();
+			{ sigchild_block(); asroot_block_uncond();
 				r = ::system(systemctl_string.c_str());
 			}
 			if (r == -1) throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "SERVICE", logstream << "system() failed to exec `systemctl` : " << ::strerror(errno));
@@ -1198,7 +1214,7 @@ void ioslaves::controlService (ioslaves::service* s, bool start, const char* con
 						goto __daemon_end;
 					}
 				__start_proc:
-					{ sigchild_block(); asroot_block();
+					{ sigchild_block(); asroot_block_uncond();
 						r = ::system(s->s_command.c_str());
 					}
 					if (r == -1) throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "DAEMON", logstream << "system() failed to exec daemon command : " << ::strerror(errno));
@@ -1213,7 +1229,7 @@ void ioslaves::controlService (ioslaves::service* s, bool start, const char* con
 						goto __daemon_dead;
 					}
 					__log__(log_lvl::LOG, "DAEMON", logstream << "Killing process PID " << pid << "...", LOG_WAIT, &l);
-					{ asroot_block();
+					{ asroot_block_uncond();
 						r = ::kill(pid, SIGTERM);
 					}
 					if (r == -1) {

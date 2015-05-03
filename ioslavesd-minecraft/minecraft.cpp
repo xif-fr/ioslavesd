@@ -476,7 +476,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 					return;
 				}
 				try {
-					asroot_block();
+					asroot_block_cond();
 					ioslaves::rmdir_recurse(folder_path.c_str());
 					cli.o_char((char)ioslaves::answer_code::OK);
 				} catch (xif::sys_error& e) {
@@ -582,7 +582,7 @@ void minecraft::unzip (const char* file, const char* in_dir, const char* expecte
 	r = ::access(expected_dir.c_str(), F_OK);
 	if (r == 0) {
 		__log__(log_lvl::WARNING, "FILES", logstream << "Expected dir ('" << expected_dir_name << "') already exists. Deleting it.");
-		{ asroot_block();
+		{ asroot_block_uncond();
 			ioslaves::rmdir_recurse(expected_dir.c_str()); }
 		::setusermcjava();
 	}
@@ -1175,7 +1175,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			
 		} catch (...) {
 			if (s->s_java_pid != -1) {
-				asroot_block();
+				asroot_block_cond();
 				::kill(s->s_java_pid, SIGKILL); // Killing java is a sufficient sign to the thread, it should NOT be canceled
 			}
 			throw;
@@ -1287,7 +1287,7 @@ void* minecraft::serv_thread (void* arg) {
 		
 			// Forking process and executing java
 		pipe_proc_t java_pipes;
-		{ asroot_block();
+		{ asroot_block_cond();
 			std::tie(s->s_java_pid, java_pipes)
 				= ioslaves::fork_exec("java", args, true, s->s_wdir.c_str(), true, minecraft::java_user_id, minecraft::java_group_id, false);
 		}
@@ -1362,7 +1362,7 @@ void* minecraft::serv_thread (void* arg) {
 					// Timeout
 				else if (r == 0) {
 					if (::time(NULL)%20 == 0 and stopInfo.doneDone and s->s_is_perm_map) {
-						asroot_block();
+						asroot_block_uncond();
 						::setusermcjava();
 						lastsaveTimeFile(_S( MINECRAFT_SRV_DIR,"/mc_",s->s_servid,'/',s->s_map ), true);
 					}
@@ -1850,7 +1850,7 @@ void minecraft::stopServer (socketxx::io::simple_socket<socketxx::base_socket> c
 			cli.o_str(s->s_map);
 			bool accept = cli.i_bool();
 			if (accept) {
-				asroot_block();
+				asroot_block_uncond();
 				::setusermcjava();
 				minecraft::compressAndSend(cli, s->s_servid, s->s_map);
 			} else 
