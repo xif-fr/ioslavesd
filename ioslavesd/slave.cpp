@@ -60,18 +60,31 @@ gid_t ioslaves_group_id = 0;
 #ifdef __linux__
 #include <sys/syscall.h>
 #include <unistd.h>
-void ioslaves::api::run_as_root (bool set) noexcept {
+void ioslaves::api::euid_switch (uid_t uid, gid_t gid) {
 	int errsave = errno;
-	if (ioslaves_user_id == 0)
+	if (uid == -1) {
+		uid = ioslaves_user_id;
+		gid = ioslaves_group_id;
+	}
+	uid_t curuid = ::geteuid();
+	if (curuid == uid) {
+		__log__(log_lvl::LOG, "EUID", logstream << "Keeping uid " << ::geteuid() << "/gid " << ::getegid(), LOG_DEBUG);
 		return;
-	long r_u = ::syscall( (set? SYS_setresuid32 : SYS_setresgid32), (int)-1, (int)(set? 0 : ioslaves_group_id), (int)-1 );
-	long r_g = ::syscall( (set? SYS_setresgid32 : SYS_setresuid32), (int)-1, (int)(set? 0 : ioslaves_user_id), (int)-1 );
-	if (r_u == -1 or r_g == -1)
-		__log__(log_lvl::ERROR, "SEC", logstream << "Failed to set uid/gid to " << (set?0:ioslaves_user_id) << "/" << (set?0:ioslaves_group_id) << " : " << strerror(errno));
+	}
+	if (uid != 0 and curuid != 0) 
+		ioslaves::api::euid_switch(0, 0);
+	__log__(log_lvl::ERROR, "EUID", logstream << "Setting uid/gid to " << uid << "/" << gid, LOG_DEBUG);
+	bool set = uid == 0;
+	long r = ::syscall( (set? SYS_setresuid32 : SYS_setresgid32), (int)-1, (int)(set? uid : gid), (int)-1 ) 
+			 | ::syscall( (set? SYS_setresgid32 : SYS_setresuid32), (int)-1, (int)(set? gid : uid), (int)-1 );
+	if (r != 0)
+		__log__(log_lvl::ERROR, "EUID", logstream << "Failed to set uid/gid to " << uid << "/" << gid << " : " << ::strerror(errno));
 	errno = errsave;
 }
 #else
-void ioslaves::api::run_as_root (bool set) noexcept {}
+void ioslaves::api::euid_switch (uid_t uid, gid_t gid) {
+	#warning No thread-specific EUID switching possible
+}
 #endif
 
 	// Vars
@@ -133,7 +146,7 @@ int main (int argc, const char* argv[]) { try {
 		// Create PID file
 	const char* pid_file = IOSLAVESD_RUN_FILES"/ioslavesd.pid";
 	fd_t f_pid = -1;
-	{ asroot_block_uncond();
+	{ asroot_block();
 		f_pid = ::open(pid_file, O_CREAT|O_RDWR|O_EXCL|O_NOFOLLOW|O_SYNC, 0644);
 	}
 	if (f_pid == -1) {
@@ -162,7 +175,7 @@ int main (int argc, const char* argv[]) { try {
 	RAII_AT_END_N(pidfile, {
 		if (f_pid != -1) {
 			::close(f_pid);
-			ioslaves::api::run_as_root(true);
+			ioslaves::api::euid_switch(0,0);
 			::unlink(pid_file);
 		}	
 	});
@@ -451,7 +464,7 @@ int main (int argc, const char* argv[]) { try {
 						ioslaves::statusEnd();
 						while (status_clients.size()) 
 							status_clients.erase(status_clients.begin());
-						ioslaves::api::run_as_root(true);
+						ioslaves::api::euid_switch(0,0);
 						int r;
 						{ sigchild_block();
 							r = ::system( _s("shutdown -",(does_reboot?'r':'h')," now") ); // -k `date --date \"now + 1 minute\" \"+%H:%M\"`
@@ -673,6 +686,7 @@ int main (int argc, const char* argv[]) { try {
 	
 	if (shutdown_time == (time_t)-1) {
 		*signal_catch_sigchild_p = false;
+		ioslaves::api::euid_switch(0,0);
 		::system("shutdown -h now"); 
 	}
 	
@@ -1080,7 +1094,7 @@ void ioslaves::controlService (ioslaves::service* s, bool start, const char* con
 		case ioslaves::service::type::SYSTEMCTL: {
 			std::string systemctl_string = _S( "systemctl ",(start?"start ":"stop "),s->s_command,".service" );
 			int r;
-			{ sigchild_block(); asroot_block_uncond();
+			{ sigchild_block(); asroot_block();
 				r = ::system(systemctl_string.c_str());
 			}
 			if (r == -1) throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "SERVICE", logstream << "system() failed to exec `systemctl` : " << ::strerror(errno));
@@ -1208,7 +1222,7 @@ void ioslaves::controlService (ioslaves::service* s, bool start, const char* con
 						goto __daemon_end;
 					}
 				__start_proc:
-					{ sigchild_block(); asroot_block_uncond();
+					{ sigchild_block(); asroot_block();
 						r = ::system(s->s_command.c_str());
 					}
 					if (r == -1) throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "DAEMON", logstream << "system() failed to exec daemon command : " << ::strerror(errno));
@@ -1223,7 +1237,7 @@ void ioslaves::controlService (ioslaves::service* s, bool start, const char* con
 						goto __daemon_dead;
 					}
 					__log__(log_lvl::LOG, "DAEMON", logstream << "Killing process PID " << pid << "...", LOG_WAIT, &l);
-					{ asroot_block_uncond();
+					{ asroot_block();
 						r = ::kill(pid, SIGTERM);
 					}
 					if (r == -1) {

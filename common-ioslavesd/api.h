@@ -65,7 +65,7 @@ namespace ioslaves { namespace api {
 	typedef void (*close_port_f) (in_port_t, uint16_t, bool); // Close port on gateway
 	typedef ioslaves::answer_code (*dns_srv_create_f) (const char*, std::string, std::string, bool, in_port_t, bool); // Create SRV entry
 	typedef void (*dns_srv_del_f) (const char*, std::string, std::string, bool); // Delete SRV entry
-	typedef void (*run_as_root_f) (bool); // Set/unset root perms
+	typedef void (*euid_switch_f) (uid_t, gid_t); // Switch EUIDs
 
 }}
 	
@@ -79,7 +79,7 @@ namespace ioslaves { namespace api {
 												ioslaves::api::report_log_f, 
 												ioslaves::api::open_port_f, ioslaves::api::close_port_f,
 												ioslaves::api::dns_srv_create_f, ioslaves::api::dns_srv_del_f,
-												ioslaves::api::run_as_root_f);
+												ioslaves::api::euid_switch_f);
 	typedef void (*net_client_call_f) (socketxx::base_socket&, const char* auth_as, in_addr_t);
 	typedef bool (*got_sigchld_f) (pid_t pid, int pid_status);
 	typedef xif::polyvar* (*status_info_f) ();
@@ -93,14 +93,14 @@ namespace ioslaves { namespace api {
 		(ioslaves::api::close_port_f)ioslaves::api::close_port,                   \
 		(ioslaves::api::dns_srv_create_f)ioslaves::api::dns_srv_create,           \
 		(ioslaves::api::dns_srv_del_f)ioslaves::api::dns_srv_del,                 \
-		(ioslaves::api::run_as_root_f)ioslaves::api::run_as_root                  \
+		(ioslaves::api::euid_switch_f)ioslaves::api::euid_switch                  \
 		
 	void report_log (ioslaves::service*, xlog::log_lvl, const char* part, std::string& msg, int f, xlog::logl_t*) noexcept;
 	ioslaves::answer_code open_port (in_port_t ext, bool is_tcp, in_port_t loc, uint16_t range_sz, std::string descr) noexcept;
 	void close_port (in_port_t ext, uint16_t range_sz, bool is_tcp) noexcept;
 	ioslaves::answer_code dns_srv_create (const char* service_name, std::string domain, std::string host, bool with_cname, in_port_t port, bool is_tcp) noexcept;
 	void dns_srv_del (const char* service_name, std::string domain, std::string host, bool is_tcp) noexcept;
-	void run_as_root (bool) noexcept;
+	void euid_switch (uid_t, gid_t);
 	
 }}
 
@@ -118,7 +118,7 @@ extern "C" {
 										 ioslaves::api::report_log_f, 
 										 ioslaves::api::open_port_f, ioslaves::api::close_port_f,
 										 ioslaves::api::dns_srv_create_f, ioslaves::api::dns_srv_del_f,
-										 ioslaves::api::run_as_root_f);
+										 ioslaves::api::euid_switch_f);
 	bool ioslapi_start (const char* by_master); // Called at service start, when callbacks are defined (by_master = NULL if autostarted)
 	void ioslapi_net_client_call (socketxx::base_socket&, const char* auth_as, in_addr_t); // Network request from a master for the API service (auth_as = NULL if not authentificated)
 	bool ioslapi_got_sigchld (pid_t pid, int pid_status); // Report that a SIGCHILD was catched for this pid with this status. Return true if the API service is the owner of the terminated process.
@@ -143,7 +143,7 @@ namespace ioslaves { namespace api {
 	IOSLAVESD_API_SERVICE_EXTERN_SYMBOL ioslaves::api::close_port_f close_port;
 	IOSLAVESD_API_SERVICE_EXTERN_SYMBOL ioslaves::api::dns_srv_create_f dns_srv_create;
 	IOSLAVESD_API_SERVICE_EXTERN_SYMBOL ioslaves::api::dns_srv_del_f dns_srv_del;
-	IOSLAVESD_API_SERVICE_EXTERN_SYMBOL ioslaves::api::run_as_root_f run_as_root;
+	IOSLAVESD_API_SERVICE_EXTERN_SYMBOL ioslaves::api::euid_switch_f euid_switch;
 }}
 
 #ifdef IOSLAVESD_API_SERVICE_IMPL
@@ -152,7 +152,7 @@ extern "C" void ioslapi_set_callbacks (ioslaves::service* _me, sig_atomic_t* _si
 													ioslaves::api::report_log_f _report_log, 
 													ioslaves::api::open_port_f _open_port, ioslaves::api::close_port_f _close_port,
 													ioslaves::api::dns_srv_create_f _dns_srv_create, ioslaves::api::dns_srv_del_f _dns_srv_del,
-													ioslaves::api::run_as_root_f _run_as_root) {
+													ioslaves::api::euid_switch_f _euid_switch) {
 	ioslaves::api::service_me = _me;
 	ioslaves::api::slave_name = hostname;
 	signal_catch_sigchild_p = _sigchild_p;
@@ -162,7 +162,7 @@ extern "C" void ioslapi_set_callbacks (ioslaves::service* _me, sig_atomic_t* _si
 	ioslaves::api::close_port = _close_port;
 	ioslaves::api::dns_srv_create = _dns_srv_create;
 	ioslaves::api::dns_srv_del = _dns_srv_del;
-	ioslaves::api::run_as_root = _run_as_root;
+	ioslaves::api::euid_switch = _euid_switch;
 }
 
 	// API Log
@@ -176,13 +176,12 @@ void xlog::logstream_impl::log (log_lvl lvl, const char* part, std::string msg, 
 
 #endif /* IOSLAVESD_API_SERVICE */
 
-	// Run a block of code as root (errno is preserved)
+	// Run a block of code as root (errno is preserved, initial uid/gid restored)
 struct _block_asroot {
-	bool b;
-	_block_asroot (bool cond) : b(true) { if (cond) b = ::geteuid()>0; if (b) ioslaves::api::run_as_root(true); }
-	~_block_asroot () { if (b) ioslaves::api::run_as_root(false); }
+	uid_t uid; gid_t gid;
+	_block_asroot () { uid = ::geteuid(); gid = ::getegid(); ioslaves::api::euid_switch(0,0); }
+	~_block_asroot () { ioslaves::api::euid_switch(uid, gid); }
 };
-#define asroot_block_uncond() _block_asroot _block_asroot_handle(false)
-#define asroot_block_cond() _block_asroot _block_asroot_handle(true)
+#define asroot_block() _block_asroot _block_asroot_handle
 
 #endif

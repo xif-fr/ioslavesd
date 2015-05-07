@@ -83,7 +83,7 @@ extern "C" bool ioslapi_start (const char*) {
 	logl_t l;
 	int r;
 	__log__(log_lvl::IMPORTANT, NULL, logstream << "Starting XifNet Dynamic DNS Service...", LOG_WAIT, &l);
-	{ sigchild_block(); asroot_block_cond();
+	{ sigchild_block(); asroot_block();
 		r = ::system("nsd-control status > /dev/null 2>&1");
 	}
 	if (r != 0) {
@@ -261,7 +261,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 void xdyndns::NSD_reload () {
 	errno = 0;
 	int r;
-	{ sigchild_block(); asroot_block_cond();
+	{ sigchild_block(); asroot_block();
 		r = ::system("nsd-control reload > /dev/null");
 	}
 	if (r != 0) throw xif::sys_error("failed to reload NSD zones", (errno == 0 ? "nsd-control reload failed" : _s("system(nsd-control) failed : ",::strerror(errno))));

@@ -219,6 +219,21 @@ std::pair<pid_t,pipe_proc_t> ioslaves::fork_exec (const char* cmd, const std::ve
 		throw xif::sys_error("can't fork() processus");
 }
 
+	// system(3) implementation, SIGCHILD must be blocked in other threads
+int ioslaves::exec_wait (const char* cmd, const std::vector<std::string>& args, const char* wdir, uid_t uid, gid_t gid) {
+	int r;
+	pid_t pid = 
+		ioslaves::fork_exec(cmd, args, false, wdir, true, uid, gid, false).first;
+	int cmd_r = 0;
+_rewait:
+	r = ::waitpid(pid, &cmd_r, 0);
+	if (r == -1) {
+		if (errno == EINTR) goto _rewait;
+		else throw xif::sys_error("exec_wait : waitpid failed");
+	}
+	return r;
+}
+
 #define DIRENT_ALLOC_SZ(dir) (size_t)offsetof(struct dirent, d_name) + std::max(sizeof(dirent::d_name), (size_t)::fpathconf(dirfd(dir),_PC_NAME_MAX)) +1
 
 	// Remove folder entierely

@@ -45,7 +45,7 @@ void ioslaves::upnpInit () {
 		if (upnp_cache_deviceurl) {
 			off_t sz;
 			r = ::access(UPNP_CACHE_FILE, W_OK);
-			if (r == -1) { asroot_block_cond();
+			if (r == -1) { asroot_block();
 				fd_t f = ::open(UPNP_CACHE_FILE, O_RDWR|O_CREAT, 0644);
 				if (f == -1) {
 					__log__(log_lvl::WARNING, "UPnP", logstream << "Failed to create UPnP URL cache file : " << ::strerror(errno));
