@@ -59,6 +59,10 @@ uid_t ioslaves_user_id = 0;
 gid_t ioslaves_group_id = 0;
 #ifdef __linux__
 #include <sys/syscall.h>
+#ifdef __x86_64__
+	#define SYS_setresuid32 SYS_setresuid
+	#define SYS_setresgid32 SYS_setresgid
+#endif
 #include <unistd.h>
 void ioslaves::api::euid_switch (uid_t uid, gid_t gid) {
 	int errsave = errno;
