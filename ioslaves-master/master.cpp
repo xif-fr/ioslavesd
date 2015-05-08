@@ -233,12 +233,13 @@ int main (int argc, char* const argv[]) {
 						 "                                       If the 2nd arg is defined, the packet is sent on represented\n"
 						 "                                        hostname instead of the broadcast addr of the local network.\n"
 						 "                                       If sent to the WAN, the router must support it.\n"
-						 "                            MAGIC_GATEWAY: tell the 'wol' ioslavesd plugin of a slave on the same\n"
-						 "                                           network to send a WoL packet. Used if the magic packet\n"
-						 "                                           cannot traverse the NAT. Takes gateway's name or address.\n"
+						 "                            GATEWAY: tell the 'wake-gateway' ioslavesd plugin of a slave on the same\n"
+						 "                                      network to relay the start request (WoL, another relay, PSU...).\n"
+						 "                                      Used if magic packets cannot traverse the NAT, or for\n"
+						 "                                      hierarchical organizations. Takes gateway's name or address.\n"
 						 "                            SERIAL_PSU: command a centralized PSU via serial port using xif PSU's\n"
 						 "                                        protocol. Takes the output ID of the PSU.\n"
-						 "  -J, --to-json            Convert slave info file in ~/ioslaves-master/slaves/[slave].conf into JSON.\n"
+						 "  -J, --to-json            Convert slave info file ~/ioslaves-master/slaves/[slave].conf into JSON.\n"
 						 "\n");
 				return EXIT_SUCCESS;
 			case 'i':
@@ -386,13 +387,13 @@ int main (int argc, char* const argv[]) {
 						}
 					}
 				} 
-				else if (on_str_type == "MAGIC_GATEWAY") {
+				else if (on_str_type == "GATEWAY") {
 					$poweron_type = iosl_master::on_type::GATEWAY;
 					if (optind == argc or argv[optind][0] == '-') 
-						try_help("--on=MAGIC_GATEWAY must take gateway's name or hostname as argument\n");
+						try_help("--on=GATEWAY must take gateway's name or hostname as argument\n");
 					$on_gateway = argv[optind++];
 					if (not ioslaves::validateHostname($on_gateway))
-						try_help("--on=MAGIC_GATEWAY : invalid gateway hostname\n"); 
+						try_help("--on=GATEWAY : invalid gateway hostname\n"); 
 				} 
 				else if (on_str_type == "SERIAL_PSU") {
 					$poweron_type = iosl_master::on_type::PSU;
@@ -719,14 +720,31 @@ void IPowerup () {
 		}
 	} else {
 		if ($poweron_type == iosl_master::on_type::WoW) {
+			std::cout << "Sending magic packet for " << $on_mac << " to " << $connect_addr.get_ip_str() << ":" << $connect_addr.get_port() << std::endl;
 			ioslaves::wol::magic_send($on_mac.c_str(), true, $connect_addr.get_ip_addr().s_addr, $connect_addr.get_port());
 		} else if ($poweron_type == iosl_master::on_type::WoL) {
+			std::cout << "Broadcasting magic packet for " << $on_mac << " on local network..." << std::endl;
 			ioslaves::wol::magic_send($on_mac.c_str(), false);
 		} else if ($poweron_type == iosl_master::on_type::GATEWAY) {
-			#warning TO DO : wol gateway connection
+			if ($slave_id.empty()) {
+				std::cerr << COLOR_RED << "Power up : slave ID must be defined" << COLOR_RESET << std::endl;
+				throw EXCEPT_ERROR_IGNORE;	
+			}
+			std::cout << "Relaying start request of slave '" << $slave_id << "' via gateway '" << $on_gateway << "'..." << std::endl;
+			socketxx::io::simple_socket<socketxx::base_netsock> sock = iosl_master::slave_api_service_connect($on_gateway, $master_id, "wake-gateway");
+			sock.o_str($slave_id);
+			ioslaves::answer_code o = (ioslaves::answer_code)sock.i_char();
+			if (o != ioslaves::answer_code::OK) {
+				std::cerr << COLOR_RED << "Wake-gateway service failed to start slave" << COLOR_RESET << " (" << (char)o << ")" << std::endl;
+				EXIT_FAILURE = EXIT_FAILURE_IOSL;
+				throw EXCEPT_ERROR_IGNORE;	
+			}
+			time_t dist_delay = sock.i_int<uint16_t>();
+			std::cout << "Announced delay : " << dist_delay << std::endl;
 		} else if ($poweron_type == iosl_master::on_type::PSU) {
 			#warning TO DO : serial psu module
 		}
+		std::cout << COLOR_GREEN << "Done." << std::endl;
 	}
 	} catch (std::exception& e) {
 		std::cerr << COLOR_RED << "Power up error" << COLOR_RESET << " : " << e.what() << std::endl;

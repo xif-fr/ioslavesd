@@ -590,7 +590,7 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 			if (e.down and not secondtry and autostart) {
 				time_t time_up = 0;
 				try {
-					time_up = iosl_master::slave_start($slave_id);
+					time_up = iosl_master::slave_start($slave_id, $master_id);
 				} catch (std::exception& e) {
 					__log__ << LOG_AROBASE_ERR << "Power up error : " << e.what() << std::flush;
 					EXIT_FAILURE = EXIT_FAILURE_CONN;
@@ -1151,7 +1151,7 @@ _try_start:
 			__log__ << LOG_AROBASE_OK << "Ok, we choose " << $slave_id << " with " << slaves.front().sl_total_points << " points" << std::flush;
 			if (slaves.front().sl_status == -1) {
 				try {
-					iosl_master::slave_start($slave_id);
+					iosl_master::slave_start($slave_id, $master_id);
 				} catch (std::exception& e) {
 					__log__ << LOG_AROBASE_ERR << "Power up error : " << e.what() << std::flush;
 					goto _retry_start;
