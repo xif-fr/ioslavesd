@@ -67,6 +67,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 		}
 		cli.o_char((char)ioslaves::answer_code::OK);
 		cli.o_int<uint16_t>(delay);
+		__log__(log_lvl::DONE, "WAKE", logstream << "Done. Announced delay : " << delay);
 		
 	} catch (socketxx::error& e) {
 		__log__(log_lvl::NOTICE, "COMM", logstream << "Network error : " << e.what());

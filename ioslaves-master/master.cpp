@@ -744,7 +744,7 @@ void IPowerup () {
 		} else if ($poweron_type == iosl_master::on_type::PSU) {
 			#warning TO DO : serial psu module
 		}
-		std::cout << COLOR_GREEN << "Done." << std::endl;
+		std::cout << COLOR_GREEN << "Done." << COLOR_RESET << std::endl;
 	}
 	} catch (std::exception& e) {
 		std::cerr << COLOR_RED << "Power up error" << COLOR_RESET << " : " << e.what() << std::endl;

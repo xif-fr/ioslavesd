@@ -1069,8 +1069,8 @@ void ioslaves::controlService (ioslaves::service* s, bool start, const char* con
 			__log__(log_lvl::IMPORTANT, "SERVICE", logstream << (start?"Starting":"Stopping") << " daemon '" << s->s_name << "'...");
 			break;
 		case ioslaves::service::type::IOSLPLUGIN:
-			if (start) __log__(log_lvl::DONE, "API", logstream << "Loading API service '" << s->s_name << "' (" << s->s_command << ".iosldl)...");
-			else __log__(log_lvl::LOG, "OP", logstream << "Stopping API service '" << s->s_name << "'...");;
+			if (start) __log__(log_lvl::IMPORTANT, "API", logstream << "Loading API service '" << s->s_name << "' (" << s->s_command << ".iosldl)...");
+			else __log__(log_lvl::IMPORTANT, "OP", logstream << "Stopping API service '" << s->s_name << "'...");;
 			break;
 	}
 	if (s->ss_status_running == start)
