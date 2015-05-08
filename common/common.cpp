@@ -140,6 +140,7 @@ std::string ioslaves::generate_random (size_t sz) {
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/resource.h>
+#include <sys/wait.h>
 
 	// Fork processus, change working dir, execute `cmd` with arguments, and redirect standard in/out to returned pipe
 std::pair<pid_t,pipe_proc_t> ioslaves::fork_exec (const char* cmd, const std::vector<std::string>& args, bool io_redir, const char* wdir, bool closefds, uid_t uid, gid_t gid, bool disown) {
@@ -231,7 +232,7 @@ _rewait:
 		if (errno == EINTR) goto _rewait;
 		else throw xif::sys_error("exec_wait : waitpid failed");
 	}
-	return r;
+	return cmd_r;
 }
 
 #define DIRENT_ALLOC_SZ(dir) (size_t)offsetof(struct dirent, d_name) + std::max(sizeof(dirent::d_name), (size_t)::fpathconf(dirfd(dir),_PC_NAME_MAX)) +1

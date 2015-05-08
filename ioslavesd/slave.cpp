@@ -62,18 +62,19 @@ gid_t ioslaves_group_id = 0;
 #include <unistd.h>
 void ioslaves::api::euid_switch (uid_t uid, gid_t gid) {
 	int errsave = errno;
-	if (uid == -1) {
+	if (uid == -1 and gid == -1) {
 		uid = ioslaves_user_id;
 		gid = ioslaves_group_id;
 	}
 	uid_t curuid = ::geteuid();
-	if (curuid == uid) {
+	gid_t curgid = ::getegid();
+	if (curuid == uid and curgid == gid) {
 		__log__(log_lvl::LOG, "EUID", logstream << "Keeping uid " << ::geteuid() << "/gid " << ::getegid(), LOG_DEBUG);
 		return;
 	}
 	if (uid != 0 and curuid != 0) 
 		ioslaves::api::euid_switch(0, 0);
-	__log__(log_lvl::ERROR, "EUID", logstream << "Setting uid/gid to " << uid << "/" << gid, LOG_DEBUG);
+	__log__(log_lvl::LOG, "EUID", logstream << "Setting uid/gid to " << uid << "/" << gid, LOG_DEBUG);
 	bool set = uid == 0;
 	long r = ::syscall( (set? SYS_setresuid32 : SYS_setresgid32), (int)-1, (int)(set? uid : gid), (int)-1 ) 
 			 | ::syscall( (set? SYS_setresgid32 : SYS_setresuid32), (int)-1, (int)(set? gid : uid), (int)-1 );

@@ -1165,14 +1165,15 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			
 				// Done !
 			cli.o_char((char)ioslaves::answer_code::OK);
-			
-		} catch (...) {
-			if (s->s_java_pid != -1) {
-				asroot_block();
-				::kill(s->s_java_pid, SIGKILL); // Killing java is a sufficient sign to the thread, it should NOT be canceled
-			}
-			throw;
+			return;
 		}
+		catch (ioslaves::req_err&) {} catch (xif::sys_error&) {} catch (std::runtime_error&) {} 
+		catch (socketxx::error&) { throw; }
+		if (s->s_java_pid != -1) {
+			asroot_block();
+			::kill(s->s_java_pid, SIGKILL); // Killing java is a sufficient sign to the thread, it should NOT be canceled
+		}
+		throw;
 		
 	} catch (ioslaves::req_err& re) {
 		cli.o_char((char)re.answ_code);
@@ -1844,7 +1845,7 @@ void minecraft::stopServer (socketxx::io::simple_socket<socketxx::base_socket> c
 				block_as_mcjava();
 				minecraft::compressAndSend(cli, s->s_servid, s->s_map);
 			} else 
-				throw ioslaves::req_err(ioslaves::answer_code::DENY, "STOP", MCLOGSCLI(s) << "Master refused stop report ! Scandal !");
+				__log__(log_lvl::WARNING, "STOP", MCLOGSCLI(s) << "Master refused stop report ! Scandal !");
 		}
 		
 		cli.o_char((char)ioslaves::answer_code::OK);
