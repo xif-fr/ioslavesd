@@ -140,6 +140,7 @@ std::string ioslaves::generate_random (size_t sz) {
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/resource.h>
+#include <sys/wait.h>
 
 	// Fork processus, change working dir, execute `cmd` with arguments, and redirect standard in/out to returned pipe
 std::pair<pid_t,pipe_proc_t> ioslaves::fork_exec (const char* cmd, const std::vector<std::string>& args, bool io_redir, const char* wdir, bool closefds, uid_t uid, gid_t gid, bool disown) {
@@ -219,6 +220,21 @@ std::pair<pid_t,pipe_proc_t> ioslaves::fork_exec (const char* cmd, const std::ve
 		throw xif::sys_error("can't fork() processus");
 }
 
+	// system(3) implementation, SIGCHILD must be blocked in other threads
+int ioslaves::exec_wait (const char* cmd, const std::vector<std::string>& args, const char* wdir, uid_t uid, gid_t gid) {
+	int r;
+	pid_t pid = 
+		ioslaves::fork_exec(cmd, args, false, wdir, true, uid, gid, false).first;
+	int cmd_r = 0;
+_rewait:
+	r = ::waitpid(pid, &cmd_r, 0);
+	if (r == -1) {
+		if (errno == EINTR) goto _rewait;
+		else throw xif::sys_error("exec_wait : waitpid failed");
+	}
+	return cmd_r;
+}
+
 #define DIRENT_ALLOC_SZ(dir) (size_t)offsetof(struct dirent, d_name) + std::max(sizeof(dirent::d_name), (size_t)::fpathconf(dirfd(dir),_PC_NAME_MAX)) +1
 
 	// Remove folder entierely
@@ -285,14 +301,14 @@ void ioslaves::chown_recurse (const char* dir_path, uid_t uid, gid_t gid) {
 		if (S_ISDIR(info.st_mode)) {
 			ioslaves::chown_recurse(path, uid, gid);
 		} else {
-			r = ::chown(path, uid, gid);
+			r = ::lchown(path, uid, gid);
 			if (r == -1) 
 				throw xif::sys_error(_S("chown_recurse : can't chown file '",path,"'"));
 		}
 	}
 	if (rr == -1)
 		throw xif::sys_error("chown_recurse : readdir_r");
-	r = ::chown(dir_path, uid, gid);
+	r = ::lchown(dir_path, uid, gid);
 	if (r == -1) 
 		throw xif::sys_error(_S("chown_recurse : can't chown directory '",dir_path,"'"));
 }

@@ -25,7 +25,7 @@ sha256sums=('SKIP' 'SKIP' 'SKIP'
             'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 build() {
-	make CXXFLAGS="${CXXFLAGS} -DIOSLAVES_FHS -DXIFNET"
+	make CXXFLAGS="${CXXFLAGS} -DIOSLAVES_FHS -DXIFNET -DIOSLAVES_MASTER_DIR=\"\\\"/var/ioslaves/ioslaves-master\\\"\" "
 }
 
 package() {
@@ -36,4 +36,5 @@ package() {
 	install -D -m644 $srcdir/ssh.service 		$pkgdir/etc/ioslavesd/services/ssh.service
 	install -D -m644 $srcdir/ioslavesd.conf 	$pkgdir/etc/ioslavesd/ioslavesd.conf
 	install -d -m755 				$pkgdir/usr/lib/ioslavesd/api-services
+	install -d -m755				$pkgdir/var/ioslaves/ioslaves-master
 }

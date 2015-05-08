@@ -35,4 +35,5 @@ package() {
 	install -D -m644 $srcdir/xifnetdyndns.service	$pkgdir/etc/ioslavesd/services/xifnetdyndns.service
 	install -D -m644 $srcdir/xifnetdyndns.iosldl	$pkgdir/usr/lib/ioslavesd/api-services/xifnetdyndns.iosldl
 	install -D -m644 $srcdir/net.xif.fr.zone	$pkgdir/etc/nsd/zones/net.xif.fr.zone
+	echo *** Zone files managed by xifnetdyndns will have to be chowned ***
 }

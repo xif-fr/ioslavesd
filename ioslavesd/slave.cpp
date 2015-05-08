@@ -23,6 +23,9 @@ using namespace xlog;
 #include <unistd.h>
 #include <time.h>
 
+	// Files
+#include <sys/file.h>
+
 	// Process
 #include <sys/sysctl.h>
 #ifdef __APPLE__
@@ -54,16 +57,36 @@ in_port_t ioslavesd_listening_port = 2929;
 #define IOSLAVES_USER "ioslaves"
 uid_t ioslaves_user_id = 0;
 gid_t ioslaves_group_id = 0;
-void ioslaves::api::run_as_root (bool set) noexcept {
+#ifdef __linux__
+#include <sys/syscall.h>
+#include <unistd.h>
+void ioslaves::api::euid_switch (uid_t uid, gid_t gid) {
 	int errsave = errno;
-	if (ioslaves_user_id == 0)
+	if (uid == -1 and gid == -1) {
+		uid = ioslaves_user_id;
+		gid = ioslaves_group_id;
+	}
+	uid_t curuid = ::geteuid();
+	gid_t curgid = ::getegid();
+	if (curuid == uid and curgid == gid) {
+		__log__(log_lvl::LOG, "EUID", logstream << "Keeping uid " << ::geteuid() << "/gid " << ::getegid(), LOG_DEBUG);
 		return;
-	int r = ::seteuid(set?0:ioslaves_user_id)
-	      | ::setegid(set?0:ioslaves_group_id);
+	}
+	if (uid != 0 and curuid != 0) 
+		ioslaves::api::euid_switch(0, 0);
+	__log__(log_lvl::LOG, "EUID", logstream << "Setting uid/gid to " << uid << "/" << gid, LOG_DEBUG);
+	bool set = uid == 0;
+	long r = ::syscall( (set? SYS_setresuid32 : SYS_setresgid32), (int)-1, (int)(set? uid : gid), (int)-1 ) 
+			 | ::syscall( (set? SYS_setresgid32 : SYS_setresuid32), (int)-1, (int)(set? gid : uid), (int)-1 );
 	if (r != 0)
-		__log__(log_lvl::ERROR, "SEC", logstream << "Failed to set uid/gid to " << (set?0:ioslaves_user_id) << "/" << (set?0:ioslaves_group_id) << " : " << strerror(errno));
+		__log__(log_lvl::ERROR, "EUID", logstream << "Failed to set uid/gid to " << uid << "/" << gid << " : " << ::strerror(errno));
 	errno = errsave;
 }
+#else
+void ioslaves::api::euid_switch (uid_t uid, gid_t gid) {
+	#warning No thread-specific EUID switching possible
+}
+#endif
 
 	// Vars
 char hostname[64];
@@ -81,11 +104,13 @@ ioslaves::api::common_vars_t ioslaves::api::api_vars = {
 	/// Main
 int main (int argc, const char* argv[]) { try {
 	int r;
+	ssize_t rs;
 	logl_t l;
 	log_file_path = IOSLAVESD_LOG_FILE;
 	
 		// ioslaves user
 	if (::getuid() == 0) {
+		#if defined(__linux__)
 		long _pwbufsz = ::sysconf(_SC_GETPW_R_SIZE_MAX);
 		if (_pwbufsz < 1) _pwbufsz = 100;
 		char pwbuf[_pwbufsz];
@@ -96,14 +121,20 @@ int main (int argc, const char* argv[]) { try {
 		else {
 			ioslaves_user_id = userinfo.pw_uid;
 			ioslaves_group_id = userinfo.pw_gid;
-			r = ::seteuid(ioslaves_user_id)
-			  | ::setegid(ioslaves_group_id);
+			r = ::chown(IOSLAVESD_LOG_FILE, (uid_t)ioslaves_user_id, (gid_t)ioslaves_group_id);
+			if (r == -1) 
+				__log__(log_lvl::WARNING, "SEC", logstream << "Failed to chown log file : " << ::strerror(errno));	
+			r = ::setegid(ioslaves_user_id)
+			  | ::seteuid(ioslaves_group_id);
 			if (r != 0) {
 				__log__(log_lvl::WARNING, "SEC", logstream << "Failed to set effective uid/gid to user '" IOSLAVES_USER "' : " << ::strerror(errno));	
 				ioslaves_user_id = ioslaves_group_id = 0;
 			} else
 				__log__(log_lvl::MAJOR, NULL, logstream << "Starting ioslavesd as user '" IOSLAVES_USER "'...", LOG_WAIT, &l);
 		}
+		#else
+			__log__(log_lvl::MAJOR, NULL, logstream << "Starting ioslavesd as root (isolated thread credentials not supported)...", LOG_WAIT, &l);
+		#endif
 	} else {
 		__log__(log_lvl::MAJOR, NULL, logstream << "Starting ioslavesd as uid " << ::getuid() << "...", LOG_WAIT, &l);
 	}
@@ -115,27 +146,39 @@ int main (int argc, const char* argv[]) { try {
 	
 		// Create PID file
 	const char* pid_file = IOSLAVESD_RUN_FILES"/ioslavesd.pid";
-	fd_t pid_f = ::open(pid_file, O_CREAT|O_WRONLY|O_EXCL|O_NOFOLLOW, 0644);
-	if (pid_f == -1 and errno == EEXIST) {
-		__log__(log_lvl::WARNING, NULL, logstream << "PID file at " << pid_file << " already exists ! Overwriting.");
-		pid_f = ::open(pid_file, O_WRONLY|O_TRUNC|O_NOFOLLOW);
-	} {
-		if (pid_f == -1) {
+	fd_t f_pid = -1;
+	{ asroot_block();
+		f_pid = ::open(pid_file, O_CREAT|O_RDWR|O_EXCL|O_NOFOLLOW|O_SYNC, 0644);
+	}
+	if (f_pid == -1) {
+		if (errno == EEXIST) {
+			__log__(log_lvl::WARNING, NULL, logstream << "PID file at " << pid_file << " already exists ! Checking lock...");
+			f_pid = ::open(pid_file, O_RDWR|O_NOFOLLOW|O_SYNC);
+		}
+		if (f_pid == -1) {
 			__log__(log_lvl::FATAL, NULL, logstream << "Can't create PID file : " << ::strerror(errno));
 			return EXIT_FAILURE;
 		}
-		pid_t pid = ::getpid();
-		std::string pid_str = ::ixtoa(pid);
-		ssize_t rs = ::write(pid_f, pid_str.c_str(), pid_str.length());
-		if (rs != (ssize_t)pid_str.length()) {
-			__log__(log_lvl::FATAL, NULL, logstream << "Can't write to PID file : " << ::strerror(errno));
-			return EXIT_FAILURE;
-		}
-		::close(pid_f);
+	}
+	r = ::flock(f_pid, LOCK_EX|LOCK_NB);
+	if (r == -1 and errno == EWOULDBLOCK) {
+		__log__(log_lvl::FATAL, NULL, logstream << "PID file is locked, ioslavesd seems to be already running !");
+		return EXIT_FAILURE;
+	}
+	::ftruncate(f_pid, (size_t)0);
+	pid_t pid = ::getpid();
+	std::string pid_str = ::ixtoa(pid);
+	rs = ::write(f_pid, pid_str.c_str(), pid_str.length());
+	if (rs != (ssize_t)pid_str.length()) {
+		__log__(log_lvl::FATAL, NULL, logstream << "Can't write to PID file : " << ::strerror(errno));
+		return EXIT_FAILURE;
 	}
 	RAII_AT_END_N(pidfile, {
-		if (pid_file != NULL)
+		if (f_pid != -1) {
+			::close(f_pid);
+			ioslaves::api::euid_switch(0,0);
 			::unlink(pid_file);
+		}	
 	});
 	
 		// Create signals thread
@@ -422,7 +465,7 @@ int main (int argc, const char* argv[]) { try {
 						ioslaves::statusEnd();
 						while (status_clients.size()) 
 							status_clients.erase(status_clients.begin());
-						ioslaves::api::run_as_root(true);
+						ioslaves::api::euid_switch(0,0);
 						int r;
 						{ sigchild_block();
 							r = ::system( _s("shutdown -",(does_reboot?'r':'h')," now") ); // -k `date --date \"now + 1 minute\" \"+%H:%M\"`
@@ -546,7 +589,9 @@ int main (int argc, const char* argv[]) { try {
 						sock.o_int<in_port_t>(ioslavesd_listening_port);
 						in_addr_t my_ip = sock.i_int<in_addr_t>();
 						static in_addr_t my_ip_last = 0;
-						if (my_ip_last != my_ip and my_ip_last != 0) 
+						if (my_ip_last == 0) 
+							__log__(log_lvl::MAJOR, "DynDNS", logstream << "Public IP is " << socketxx::base_netsock::addr_info::addr2str(my_ip));
+						else if (my_ip_last != my_ip) 
 							__log__(log_lvl::MAJOR, "DynDNS", logstream << "Public IP changed from " << socketxx::base_netsock::addr_info::addr2str(my_ip_last) << " to " << socketxx::base_netsock::addr_info::addr2str(my_ip));
 						my_ip_last = my_ip;
 						ioslaves::answer_code answ;
@@ -642,6 +687,7 @@ int main (int argc, const char* argv[]) { try {
 	
 	if (shutdown_time == (time_t)-1) {
 		*signal_catch_sigchild_p = false;
+		ioslaves::api::euid_switch(0,0);
 		::system("shutdown -h now"); 
 	}
 	

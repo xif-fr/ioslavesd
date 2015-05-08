@@ -188,6 +188,7 @@ void ioslaves::statusEnd () {
 	__log__(log_lvl::LOG, NULL, logstream << "ioslavesd was running for " << iosl_uptime/60 << " minutes");
 	#ifndef IOSLAVESD_NO_TOPP
 	std::tuple<time_t,time_t,time_t> uptimes = ioslaves::statusLinuxCalculateUptimes();
+	asroot_block();
 	std::ofstream totuptime_F (IOSLAVESD_UPTIME_FILE, std::fstream::out|std::fstream::trunc);
 	totuptime_F << std::get<0>(uptimes) << ' ' << std::get<1>(uptimes) << ' ' << std::get<2>(uptimes);
 	#endif

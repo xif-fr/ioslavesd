@@ -125,6 +125,8 @@ namespace ioslaves {
 	
 		// Execute program `cmd` with arguments in defined working directory, and redirect standard in/out to returned pipe
 	std::pair<pid_t,pipe_proc_t> fork_exec (const char* cmd, const std::vector<std::string>& args, bool io_redir, const char* wdir, bool closefds, uid_t uid, gid_t gid, bool disown);
+		// system(3) implementation, SIGCHILD must be blocked in other threads
+	int exec_wait (const char* cmd, const std::vector<std::string>& args, const char* wdir, uid_t uid, gid_t gid);
 		
 		// Filesystem utilities
 	void rmdir_recurse (const char* folder_path);
