@@ -17,7 +17,7 @@ std::vector<log_entry> log_history;
 
 #define STRFTIME_BUF_SIZE 30
 #define LOG_DIFF_TIME_SHOW_SEC 1
-bool log_file_fail_warned = false;
+fd_t fd_log = -1;
 const char* log_file_path = NULL;
 bool waiting_log = false;
 
@@ -101,13 +101,22 @@ void xlog::logstream_impl::log (log_lvl lvl, const char* part, std::string msg, 
 		waiting_log = false;
 	}
 	if (log_file_path != NULL) {
-		FILE* log_file = ::fopen(log_file_path, "a");
-		if (log_file != NULL) {
-			::fputs(txt_output.c_str(), log_file);
-			::fclose(log_file);
-		} else if (!log_file_fail_warned) {
-			::fputs("\n\t*** WARNING : LOG FILE COULDN'T BE OPENED !\n\n", stderr);
-			log_file_fail_warned = true;
+		ssize_t rs;
+		if (fd_log == -1) {
+		_reopen_log:
+			fd_log = ::open(log_file_path, O_WRONLY|O_CREAT|O_APPEND|O_NOFOLLOW, 0644);
+			if (fd_log == -1) {
+				::fprintf(stderr, "\n\t*** WARNING : LOG FILE COULDN'T BE OPENED ! %s\n\n\n", ::strerror(errno));
+				fd_log = -2;
+			}
+		}
+		if (fd_log != -2) {
+			rs =  ::write(fd_log, txt_output.c_str(), txt_output.length());
+			rs += ::write(fd_log, "\n", 1);
+			if (rs != (ssize_t)txt_output.length()+1) {
+				::close(fd_log);
+				goto _reopen_log;
+			}
 		}
 	}
 	if (::isatty(STDERR_FILENO)) ::fputs(tty_output.c_str(), stderr);
