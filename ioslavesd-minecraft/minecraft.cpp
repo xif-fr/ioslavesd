@@ -25,7 +25,15 @@ using namespace xlog;
 #include <iomanip>
 #include <time.h>
 #include <sys/time.h>
+
+	// User
 #include <pwd.h>
+	// Run a block of code as mcjava (errno is preserved, ioslaves uid/gid restored)
+struct _block_as_mcjava {
+	_block_as_mcjava () { ioslaves::api::euid_switch(minecraft::java_user_id, minecraft::java_user_id); }
+	~_block_as_mcjava () { ioslaves::api::euid_switch(-1,-1); }
+};
+#define block_as_mcjava() _block_as_mcjava _block_as_mcjava_handle
 
 	// Network
 #include <socket++/io/simple_socket.hpp>
@@ -319,8 +327,10 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 				cli.o_str(ss.map_to_save);
 				bool accept = cli.i_bool();
 				if (accept) {
-					if (not ss.map_to_save.empty()) 
+					if (not ss.map_to_save.empty()) {
+						block_as_mcjava();
 						minecraft::compressAndSend(cli, ss.serv, ss.map_to_save);
+					}
 					auto p_it = it++; minecraft::servs_stopped.erase(p_it);
 				} else 
 					++it;
@@ -396,10 +406,16 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 				__log__(log_lvl::LOG, "FILES", logstream << "List maps...", LOG_WAIT, &l);
 				std::map<std::string,time_t> serv_maps;
 				try {
+					block_as_mcjava();
 					std::string global_serv_dir = _S( MINECRAFT_SRV_DIR,"/mc_",s_servid );
 					DIR* dir = ::opendir(global_serv_dir.c_str());
-					if (dir == NULL) 
+					if (dir == NULL) {
+						if (errno == ENOENT) {
+							cli.o_int<uint32_t>(0);
+							break;
+						}
 						throw xif::sys_error("can't open global server dir for listing maps");
+					}
 					dirent* dp, *dentr = (dirent*) ::malloc(
 						(size_t)offsetof(struct dirent, d_name) + std::max(sizeof(dirent::d_name), (size_t)::fpathconf(dirfd(dir),_PC_NAME_MAX)) +1
 					);
@@ -431,6 +447,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 					cli.o_int<uint64_t>(p.second);
 					ioslaves::answer_code o = (ioslaves::answer_code)cli.i_char();
 					if (o == ioslaves::answer_code::WANT_GET) {
+						block_as_mcjava();
 						minecraft::compressAndSend(cli, s_servid, p.first);
 					}
 				}
@@ -520,13 +537,6 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 	/** -------------------------------	**/
 	/**         Utility functions       	**/
 	/** -------------------------------	**/
-
-	// Run a block of code as mcjava (errno is preserved, ioslaves uid/gid restored)
-struct _block_as_mcjava {
-	_block_as_mcjava () { ioslaves::api::euid_switch(minecraft::java_user_id, minecraft::java_user_id); }
-	~_block_as_mcjava () { ioslaves::api::euid_switch(-1,-1); }
-};
-#define block_as_mcjava() _block_as_mcjava _block_as_mcjava_handle
 
 	/// Transfert and map functions
 	// Should always be running as euid=mcjava
@@ -654,10 +664,10 @@ void minecraft::compressAndSend (socketxx::io::simple_socket<socketxx::base_sock
 	try {  ioslaves::rmdir_recurse(_s( map_dir_path+"/crash-reports" )); } catch (...) {}
 	try {  ioslaves::rmdir_recurse(_s( map_dir_path+"/logs" ));          } catch (...) {}
 	{ sigchild_block(); asroot_block();
-		int unzip_r = 
+		int zip_r = 
 			ioslaves::exec_wait("zip", {"-rq", "-6", fpath, mapname}, serv_dir_path.c_str(), java_user_id, java_group_id);
-		if (unzip_r != 0) 
-			throw xif::sys_error("unzip command failed", _s("return code ",::ixtoa(unzip_r)));
+		if (zip_r != 0) 
+			throw xif::sys_error("zip command failed", _s("return code ",::ixtoa(zip_r)));
 	}
 	r = ::access(fpath.c_str(), F_OK);
 	if (r == -1) throw xif::sys_error("zip command failed", "final archive not found");
