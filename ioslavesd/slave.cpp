@@ -506,8 +506,9 @@ int main (int argc, const char* argv[]) { try {
 						cli.o_char((char)ioslaves::answer_code::OK);
 						try {
 							(*cli_call_f)(cli, auth?(master_id.empty()?NULL:master_id.c_str()):NULL, cli.addr.get_ip_addr().s_addr);
+							ioslaves::api::euid_switch(-1,-1);
 						} catch (std::exception& e) {
-							ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "API", logstream << "Error in ioslapi_net_client_call: " << e.what());
+							throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "API", logstream << "Error in ioslapi_net_client_call: " << e.what());
 						}
 						continue;
 					}
@@ -634,6 +635,7 @@ int main (int argc, const char* argv[]) { try {
 									}
 									try {
 										bool inhib = (*inhib_f)();
+										ioslaves::api::euid_switch(-1,-1);
 										if (not inhib) 
 											continue;
 									} catch (std::exception& e) {
@@ -1055,9 +1057,10 @@ xif::polyvar ioslaves::serviceStatus (const ioslaves::service* s) {
 			try {
 				xif::polyvar* info = (*call_f)();
 				RAII_AT_END_L( delete info );
+				ioslaves::api::euid_switch(-1,-1);
 				return *info;
 			} catch (std::exception& e) {
-				ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "API", logstream << "Error in ioslapi_status_info for '" << s->s_name << "' : " << e.what());
+				throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "API", logstream << "Error in ioslapi_status_info for '" << s->s_name << "' : " << e.what());
 			}
 		}
 	}
@@ -1130,6 +1133,7 @@ void ioslaves::controlService (ioslaves::service* s, bool start, const char* con
 				}
 				try {
 					bool ok = (*start_service_func)(controlling_master);
+					ioslaves::api::euid_switch(-1,-1);
 					if (not ok) 
 						throw std::runtime_error("failed");
 				} catch (std::exception& e) {
@@ -1144,6 +1148,7 @@ void ioslaves::controlService (ioslaves::service* s, bool start, const char* con
 					throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "API", logstream << "Error getting function with dlsym(\"ioslapi_stop\") : " << ::dlerror());
 				try {
 					(*stop_func)();
+					ioslaves::api::euid_switch(-1,-1);
 				} catch (std::exception& e) {
 					__log__(log_lvl::ERROR, "API", logstream << "Error in stop method of service '" << s->s_name << "' : " << e.what());
 				}
