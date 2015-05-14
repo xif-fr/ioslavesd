@@ -90,6 +90,7 @@ extern in_port_t ioslavesd_listening_port;
 extern char hostname[64];
 extern bool shutdown_ignore_err;
 extern time_t start_time;
+extern time_t shutdown_time;
 extern uid_t ioslaves_user_id;
 extern gid_t ioslaves_group_id;
 

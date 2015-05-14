@@ -256,13 +256,13 @@ time_t iosl_master::slave_start (std::string slave_id, std::string master_id) {
 	uint16_t $on_psu_id = -1;
 	std::string fname = _S( IOSLAVES_MASTER_SLAVES_DIR,"/",slave_id,".conf" );
 	if (::access(fname.c_str(), F_OK) == -1) 
-		throw ioslaves::req_err(ioslaves::answer_code::NOT_FOUND, "WAKE", logstream << "Slave settings file not found for '" << slave_id << "'");
+		throw ioslaves::req_err(answer_code::NOT_FOUND, logstream << "Slave settings file not found for '" << slave_id << "'");
 	try {
 		libconfig::Config conf;
 		conf.readFile(fname.c_str());
 		$start_delay = (int)conf.lookup("start_delay");
 		if ($start_delay == 0)
-			throw ioslaves::req_err(ioslaves::answer_code::BAD_TYPE, "WAKE", logstream << "Slave '" << slave_id << "' must be started manually");
+			throw ioslaves::req_err(answer_code::BAD_TYPE, logstream << "Slave '" << slave_id << "' must be started manually");
 		libconfig::Setting& poweron_grp = conf.lookup("poweron");
 		poweron_grp.assertType(libconfig::Setting::TypeGroup);
 		std::string type = poweron_grp["type"].operator std::string();
@@ -284,9 +284,9 @@ time_t iosl_master::slave_start (std::string slave_id, std::string master_id) {
 		} else 
 			throw std::runtime_error("Invalid poweron type");
 	} catch (libconfig::SettingException& e) {
-		throw ioslaves::req_err(answer_code::INVALID_DATA, "WAKE", logstream << "Missing/bad setting @" << e.getPath() << " in slave file of '" << slave_id << "'");
+		throw ioslaves::req_err(answer_code::INVALID_DATA, logstream << "Missing/bad setting @" << e.getPath() << " in slave file of '" << slave_id << "'");
 	} catch (std::exception& e) {
-		throw ioslaves::req_err(answer_code::INVALID_DATA, "WAKE", logstream << "Error in slave file of '" << slave_id << "' : " << e.what());
+		throw ioslaves::req_err(answer_code::INVALID_DATA, logstream << "Error in slave file of '" << slave_id << "' : " << e.what());
 	}
 	__log__(log_lvl::LOG, "WAKE", logstream << "Waking up slave '" << slave_id << "'", LOG_WAIT, &l);
 	if ($poweron_type == iosl_master::on_type::WoW) {
@@ -304,16 +304,16 @@ time_t iosl_master::slave_start (std::string slave_id, std::string master_id) {
 			sock.o_str(slave_id);
 			ioslaves::answer_code o = (ioslaves::answer_code)sock.i_char();
 			if (o != ioslaves::answer_code::OK) 
-				throw ioslaves::req_err(o, "WAKE", logstream << "Wake-gateway service failed to start slave (" << (char)o << ")");
+				throw ioslaves::req_err(o, logstream << "Wake-gateway service failed to start slave (" << (char)o << ")");
 			time_t dist_delay = sock.i_int<uint16_t>();
 			if (dist_delay > $start_delay)
 				$start_delay = dist_delay;
 		} catch (socketxx::classic_error& e) {
-			throw ioslaves::req_err(answer_code::ERROR, "WAKE", logstream << "Network error with wake-gateway service : " << e.what());
+			throw ioslaves::req_err(answer_code::ERROR, logstream << "Network error with wake-gateway service : " << e.what());
 		} catch (master_err& e) {
-			throw ioslaves::req_err(answer_code::ERROR, "WAKE", logstream << "Master error while connecting to wake-gateway service : " << e.what());
+			throw ioslaves::req_err(answer_code::ERROR, logstream << "Master error while connecting to wake-gateway service : " << e.what());
 		} catch (ioslaves::answer_code answ) {
-			throw ioslaves::req_err(answer_code::EXTERNAL_ERROR, "WAKE", logstream << "Wake-gateway service failed to start slave (" << (char)answ << ")");
+			throw ioslaves::req_err(answer_code::EXTERNAL_ERROR, logstream << "Wake-gateway service failed to start slave (" << (char)answ << ")");
 		}
 		__log__(log_lvl::DONE, "WAKE", "Start request relayed !");
 	} 

@@ -245,5 +245,7 @@ xif::polyvar ioslaves::getStatus (bool full) {
 	
 	info["system"] = ioslaves::system_stat;
 	
+	info["shtdwntm"] = ::shutdown_time == 0 ? xif::polyvar() : xif::polyvar(::shutdown_time);
+	
 	return info;
 }

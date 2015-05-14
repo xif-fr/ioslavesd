@@ -132,13 +132,14 @@ inline void testSlaveID () {
 class cwlog_buf : public std::stringbuf {
 public:
 	virtual int sync() {
+		if (this->str().empty()) return 0;
 		if ($websocket_conn != NULL) {
-			int rs;
+			int rs; errno = 0;
 			rs = nopoll_conn_send_text($websocket_conn, this->str().c_str(), this->str().length());
 			if (rs != (int)this->str().length()) {
 				nopoll_conn_close($websocket_conn);
 				$websocket_conn = NULL;
-				std::cerr << LOG_AROBASE_ERR << "WebLog stopped : Websocket error." << std::endl;
+				std::cerr << LOG_AROBASE_ERR << "WebLog stopped : Websocket error : " << ::strerror(errno) << std::endl;
 			}
 		}
 		if (optctx::interactive) std::cerr << this->str() << std::endl;
@@ -160,7 +161,7 @@ void xlog::logstream_impl::log (log_lvl lvl, const char* part, std::string msg, 
 		case log_lvl::WARNING: ::__log__ << COLOR_YELLOW << "Warning : " << COLOR_RESET; break;
 		case log_lvl::DONE: return; ::__log__ << COLOR_GREEN << "Done ! " << COLOR_RESET; break;
 	}
-	std::clog << msg;
+	::__log__ << msg;
 	if (m & LOG_WAIT) { _log_wait_flag = true; ::__log__ << ' '; } 
 	else ::__log__ << std::flush;
 }
