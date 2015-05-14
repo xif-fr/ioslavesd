@@ -122,10 +122,6 @@ inline void tryParseSlaveID (int argc, char* const argv[]) {
 	if (!ioslaves::validateHostname($slave_id)) 
 		try_help("minecraft-master: invalid slave ID\n");
 }
-inline void testSlaveID () {
-	if ($slave_id.empty() && not $granmaster)
-		try_help("minecraft-master: slave ID requiered (non granmaster mode)\n");
-}
 
 	// WebLog
 #include <sstream>
@@ -231,8 +227,7 @@ int main (int argc, char* const argv[]) {
 		switch (opt) {
 			case 'h':
 				::puts("minecraft-master | ioslaves-master warper program for controling Minecraft service\n"
-						 "Usage: minecraft-master MASTER-ID (--granmaster [SLAVE-ID])|(SLAVE-ID) ACTION\n"
-						 "       ACTION : --server=NAME --ACTION\n"
+						 "Usage: minecraft-master MASTER-ID (--granmaster [SLAVE-ID])|(SLAVE-ID) --server=NAME --ACTION\n"
 						 "\n"
 						 "General options :\n"
 						 "  -i, --no-interactive        Enbale HTML log and JSON outputs\n"
@@ -241,7 +236,7 @@ int main (int argc, char* const argv[]) {
 						 "                               output log via this websocket client. Used also for live-console\n"
 						 "  -r, --refuse-save           Refuse incoming requests for saving map\n"
 						 "\n"
-						 "  --server=NAME               Control the Minecraft server named [NAME].\n"
+						 "  --server=NAME               Control the Minecraft server named [NAME]. Mandatory.\n"
 						 "      Server Actions :\n"
 						 "        --start PARAMS          Start the server. Jar and map parameters are requiered\n"
 						 "                                and must be each unique.\n"
@@ -302,7 +297,9 @@ int main (int argc, char* const argv[]) {
 				$refuse_save = true;
 				break;
 			case 'C':
-				::testMasterID(); ::testSlaveID();
+				::testMasterID();
+				if (not $granmaster and $slave_id.empty()) 
+					try_help("Not in granmaster mode : slave ID must be defined");
 				optctx::optctx_set(optctx::mcserv);
 				$server_name = optarg;
 				if (!ioslaves::validateName($server_name))
@@ -573,9 +570,10 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 	std::function<socketxx::io::simple_socket<socketxx::base_socket>(void)> get_sock = [&]() -> socketxx::io::simple_socket<socketxx::base_socket> {
 		try {
 			try {
+				__log__ << LOG_ARROW << "Connecting to '" << slave << "'..." << std::flush;
 				return iosl_master::slave_api_service_connect(slave, $master_id, "minecraft");
 			} catch (ioslaves::answer_code& answ) {
-				if (answ == ioslaves::answer_code::BAD_STATE) {
+				if (answ == ioslaves::answer_code::BAD_STATE and $granmaster) {
 					__log__ << LOG_ARROW << "Minecraft service seems to be off. Starting it..." << std::flush;
 					socketxx::simple_socket_client<socketxx::base_netsock> sock = iosl_master::slave_connect(slave, 0);
 					iosl_master::slave_command(sock, $master_id, ioslaves::op_code::SERVICE_START);
@@ -588,7 +586,7 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 			}
 		} catch (master_err& e) {
 			__log__ << LOG_ARROW_ERR << "ioslaves-master error : " << e.what() << std::flush;
-			if (e.down and not secondtry and autostart) {
+			if (e.down and not secondtry and autostart and $granmaster) {
 				time_t time_up = 0;
 				try {
 					time_up = iosl_master::slave_start($slave_id, $master_id);
@@ -608,7 +606,6 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 		}
 	};
 	socketxx::io::simple_socket<socketxx::base_socket> sock = get_sock();
-	__log__ << LOG_ARROW << "Talking to distant minecraft service" << std::flush;
 	timeval utc_time; ::gettimeofday(&utc_time, NULL);
 	time_t slave_time = sock.i_int<int64_t>();
 	time_t diff;
@@ -679,12 +676,12 @@ void acceptFileSave (socketxx::io::simple_socket<socketxx::base_socket> sock, st
 void handleReportRequest (socketxx::io::simple_socket<socketxx::base_socket> sock, std::string slave) {
 	int r;
 	std::string servname = sock.i_str();
-	__log__ << LOG_AROBASE << "Handling stop report request for server '" << servname << "'..." << std::flush;
+	__log__ << LOG_AROBASE << "Handling stop report request for server '" << servname << "' from slave " << slave << "..." << std::flush;
 	minecraft::whyStopped why_stopped = (minecraft::whyStopped)sock.i_char();
 	bool gracefully_stopped = sock.i_bool();
 	std::string map_to_save = sock.i_str();
-	if (not $granmaster and servname != $server_name) {
-		__log__ << LOG_AROBASE_ERR << "Refusing report request : not able to handle this server" << std::flush;
+	if (not $granmaster) {
+		__log__ << LOG_AROBASE_ERR << "Refusing report request : not granmaster" << std::flush;
 		sock.o_bool(false);
 		return;
 	}
@@ -754,6 +751,7 @@ void MServPre () {
 }
 
 void MServPost (ioslaves::answer_code e) {
+	if (not $granmaster) throw e;
 	::unlink(_s( IOSLAVES_MINECRAFT_MASTER_DIR,'/',$server_name,"/_mcmaster.lock" ));
 	$locked = false;
 	throw e;
@@ -786,6 +784,10 @@ void verifyMapList (std::string slave_id, std::string server_name, socketxx::io:
 		while (sz --> 0) {
 			std::string map = sock.i_str();
 			time_t lastsave = sock.i_int<uint64_t>();
+			if (not $granmaster) {
+				sock.o_char((char)ioslaves::answer_code::OK);
+				continue;
+			}
 			std::string map_folder = _S( IOSLAVES_MINECRAFT_MASTER_DIR,"/",server_name,"/maps/",map );
 			bool want_get = false;
 			r = ::access(map_folder.c_str(), F_OK);
@@ -971,6 +973,8 @@ void MServPerm () {
 	if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) 
 		throw o;
 	__log__ << LOG_ARROW_OK << "Done on map '" << map << "' !" << std::flush;
+	if (not $granmaster) 
+		return;
 	std::string folder_saves = _S( IOSLAVES_MINECRAFT_MASTER_DIR,"/",$server_name,"/maps/",map );
 	if (::access(folder_saves.c_str(), F_OK) == 0) {
 		__log__ << COLOR_YELLOW << "Map folder '" << map << "' already exists." << COLOR_RESET << " Map will be saved inside !" << std::flush;
@@ -1035,6 +1039,7 @@ void MServStart () {
 	socketxx::io::simple_socket<socketxx::base_socket>* sock;
 	goto _try_start;
 _retry_start:
+	if (not $granmaster) throw;
 	if (autoselect_slave) {
 		__log__ << LOG_ARROW << "Trying another slave..." << std::flush;
 		excluded_slaves.push_back($slave_id);
@@ -1217,6 +1222,7 @@ _try_start:
 	while ((o = (ioslaves::answer_code)sock->i_char()) != ioslaves::answer_code::OK) {
 		if (o == ioslaves::answer_code::EXISTS and not $start_is_perm) {
 			__log__ << LOG_ARROW_ERR << "A permanent map named '" << $start_map << "' already exists on slave " << NICE_WARNING << " Delete it if wanted." << std::flush;
+			if (not $granmaster) throw o;
 			__log__ << LOG_AROBASE << "Refreshing status..." << std::flush;
 			auto sock = getConnection($slave_id, $server_name, minecraft::op_code::SERV_STAT, {1,0});
 			bool stat = sock.i_bool();
@@ -1319,7 +1325,7 @@ _try_start:
 		} else 
 			throw o;
 	}
-	if ($start_is_perm) {
+	if ($start_is_perm and $granmaster) {
 		std::string map_folder = _S( IOSLAVES_MINECRAFT_MASTER_DIR,'/',$server_name,"/maps/",$start_map );
 		r = ::mkdir(map_folder.c_str(), S_IRWXU|S_IRWXG);
 		if (r == -1 and errno != EEXIST) {
