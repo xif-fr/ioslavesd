@@ -426,7 +426,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 					int rr;
 					while ((rr = ::readdir_r(dir, dentr, &dp)) != -1 and dp != NULL) {
 						std::string map = std::string(dentr->d_name);
-						if (ioslaves::validateName(map) and not (s != NULL and not s->s_is_perm_map and s->s_map == map)) {
+						if (ioslaves::validateName(map) and not (s != NULL and s->s_map == map)) {
 							std::string lastsavetime_path = _S( MINECRAFT_SRV_DIR,"/mc_",s_servid,'/',map );
 							r = ::access(lastsavetime_path.c_str(), R_OK);
 							time_t lastsave = 0;
