@@ -93,6 +93,7 @@ void ioslaves::statusFrame () {
 		std::tuple<time_t,time_t,time_t> uptimes = ioslaves::statusLinuxCalculateUptimes();
 		system_stat["totuptime"] = std::get<0>(uptimes);
 		system_stat["totcputime"] = std::get<2>(uptimes);
+		system_stat["uptime"] = topp::GetUptime();
 	}
 #else
 	
@@ -169,14 +170,21 @@ void ioslaves::statusFrame () {
 	
 	int swapMIB[] = { CTL_VM, VM_SWAPUSAGE };
 	r = ::sysctl(swapMIB, 2, &swap_usage, &swap_usage_sz, NULL, 0);
-	
-	if (r == -1) {
-		::perror("sysctl(swap) error");
-		return;
-	}
+	if (r == -1) 
+		throw xif::sys_error("sysctl(swap)");
 	
 	system_stat["mem_swap"] = swap_usage.xsu_used/MiB;
 	system_stat["mem_usable"] = ((memstat.wire_count + memstat.active_count) * vm_page_size - swap_usage.xsu_used)/MiB;
+
+	struct timeval boottime;
+	size_t len = sizeof(boottime);
+	
+	int mib[2] = { CTL_KERN, KERN_BOOTTIME };
+	r = ::sysctl(mib, 2, &boottime, &len, NULL, 0);
+	if (r == -1) 
+		throw xif::sys_error("sysctl(boottime)");
+	
+	system_stat["uptime"] = ::time(NULL) - boottime.tv_sec;
 	
 	#endif
 	
