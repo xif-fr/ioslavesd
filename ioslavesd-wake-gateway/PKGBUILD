@@ -1,7 +1,7 @@
 # Maintainer: Félix Faisant <xcodexif@xif.fr>
 
 pkgname=ioslavesd-wake-gateway
-pkgver=2.9.1
+pkgver=2.10
 pkgrel=1
 pkgdesc='Xif Network - ioslavesd plugin for relaying wakeup requests'
 license=('custom')
