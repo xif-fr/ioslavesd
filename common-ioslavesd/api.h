@@ -28,6 +28,14 @@ extern sig_atomic_t* signal_catch_sigchild_p;
 	int sigs_to_block[] = { SIGINT, SIGQUIT, SIGHUP, SIGTERM, SIGCHLD, (int)NULL };
 	sig_atomic_t* signal_catch_sigchild_p;
 #endif
+// Block signals
+inline void thread_block_signals () {
+	sigset_t sigs_main_blocked;
+	sigemptyset(&sigs_main_blocked);
+	for (size_t si = 0; sigs_to_block[si] != (int)NULL; ++si)
+		sigaddset(&sigs_main_blocked, sigs_to_block[si]);
+	::pthread_sigmask(SIG_BLOCK, &sigs_main_blocked, NULL);	
+}
 // Call this when using system() - system() can't be used in other threads than main
 struct _block_sigchild {
 	_block_sigchild () { *signal_catch_sigchild_p = false; }

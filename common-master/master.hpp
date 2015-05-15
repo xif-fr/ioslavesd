@@ -59,7 +59,8 @@ class master_err : public std::runtime_error {
 	/// Public connect API
 
 namespace iosl_master { 
-
+	extern bool $leave_exceptions;
+	
 		// Test if a slave is up
 	bool slave_test (std::string slave_id);
 		// Start slave

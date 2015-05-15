@@ -10,6 +10,7 @@
 	// Common
 #include "common.hpp"
 #include "master.hpp"
+bool iosl_master::$leave_exceptions = false;
 
 	// Network
 #include <socket++/handler/socket_client.hpp>
@@ -52,7 +53,7 @@ socketxx::simple_socket_client<socketxx::base_netsock> iosl_master::slave_connec
 	in_port_t $connect_port = default_port;
 	try { // Retriving port number with SRV records
 		$connect_port = iosl_master::slave_get_port_dns(slave_id);
-	} catch (ldns_error& e) {
+	} catch (ldns_error&) {
 		if (default_port == 0)
 			throw;
 	}
@@ -73,6 +74,7 @@ void iosl_master::slave_command (socketxx::base_netsock sock, std::string master
 		/*ioslaves::master_detail::authentificate(slave_sock, slave_id);*/
 		slave_sock.o_char((char)opp);
 	} catch (socketxx::error& e) {
+		if ($leave_exceptions) throw;
 		throw master_err(_S( "Failed to communicate with slave while authentificating : ",e.what() ), EXIT_FAILURE_COMM);
 	}
 }
@@ -87,6 +89,7 @@ void iosl_master::slave_api_service_connect (socketxx::base_netsock sock, std::s
 		if (answ != ioslaves::answer_code::OK) 
 			throw answ;
 	} catch (socketxx::error& e) {
+		if ($leave_exceptions) throw;
 		throw master_err(_S( "Failed to start communication with API service : ",e.what() ), EXIT_FAILURE_COMM);
 	}
 }
@@ -96,12 +99,16 @@ socketxx::base_netsock iosl_master::slave_api_service_connect (std::string slave
 		iosl_master::slave_api_service_connect(slave_sock, master_id, api_service);
 		return slave_sock;
 	} catch (socketxx::end::client_connect_error& e) {
+		if ($leave_exceptions) throw;
 		throw master_err(_S( "Can't connect to slave : ",e.what() ), EXIT_FAILURE_CONN, true);
 	} catch (socketxx::dns_resolve_error& e) {
+		if ($leave_exceptions) throw;
 		throw master_err(_S( "Can't resolve hostname '",e.failed_hostname,"' !" ), EXIT_FAILURE_CONN);
 	} catch (iosl_master::ldns_error& e) {
+		if ($leave_exceptions) throw;
 		throw master_err(_S( "Can't retrive port number : ",e.what() ), EXIT_FAILURE_CONN);
 	} catch (socketxx::error& e) {
+		if ($leave_exceptions) throw;
 		throw master_err(_S( "Failed to connect to slave : ",e.what() ), EXIT_FAILURE_CONN);
 	}
 }

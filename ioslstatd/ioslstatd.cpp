@@ -199,8 +199,7 @@ int main (int argc, char* const argv[]) {
 						std::cerr << "Slave " << (*it).first << " : Paradoxe spatio-temporel !" << std::endl;
 						break;
 					}
-					xif::polyvar sys = info["system"];
-					aggregated[(*it).first.c_str()] = sys;
+					aggregated[(*it).first.c_str()] = info;
 				} catch (socketxx::error& e) {
 					std::cerr << LOG_ARROW_ERR << "Error while reading data from slave '" << (*it).first << "' ! Bye." << std::endl;
 					aggregated[(*it).first.c_str()] = xif::polyvar();

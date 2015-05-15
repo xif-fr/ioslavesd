@@ -22,6 +22,7 @@ using namespace xlog;
 #include <stdlib.h>
 #include <unistd.h>
 #include <time.h>
+#include <typeinfo>
 
 	// Files
 #include <sys/file.h>
@@ -51,6 +52,15 @@ std::list<ioslaves::service*> ioslaves::services_list;
 #define IN_CLIENT_TIMEOUT {2,0}
 #define POOL_TIMEOUT {1,0}
 in_port_t ioslavesd_listening_port = 2929;
+
+	// Sched threads
+sig_atomic_t sched_threads_run = true;
+std::list<socketxx::simple_socket_server<socketxx::base_netsock,void>::client> status_clients;
+pthread_mutex_t status_clients_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_t status_thread_handle;
+void* status_thread (void*);
+pthread_t port_thread_handle;
+void* port_thread (void*);
 
 	// User
 #include <pwd.h>
@@ -106,10 +116,13 @@ ioslaves::api::common_vars_t ioslaves::api::api_vars = {
 };
 
 	/// Main
-int main (int argc, const char* argv[]) { try {
+int main (int argc, const char* argv[]) {
 	int r;
 	ssize_t rs;
 	logl_t l;
+	
+		// Global exception handler
+	try {
 	log_file_path = IOSLAVESD_LOG_FILE;
 	
 		// ioslaves user
@@ -137,7 +150,7 @@ int main (int argc, const char* argv[]) { try {
 				__log__(log_lvl::MAJOR, NULL, logstream << "Starting ioslavesd as user '" IOSLAVES_USER "'...", LOG_WAIT, &l);
 		}
 		#else
-			__log__(log_lvl::MAJOR, NULL, logstream << "Starting ioslavesd as root (isolated thread credentials not supported)...", LOG_WAIT, &l);
+			__log__(log_lvl::MAJOR, NULL, logstream << "Starting ioslavesd as root (isolaved thread credentials not supported)...", LOG_WAIT, &l);
 		#endif
 	} else {
 		__log__(log_lvl::MAJOR, NULL, logstream << "Starting ioslavesd as uid " << ::getuid() << "...", LOG_WAIT, &l);
@@ -317,13 +330,21 @@ int main (int argc, const char* argv[]) { try {
 		}
 	__log__(log_lvl::DONE, "NET", logstream << "ioslavesd slave '" << hostname << "' is listening on port " << IN_LISTENING_PORT);
 	
+		// Launch port thread
+	r = ::pthread_create(&port_thread_handle, NULL, port_thread, NULL);
+	if (r != 0)
+		throw xif::sys_error("failed to create port thread", r);
+	
 		// Create stop pipe
 	r = ::pipe(serv_stop_pipe);
 	if (r == SOCKET_ERROR) throw xif::sys_error("pipe() failed", false);
 	
-		// Permanent status clients
-	std::list<socketxx::simple_socket_server<socketxx::base_netsock,void>::client> status_clients;
+		// Launch status thread
+	r = ::pthread_create(&status_thread_handle, NULL, status_thread, NULL);
+	if (r != 0)
+		throw xif::sys_error("failed to create status thread", r);
 	
+		// Main event loop
 	for (;;) {
 		try {
 			// Waiting for new client
@@ -443,10 +464,11 @@ int main (int argc, const char* argv[]) { try {
 						xif::polyvar infos = ioslaves::getStatus(true);
 						cli.o_var(infos);
 					} break;
-					case ioslaves::op_code::PERM_STATUS:
+					case ioslaves::op_code::PERM_STATUS: {
 						__log__(log_lvl::LOG, "OP", "Registering to the permanent status pool");
+						pthread_mutex_handle_lock(status_clients_mutex);
 						status_clients.insert(status_clients.begin(), cli);
-						break;
+					} break;
 					case ioslaves::op_code::SHUTDOWN_CTRL: {
 						__log__(log_lvl::LOG, "OP", "Opperation : change auto-shutdown time");
 						time_t shutdown_in = cli.i_int<uint32_t>();
@@ -462,34 +484,9 @@ int main (int argc, const char* argv[]) { try {
 					case ioslaves::op_code::SLAVE_REBOOT: {
 						bool does_reboot = (opcode == ioslaves::op_code::SLAVE_REBOOT);
 						__log__(log_lvl::MAJOR, "OP", logstream << "Opperation : " << (does_reboot ? "Rebooting" : "Shutting down") << " server NOW !");
-						if (enable_upnp and ioslavesd_listening_port_open)
-							ioslaves::upnpClosePort(ioslaves::upnpPort({IN_LISTENING_PORT, ioslaves::upnpPort::TCP, IN_LISTENING_PORT, 1}));
-						ioslaves::stopAllServices();
-						ioslaves::upnpShutdown();
-						ioslaves::statusEnd();
-						while (status_clients.size()) 
-							status_clients.erase(status_clients.begin());
-						ioslaves::api::euid_switch(0,0);
-						int r;
-						{ sigchild_block();
-							r = ::system( _s("shutdown -",(does_reboot?'r':'h')," now") ); // -k `date --date \"now + 1 minute\" \"+%H:%M\"`
-						}
-						if (r == 0) {
-							cli.o_char((char)ioslaves::answer_code::OK);
-							return EXIT_SUCCESS;
-						} else {
-							if (r == -1) __log__(log_lvl::ERROR, "OP", logstream << "system() failed with errno " << ::strerror(errno));
-							else if (not shutdown_ignore_err) __log__(log_lvl::ERROR, "OP", logstream << "`shutdown` command failed with retcode " << r);
-							else { 
-								cli.o_char((char)ioslaves::answer_code::OK);
-								return EXIT_SUCCESS;
-							}
-							if (enable_upnp and ioslavesd_listening_port_open) {
-								ioslaves::upnpInit();
-								ioslaves::upnpOpenPort(ioslaves::upnpPort{IN_LISTENING_PORT, ioslaves::upnpPort::TCP, IN_LISTENING_PORT, 1, "emergency ioslavesd"});
-							}
-							throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "shutdown failed");
-						}
+						shutdown_time = does_reboot ? (time_t)-2 : (time_t)-1;
+						cli.o_char((char)ioslaves::answer_code::OK);
+						throw socketxx::stop_event(0);
 					} break;
 					case ioslaves::op_code::CALL_API_SERVICE: {
 						std::string service_name = cli.i_str();
@@ -561,33 +558,14 @@ int main (int argc, const char* argv[]) { try {
 			// Scheduled timeout
 		catch (socketxx::timeout_event&) {
 			
-				// Check and reopen ports
-			if (enable_upnp)
-				ioslaves::upnpReopen();
-			
-				// Permanent status
-			if (status_clients.size() != 0) {
-				xif::polyvar infos = ioslaves::getStatus(false);
-				for (auto it = status_clients.begin(); it != status_clients.end();) {
-					try {
-						(*it).o_var(infos);
-						++it;
-					} catch (socketxx::error& e) {
-						__log__(log_lvl::NOTICE, "NET", logstream << "Erasing client from the status pool : " << e.what());
-						auto p_it = it++; status_clients.erase(p_it);
-					}
-				}
-			}
-			
-				// Topp frame
-			ioslaves::statusFrame();
-			
 				// Contact XifNet DynDNS server for refreshing public IP
 			if (ip_refresh_dyndns_interval >= 0) {
 				static time_t dyndns_last = 0;
 				if (dyndns_last+ip_refresh_dyndns_interval < ::time(NULL)) {
 					dyndns_last = ::time(NULL);
 					try {
+						iosl_master::$leave_exceptions = true;
+						RAII_AT_END_L( iosl_master::$leave_exceptions = false; );
 						socketxx::simple_socket_client<socketxx::base_netsock> sock (socketxx::base_netsock::addr_info(ip_refresh_dyndns_server, 2929), timeval{1,0});
 						sock.set_read_timeout(timeval{0,800000});
 						iosl_master::slave_api_service_connect(sock, _S("_IOSL_",hostname), "xifnetdyndns");
@@ -672,33 +650,104 @@ int main (int argc, const char* argv[]) { try {
 		delete s;
 	}
 	
-		// Eject permanant status clients
-	while (status_clients.size()) 
-		status_clients.erase(status_clients.begin());
-	
 		// Save stats
 	ioslaves::statusEnd();
 	
-		// Close ports
-	try {
-		if (enable_upnp and ioslavesd_listening_port_open)
-			ioslaves::upnpClosePort(ioslaves::upnpPort({IN_LISTENING_PORT, ioslaves::upnpPort::TCP, IN_LISTENING_PORT, 1}));
-		ioslaves::upnpShutdown();
-	} catch (...) {}
+		// Stop sched threads
+	::sched_threads_run = false;
+	::pthread_join(status_thread_handle, NULL);
+	::pthread_join(port_thread_handle, NULL);
 	
 	} catch (std::exception& e) {
-		__log__(log_lvl::FATAL, NULL, logstream << "Exception catched : " << e.what());
+		__log__(log_lvl::FATAL, NULL, logstream << "Exception of type '" << typeid(e).name() << "' catched : " << e.what());
 		return EXIT_FAILURE;
 	}
 	
-	if (shutdown_time == (time_t)-1) {
+	if (shutdown_time == (time_t)-1 or shutdown_time == (time_t)-2) {
 		*signal_catch_sigchild_p = false;
 		ioslaves::api::euid_switch(0,0);
-		::system("shutdown -h now"); 
+		r = ::system( _s("shutdown -",((shutdown_time==(time_t)-2)?'r':'h')," now") ); 
 	}
 	
 	__log__(log_lvl::MAJOR, NULL, "-=# Exiting... #=-");
-	return EXIT_SUCCESS;
+	::exit(EXIT_SUCCESS);
+}
+
+	/// Status thread
+void* status_thread (void*) {
+	
+		// Block signals
+	thread_block_signals();
+	
+	try {
+		
+		while (::sched_threads_run) {
+			::usleep(1000000);
+			
+				// Topp frame
+			ioslaves::statusFrame();
+			
+				// Permanent status
+			pthread_mutex_handle_lock(status_clients_mutex);
+			if (status_clients.size() != 0) {
+				xif::polyvar infos = ioslaves::system_stat;
+				infos["me"] = hostname;
+				for (auto it = status_clients.begin(); it != status_clients.end();) {
+					try {
+						(*it).o_var(infos);
+						++it;
+					} catch (socketxx::error& e) {
+						__log__(log_lvl::NOTICE, "NET", logstream << "Erasing client from the status pool : " << e.what());
+						auto p_it = it++; status_clients.erase(p_it);
+					}
+				}
+			}
+			
+		}
+		__log__(log_lvl::LOG, "THREAD", logstream << "Ejecting status clients and quit status thread", LOG_DEBUG);
+		
+			// Eject permanant status clients
+		pthread_mutex_handle_lock(status_clients_mutex);
+		while (status_clients.size()) 
+			status_clients.erase(status_clients.begin());
+		
+	} catch (std::exception& e) {
+		__log__(log_lvl::FATAL, NULL, logstream << "Exception catched in status thread : " << e.what());
+		::exit(EXIT_FAILURE);
+	}
+	
+	return NULL;
+}
+
+	/// Port reopen thread
+void* port_thread (void*) {
+	
+		// Block signals
+	thread_block_signals();
+	
+	try {
+		
+		while (::sched_threads_run) {
+			::sleep(1);
+				// Check and reopen ports
+			if (enable_upnp)
+				ioslaves::upnpReopen();
+		}
+		__log__(log_lvl::LOG, "THREAD", logstream << "Closing remaining ports and quit port thread", LOG_DEBUG);
+		
+			// Close remaining ports
+		try {
+			if (enable_upnp and ioslavesd_listening_port_open)
+				ioslaves::upnpClosePort(ioslaves::upnpPort({IN_LISTENING_PORT, ioslaves::upnpPort::TCP, IN_LISTENING_PORT, 1}));
+			ioslaves::upnpShutdown();
+		} catch (...) {}
+		
+	} catch (std::exception& e) {
+		__log__(log_lvl::FATAL, NULL, logstream << "Exception catched in status thread : " << e.what());
+		::exit(EXIT_FAILURE);
+	}
+	
+	return NULL;
 }
 
 	/// Signals thread
