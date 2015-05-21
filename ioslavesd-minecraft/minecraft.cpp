@@ -114,7 +114,7 @@ namespace minecraft {
 	
 		// Transfert, files, and map functions
 	void transferAndExtract (socketxx::io::simple_socket<socketxx::base_socket> sock, minecraft::transferWhat what, std::string name, std::string parent_dir, bool alt = false);
-	void compressAndSend (socketxx::io::simple_socket<socketxx::base_socket> sock, std::string servname, std::string mapname);
+	void compressAndSend (socketxx::io::simple_socket<socketxx::base_socket> sock, std::string servname, std::string mapname, bool async);
 	void unzip (const char* file, const char* in_dir, const char* expected_dir_name);
 	void deleteMapFolder (minecraft::serv* s);
 	void cpTplDir (const char* tpl_dir, std::string working_dir);
@@ -329,7 +329,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 				if (accept) {
 					if (not ss.map_to_save.empty()) {
 						block_as_mcjava();
-						minecraft::compressAndSend(cli, ss.serv, ss.map_to_save);
+						minecraft::compressAndSend(cli, ss.serv, ss.map_to_save, true);
 					}
 					auto p_it = it++; minecraft::servs_stopped.erase(p_it);
 				} else 
@@ -448,7 +448,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 					ioslaves::answer_code o = (ioslaves::answer_code)cli.i_char();
 					if (o == ioslaves::answer_code::WANT_GET) {
 						block_as_mcjava();
-						minecraft::compressAndSend(cli, s_servid, p.first);
+						minecraft::compressAndSend(cli, s_servid, p.first, true);
 					}
 				}
 			} break;
@@ -644,7 +644,7 @@ void minecraft::transferAndExtract (socketxx::io::simple_socket<socketxx::base_s
 }
 
 // Cleanup, zip and send server folder to master
-void minecraft::compressAndSend (socketxx::io::simple_socket<socketxx::base_socket> sock, std::string servname, std::string mapname) {
+void minecraft::compressAndSend (socketxx::io::simple_socket<socketxx::base_socket> sock, std::string servname, std::string mapname, bool async) {
 	int r;
 	std::string serv_dir_path = _S( MINECRAFT_SRV_DIR,"/mc_",servname );
 	std::string map_dir_path = _S( serv_dir_path,'/',mapname );
@@ -984,7 +984,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			if (s_lastsavetime == -1) {
 				__log__(log_lvl::LOG, "FILES", MCLOGSCLI(s) << "Master want to force sending of server folder. Sending the old one for backup...");
 				cli.o_char((char)ioslaves::answer_code::WANT_SEND);
-				minecraft::compressAndSend(cli, s->s_servid, s->s_map);
+				minecraft::compressAndSend(cli, s->s_servid, s->s_map, true);
 				minecraft::transferAndExtract(cli, minecraft::transferWhat::SERVFOLD, s->s_map, _S(MINECRAFT_SRV_DIR,"/mc_",s->s_servid));
 			} else {
 				time_t lastsavetime_map = 0;
@@ -1012,7 +1012,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 					else 
 						__log__(log_lvl::WARNING, "FILES", MCLOGSCLI(s) << "Server folder is newer of " << std::setprecision(2) << diff_hours << "h than master's save (maybe not saved last time or server crashed). Sending for backup...");
 					cli.o_char((char)ioslaves::answer_code::WANT_SEND);
-					minecraft::compressAndSend(cli, s->s_servid, s->s_map);
+					minecraft::compressAndSend(cli, s->s_servid, s->s_map, false);
 				}
 			}
 		} 
@@ -1140,6 +1140,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 		#define ReadEarlyStateIfNot(_excepted_char_, tm_sec) _read_pipe_state_(tm_sec); if (_excepted_char_ != _stat) 
 		
 		try {
+		try {
 		
 				// Launch thraed
 			r = ::pthread_create(&s->s_thread, NULL, minecraft::serv_thread, s);
@@ -1177,13 +1178,18 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			cli.o_char((char)ioslaves::answer_code::OK);
 			return;
 		}
-		catch (ioslaves::req_err&) {} catch (xif::sys_error&) {} catch (std::runtime_error&) {} 
-		catch (socketxx::error&) { throw; }
-		if (s->s_java_pid != -1) {
-			asroot_block();
-			::kill(s->s_java_pid, SIGKILL); // Killing java is a sufficient sign to the thread, it should NOT be canceled
+		catch (socketxx::error& e) {
+			__log__(log_lvl::ERROR, "START", MCLOGCLI(servid) << "Non-fatal network error : " << e.what());
+			return;
 		}
-		throw;
+		} catch (...) {
+			if (s->s_java_pid != -1) {
+				__log__(log_lvl::NOTICE, "START", MCLOGCLI(servid) << "Killing java pid " << s->s_java_pid);
+				asroot_block();
+				::kill(s->s_java_pid, SIGKILL); // Killing java is a sufficient sign to the thread, it should NOT be canceled
+			}
+			throw;
+		}
 		
 	} catch (ioslaves::req_err& re) {
 		cli.o_char((char)re.answ_code);
@@ -1854,7 +1860,7 @@ void minecraft::stopServer (socketxx::io::simple_socket<socketxx::base_socket> c
 			bool accept = cli.i_bool();
 			if (accept) {
 				block_as_mcjava();
-				minecraft::compressAndSend(cli, s->s_servid, s->s_map);
+				minecraft::compressAndSend(cli, s->s_servid, s->s_map, true);
 			} else 
 				__log__(log_lvl::WARNING, "STOP", MCLOGSCLI(s) << "Master refused stop report ! Scandal !");
 		}
