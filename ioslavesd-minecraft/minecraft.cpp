@@ -540,9 +540,15 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 
 	/// Transfert and map functions
 	// Should always be running as euid=mcjava
+inline void assert_mcjava () {
+	uid_t euid = ::getegid();
+	if (euid != minecraft::java_user_id) 
+		throw std::logic_error("should be running as mcjava !");
+}
 
 // Read/write the last-save-time file on server folder
 time_t minecraft::lastsaveTimeFile (std::string path, bool set) {
+	assert_mcjava();
 	fd_t file; ssize_t rs;
 	time_t lastsave = 0;
 	timeval utc_time;
@@ -577,6 +583,7 @@ time_t minecraft::lastsaveTimeFile (std::string path, bool set) {
 
 // Unzip archive
 void minecraft::unzip (const char* file, const char* in_dir, const char* expected_dir_name) {
+	assert_mcjava();
 	logl_t l;
 	__log__(log_lvl::LOG, "FILES", logstream << "Unzipping file (expecting '" << expected_dir_name << "')... ", LOG_WAIT, &l);
 	int r;
@@ -602,6 +609,7 @@ void minecraft::unzip (const char* file, const char* in_dir, const char* expecte
 
 // Transfer archives or files
 void minecraft::transferAndExtract (socketxx::io::simple_socket<socketxx::base_socket> sock, minecraft::transferWhat what, std::string name, std::string parent_dir, bool alt) {
+	assert_mcjava();
 	int r;
 	sock.o_char((char)ioslaves::answer_code::WANT_GET);
 	sock.o_char((char)what);
@@ -616,7 +624,8 @@ void minecraft::transferAndExtract (socketxx::io::simple_socket<socketxx::base_s
 	__log__(log_lvl::LOG, "FILES", logstream << "Downloading file '" << name << "' of type '" << (char)what << "' from master...", LOG_WAIT, &l);
 	if (what == minecraft::transferWhat::MAP || what == minecraft::transferWhat::JAR || what == minecraft::transferWhat::BIGFILE) {
 		tempfile_name = _S( parent_dir,'/',name );
-		fd_t tempfd = ::open(tempfile_name.c_str(), O_CREAT|O_EXCL|O_WRONLY|O_NOFOLLOW, 0640);
+		mode_t fmod = (what == minecraft::transferWhat::MAP) ? (mode_t)0640 : (mode_t)0644;
+		fd_t tempfd = ::open(tempfile_name.c_str(), O_CREAT|O_EXCL|O_WRONLY|O_NOFOLLOW, fmod);
 		if (tempfd == -1)
 			throw xif::sys_error("failed to open destination file for transferring");
 		try {
@@ -645,6 +654,7 @@ void minecraft::transferAndExtract (socketxx::io::simple_socket<socketxx::base_s
 
 // Cleanup, zip and send server folder to master
 void minecraft::compressAndSend (socketxx::io::simple_socket<socketxx::base_socket> sock, std::string servname, std::string mapname, bool async) {
+	assert_mcjava();
 	int r;
 	std::string serv_dir_path = _S( MINECRAFT_SRV_DIR,"/mc_",servname );
 	std::string map_dir_path = _S( serv_dir_path,'/',mapname );
@@ -672,6 +682,10 @@ void minecraft::compressAndSend (socketxx::io::simple_socket<socketxx::base_sock
 	r = ::access(fpath.c_str(), F_OK);
 	if (r == -1) throw xif::sys_error("zip command failed", "final archive not found");
 	__log__(log_lvl::DONE, "FILES", "Done", LOG_ADD, &l);
+	if (async) {
+		#warning TO DO
+		return;
+	}
 	struct stat zip_stat;
 	r = ::stat(fpath.c_str(), &zip_stat);
 	if (r == -1) throw xif::sys_error("file send : stat() failed");
@@ -690,6 +704,7 @@ void minecraft::deleteMapFolder (minecraft::serv* s) {
 
 // Copy server template directory
 void minecraft::cpTplDir (const char* tplDir, std::string working_dir) {
+	assert_mcjava();
 	__log__(log_lvl::LOG, "FILES", logstream << "Copying template folder");
 	int r;
 	{ sigchild_block(); asroot_block();
