@@ -166,26 +166,6 @@ void xlog::logstream_impl::log (log_lvl lvl, const char* part, std::string msg, 
 int main (int argc, char* const argv[]) {
 	int r;
 	
-	r = ::access(_s(IOSLAVES_MASTER_DIR), F_OK);
-	if (r == -1) {
-		r = ::mkdir(_s(IOSLAVES_MASTER_DIR), 0740);
-		if (r == -1) {
-			std::cerr << COLOR_RED << "Can't create ioslaves-master directory" << COLOR_RESET << " (" << IOSLAVES_MASTER_DIR << ") : " << ::strerror(errno) << std::endl;
-			return EXIT_FAILURE;
-		}
-		goto _create_minecraft_dir;
-	} else {
-		r = ::access(_s(IOSLAVES_MINECRAFT_MASTER_DIR), F_OK);
-		if (r == -1) {
-		_create_minecraft_dir:
-			r = ::mkdir(_s(IOSLAVES_MINECRAFT_MASTER_DIR), 0740);
-			if (r == -1) {
-				std::cerr << COLOR_RED << "Can't create minecraft-matser directory" << COLOR_RESET << " (" << IOSLAVES_MINECRAFT_MASTER_DIR << ") : " << ::strerror(errno) << std::endl;
-				return EXIT_FAILURE;
-			}
-		}
-	}
-	
 	::tryParseMasterID(argc,argv);
 	::tryParseSlaveID(argc,argv);
 	
@@ -282,6 +262,26 @@ int main (int argc, char* const argv[]) {
 					try_help("unexcepted --granmaster after slave ID\n");
 				$granmaster = true;
 				::tryParseSlaveID(argc,argv);
+					// Create ioslaves-master and minecraft-matser dirs if not exist
+				r = ::access(_s(IOSLAVES_MASTER_DIR), F_OK);
+				if (r == -1) {
+					r = ::mkdir(_s(IOSLAVES_MASTER_DIR), 0740);
+					if (r == -1) {
+						std::cerr << COLOR_RED << "Can't create ioslaves-master directory" << COLOR_RESET << " (" << IOSLAVES_MASTER_DIR << ") : " << ::strerror(errno) << std::endl;
+						return EXIT_FAILURE;
+					}
+					goto _create_minecraft_dir;
+				} else {
+					r = ::access(_s(IOSLAVES_MINECRAFT_MASTER_DIR), F_OK);
+					if (r == -1) {
+					_create_minecraft_dir:
+						r = ::mkdir(_s(IOSLAVES_MINECRAFT_MASTER_DIR), 0740);
+						if (r == -1) {
+							std::cerr << COLOR_RED << "Can't create minecraft-matser directory" << COLOR_RESET << " (" << IOSLAVES_MINECRAFT_MASTER_DIR << ") : " << ::strerror(errno) << std::endl;
+							return EXIT_FAILURE;
+						}
+					}
+				}
 				break;
 			case 'w': {
 				std::string wsockport = optarg;
@@ -460,6 +460,7 @@ int main (int argc, char* const argv[]) {
 	if ($websocket_port != 0) {
 		std::cerr << LOG_AROBASE << "WebLog : Waiting for the websocket client on port " << $websocket_port << "..." << std::endl;
 		std::string lockpath = _S( IOSLAVES_MINECRAFT_MASTER_DIR,"/_websock.lock" );
+		if ($granmaster)
 		for (uint counter = 0; ; counter++) {
 			if (counter == 2) {
 				__log__ << NICE_WARNING << "Websocket lock file was locked for 2 seconds." << std::flush;
@@ -475,8 +476,10 @@ int main (int argc, char* const argv[]) {
 			::close(f);
 			break;
 		}
+		else lockpath.clear();
 		RAII_AT_END_N(ws_lock, {
-			::unlink(lockpath.c_str());
+			if (not lockpath.empty())
+				::unlink(lockpath.c_str());
 		});
 		wsctx = nopoll_ctx_new();
 		if (wsctx == NULL) {
@@ -726,7 +729,7 @@ void MServPre () {
 			__log__ << LOG_ARROW_ERR << "Server '" << $server_name << "' doesn't exist !" << std::flush;
 			throw EXCEPT_ERROR_IGNORE;
 		}
-		if ($verify_serv_exists == true and optctx::optctx != optctx::servConsole) {
+		if ($verify_serv_exists == true and $granmaster) {
 				// Server Lock
 			std::string lockpath = _S( IOSLAVES_MINECRAFT_MASTER_DIR,'/',$server_name,"/_mcmaster.lock" );
 			for (uint counter = 0; ; counter++) {
@@ -1046,7 +1049,7 @@ _retry_start:
 		$slave_id.clear();
 		goto _try_start;
 	} else {
-		__log__ << LOG_AROBASE_ERR << "Try an another slave or let the slave selection does its work" << std::flush;
+		__log__ << LOG_AROBASE_ERR << "Try an another slave or let the slave selection do its work" << std::flush;
 		throw EXCEPT_ERROR_IGNORE;
 	}
 _try_start:
@@ -1283,7 +1286,7 @@ _try_start:
 					r = ::access(tempmap_path.c_str() , R_OK);
 					sock->o_bool(r == 0);
 					if (r == -1) {
-						__log__ << LOG_ARROW_ERR << "Temporary map '" << $start_map << "' doesn't exists here" << std::flush;
+						__log__ << LOG_ARROW_ERR << "Temporary map '" << $start_map << "' doesn't exist here" << std::flush;
 						EXIT_FAILURE = EXIT_FAILURE_IOSL;
 						throw EXCEPT_ERROR_IGNORE;
 					}

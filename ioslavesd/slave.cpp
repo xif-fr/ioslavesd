@@ -139,7 +139,7 @@ int main (int argc, const char* argv[]) {
 			ioslaves_user_id = userinfo.pw_uid;
 			ioslaves_group_id = userinfo.pw_gid;
 			r = ::chown(IOSLAVESD_LOG_FILE, (uid_t)ioslaves_user_id, (gid_t)ioslaves_group_id);
-			if (r == -1) 
+			if (r == -1 and errno != ENOENT) 
 				__log__(log_lvl::WARNING, "SEC", logstream << "Failed to chown log file : " << ::strerror(errno));	
 			r = ::setegid(ioslaves_user_id)
 			  | ::seteuid(ioslaves_group_id);
@@ -1140,7 +1140,7 @@ void ioslaves::controlService (ioslaves::service* s, bool start, const char* con
 				else		  ioslaves::upnpClosePort(p);
 			} catch (ioslaves::upnpError& ue) {
 				if (ue.fatal) 
-					throw ioslaves::req_err(ioslaves::answer_code::UPNP_ERROR, "UPnP fatal error");
+					throw ioslaves::req_err(ioslaves::answer_code::UPNP_ERROR, "UPnP", "UPnP error : " << ue.what());
 			}
 		}
 	}

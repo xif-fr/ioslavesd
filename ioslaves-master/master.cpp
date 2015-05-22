@@ -76,6 +76,7 @@ std::string $api_co_unix_sock_path;
 bool $need_auth = false;
 timeval $connect_timeout = {1,000000};
 timeval $comm_timeout = {4,000000};
+timeval $op_timeout = {60,000000};
 bool $ignore_net_errors = false;
 time_t $log_begin, $log_end;
 int16_t $autoshutdown = -1;
@@ -493,6 +494,7 @@ $need_auth = false;
 			std::cerr << "Authentification..." << std::endl;
 			iosl_master::authentificate(*$slave_sock, $slave_id);
 		}
+		$slave_sock->set_read_timeout($op_timeout);
 	} catch (socketxx::error& e) {
 		std::cerr << COLOR_RED << "Failed to communicate with " << slave_name << " : " << COLOR_RESET << e.what() << std::endl;
 		EXIT_FAILURE = EXIT_FAILURE_COMM;
@@ -551,7 +553,6 @@ void IPostService (ioslaves::answer_code e) {
 
 	///---- API services ----///
 
-void api_tunnel_intercept_fnct (bool this_to_other, void** buf, size_t* len, size_t max_buf_len);
 void IApi () {
 	std::cerr << "Connecting to API service..." << std::endl;
 	$slave_sock->o_char((char)ioslaves::op_code::CALL_API_SERVICE);

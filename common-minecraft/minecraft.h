@@ -16,7 +16,7 @@
 #define MC_MAP_PERM 0640
 
 	// Protocol version
-#define IOSLAVES_MINECRAFT_PROTO_VERS 0x18
+#define IOSLAVES_MINECRAFT_PROTO_VERS 0x19
 
 	// Minecraft service
 namespace minecraft {
@@ -31,6 +31,7 @@ namespace minecraft {
 		PERMANENTIZE = 'P',
 		DELETE_MAP = 'D',
 		FTP_SESSION = 'F',
+		ASYNC_TRSF = 'A',
 	};
 	
 	enum class serv_op_code : char {
