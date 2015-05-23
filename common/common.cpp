@@ -232,7 +232,7 @@ _rewait:
 		if (errno == EINTR) goto _rewait;
 		else throw xif::sys_error("exec_wait : waitpid failed");
 	}
-	return cmd_r;
+	return WEXITSTATUS(cmd_r);
 }
 
 #define DIRENT_ALLOC_SZ(dir) (size_t)offsetof(struct dirent, d_name) + std::max(sizeof(dirent::d_name), (size_t)::fpathconf(dirfd(dir),_PC_NAME_MAX)) +1
@@ -257,7 +257,7 @@ void ioslaves::rmdir_recurse (const char* dir_path) {
 		path[::strlen(dir_path)] = '/';
 		::strcpy(path+::strlen(dir_path)+1, dp->d_name);
 		struct stat info;
-		r = ::stat(path, &info);
+		r = ::lstat(path, &info);
 		if (r == -1) 
 			throw xif::sys_error(_S("rmdir_recurse : can't stat file '",path,"'"));
 		if (S_ISDIR(info.st_mode)) {
@@ -295,7 +295,7 @@ void ioslaves::chown_recurse (const char* dir_path, uid_t uid, gid_t gid) {
 		path[::strlen(dir_path)] = '/';
 		::strcpy(path+::strlen(dir_path)+1, dp->d_name);
 		struct stat info;
-		r = ::stat(path, &info);
+		r = ::lstat(path, &info);
 		if (r == -1) 
 			throw xif::sys_error(_S("chown_recurse : can't stat file '",path,"'"));
 		if (S_ISDIR(info.st_mode)) {

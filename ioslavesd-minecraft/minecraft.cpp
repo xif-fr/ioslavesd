@@ -205,7 +205,7 @@ extern "C" void ioslapi_stop (void) {
 	logl_t l;
 	__log__(log_lvl::IMPORTANT, NULL, logstream << "Stopping Minecraft Service... Stopping all servers...");
 	
-		// Close servers and wait
+		// Send close request to servers
 	try {
 		pthread_mutex_handle_lock(minecraft::servs_mutex);
 		for (std::pair<std::string,minecraft::serv*> p : minecraft::servs) {
@@ -215,6 +215,8 @@ extern "C" void ioslapi_stop (void) {
 	} catch (socketxx::error& e) {
 		__log__(log_lvl::FATAL, "COMM", logstream << "Failed to send stop request to server thread : " << e.what());
 	}
+	
+		// Wait for servers
 	::pthread_mutex_lock(&minecraft::servs_mutex);
 	if (not minecraft::servs.empty()) {
 		__log__(log_lvl::LOG, NULL, logstream << "Waiting for threads exiting...", LOG_WAIT, &l);
@@ -251,6 +253,11 @@ extern "C" void ioslapi_stop (void) {
 		}
 	}
 	
+}
+
+	// Inhibit auto shutdown if something is started
+extern "C" bool ioslapi_shutdown_inhibit () {
+	return minecraft::servs.size() != 0;
 }
 
 	// Returns a small resumé of the Minecraft service
@@ -600,7 +607,7 @@ void minecraft::unzip (const char* file, const char* in_dir, const char* expecte
 		int unzip_r = 
 			ioslaves::exec_wait("unzip", {"-nq", file, "-d", in_dir}, NULL, java_user_id, java_group_id);
 		if (unzip_r != 0) 
-			throw xif::sys_error("unzip_r command failed", _s("return code ",::ixtoa(unzip_r)));
+			throw xif::sys_error("unzip command failed", _s("return code ",::ixtoa(unzip_r)));
 	}
 	r = ::access(expected_dir.c_str(), X_OK);
 	if (r == -1) throw xif::sys_error("unzip command failed", "expected dir not found or unreachable");
@@ -660,7 +667,7 @@ void minecraft::compressAndSend (socketxx::io::simple_socket<socketxx::base_sock
 	std::string map_dir_path = _S( serv_dir_path,'/',mapname );
 	time_t lastsavetime = lastsaveTimeFile(map_dir_path, false);
 	logl_t l;
-	__log__(log_lvl::LOG, "FILES", logstream << '[' << servname << "] Uploading save of map '" << mapname << "' to master with last-save-time " << lastsavetime << "...", LOG_WAIT, &l);
+	__log__(log_lvl::LOG, "FILES", MCLOGCLI(servname) << "Uploading save of map '" << mapname << "' to master with last-save-time " << lastsavetime << "...", LOG_WAIT, &l);
 	sock.o_int<int64_t>(lastsavetime);
 	if (sock.i_bool() == false) {
 		__log__(log_lvl::WARNING, "FILES", logstream << "Master refused retrieving map save !");
@@ -1124,7 +1131,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			// Changing folder's owner and reset effective uid
 		ioslaves::api::euid_switch(0,0);
 		__log__(log_lvl::LOG, NULL, MCLOGSCLI(s) << "Correcting permissions...");
-		ioslaves::chown_recurse(global_serv_dir.c_str(), minecraft::java_user_id, minecraft::java_group_id);
+		ioslaves::chown_recurse(working_dir.c_str(), minecraft::java_user_id, minecraft::java_group_id);
 		ioslaves::api::euid_switch(-1,-1);
 		
 			// End of file requests, we can now start server

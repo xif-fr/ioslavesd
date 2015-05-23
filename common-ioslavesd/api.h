@@ -131,7 +131,7 @@ extern "C" {
 	void ioslapi_net_client_call (socketxx::base_socket&, const char* auth_as, in_addr_t); // Network request from a master for the API service (auth_as = NULL if not authentificated)
 	bool ioslapi_got_sigchld (pid_t pid, int pid_status); // Report that a SIGCHILD was catched for this pid with this status. Return true if the API service is the owner of the terminated process.
 	xif::polyvar* ioslapi_status_info (); // Returns a small allocated resumé free format of the service's status
-	bool shutdown_inhibit (); // Returns if service shutdown should be inhibited
+	bool ioslapi_shutdown_inhibit (); // Returns if service shutdown should be inhibited
 	void ioslapi_stop (void); // Called at service stop (except when fatal was reported)
 	
 }
