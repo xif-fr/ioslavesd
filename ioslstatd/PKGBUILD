@@ -9,11 +9,11 @@ arch=('i686' 'x86_64')
 depends=('ioslaves-master' 'nopoll')
 makedepends=('xifutils')
 
-source=('../common/common.hpp' '../common/common.cpp'
+source=('../common/common.hpp' '../common/common.cpp' '../common/log.h'
         '../common-master/master.hpp' '../common-master/master-impl.cpp'
         'ioslstatd.cpp'
         'Makefile')
-sha256sums=('SKIP' 'SKIP'
+sha256sums=('SKIP' 'SKIP' 'SKIP'
             'SKIP' 'SKIP'
             'SKIP'
             'SKIP')
