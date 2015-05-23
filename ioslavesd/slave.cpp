@@ -608,7 +608,7 @@ int main (int argc, const char* argv[]) {
 									dl_t dl_handle = s->spec.plugin.handle;
 				__extension__ 	ioslaves::api::shutdown_inhibit_f inhib_f = (ioslaves::api::shutdown_inhibit_f) ::dlsym(dl_handle, "ioslapi_shutdown_inhibit");
 									if (inhib_f == NULL) {
-										__log__(log_lvl::ERROR, "SHUTDOWN", logstream << "Error getting function with dlsym(\"ioslapi_shutdown_inhibit\") : " << ::dlerror());
+										__log__(log_lvl::WARNING, "SHUTDOWN", logstream << "Can't get ioslapi_shutdown_inhibit function of ioslplugin '" << s->s_name << "' : " << ::dlerror());
 										continue;
 									}
 									try {
