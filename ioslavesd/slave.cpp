@@ -166,6 +166,13 @@ int main (int argc, const char* argv[]) {
 	fd_t f_pid = -1;
 	{ asroot_block();
 		f_pid = ::open(pid_file, O_CREAT|O_RDWR|O_EXCL|O_NOFOLLOW|O_SYNC, 0644);
+		if (f_pid != -1) {
+			r = ::fchown(f_pid, (uid_t)ioslaves_user_id, (gid_t)ioslaves_group_id);
+			if (r == -1) {
+				__log__(log_lvl::FATAL, NULL, logstream << "Can't chown PID file : " << ::strerror(errno));
+				return EXIT_FAILURE;
+			}
+		}
 	}
 	if (f_pid == -1) {
 		if (errno == EEXIST) {
@@ -1140,7 +1147,7 @@ void ioslaves::controlService (ioslaves::service* s, bool start, const char* con
 				else		  ioslaves::upnpClosePort(p);
 			} catch (ioslaves::upnpError& ue) {
 				if (ue.fatal) 
-					throw ioslaves::req_err(ioslaves::answer_code::UPNP_ERROR, "UPnP", "UPnP error : " << ue.what());
+					throw ioslaves::req_err(ioslaves::answer_code::UPNP_ERROR, "UPnP", logstream << "UPnP error : " << ue.what());
 			}
 		}
 	}
