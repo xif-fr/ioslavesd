@@ -262,16 +262,19 @@ extern "C" bool ioslapi_shutdown_inhibit () {
 
 	// Returns a small resumé of the Minecraft service
 extern "C" xif::polyvar* ioslapi_status_info () {
+	pthread_mutex_handle_lock(minecraft::servs_mutex);
 	xif::polyvar servers = std::vector<xif::polyvar>();
 	for (std::pair<std::string,minecraft::serv*> p : minecraft::servs) {
+		RAII_AT_END_L( ::pthread_mutex_lock(&minecraft::servs_mutex) );
 		try {
 			socketxx::io::simple_socket<socketxx::base_fd> s_comm(socketxx::base_fd(p.second->s_sock_comm, SOCKETXX_MANUAL_FD));
 			s_comm.o_char((char)minecraft::internal_serv_op_code::GET_PLAYER_LIST);
+			::pthread_mutex_unlock(&minecraft::servs_mutex);
 			if ((ioslaves::answer_code)s_comm.i_char() == ioslaves::answer_code::OK) {
 				servers.v().push_back(_S( p.first," (",::ixtoa(s_comm.i_int<int16_t>()),")" ));
 				continue;
 			}
-		} catch (...) {}
+		} catch (...) { ::pthread_mutex_unlock(&minecraft::servs_mutex); }
 		servers.v().push_back(p.first);
 	}
 	xif::polyvar* info = new xif::polyvar(xif::polyvar::map({
@@ -299,6 +302,7 @@ extern "C" bool ioslapi_got_sigchld (pid_t pid, int pid_status) {
 			return true;
 		} return false;
 	};
+	pthread_mutex_handle_lock(minecraft::servs_mutex);
 	for (std::pair<std::string,minecraft::serv*> p : minecraft::servs) 
 		if (test_serv(p.second) == true) return true;
 	for (minecraft::serv* s : minecraft::openning_servs) 
@@ -374,7 +378,6 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 				try {
 					minecraft::serv* s = minecraft::servs.at(s_servid);
 					cli.o_char((char)ioslaves::answer_code::OK);
-					::pthread_mutex_unlock(&minecraft::servs_mutex);
 					minecraft::stopServer(cli, s);
 				} catch (std::out_of_range) {
 					__log__(log_lvl::ERROR, "COMM", logstream << "Server '" << s_servid << "' not found");
@@ -398,7 +401,10 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 						cli.o_int<uint64_t>(s->s_start_time);
 						socketxx::io::simple_socket<socketxx::base_fd> s_comm(socketxx::base_fd(s->s_sock_comm, SOCKETXX_MANUAL_FD));
 						s_comm.o_char((char)minecraft::internal_serv_op_code::GET_PLAYER_LIST);
-						if ((ioslaves::answer_code)s_comm.i_char() == ioslaves::answer_code::OK) {
+						::pthread_mutex_unlock(&minecraft::servs_mutex);
+						ioslaves::answer_code o = (ioslaves::answer_code)s_comm.i_char();
+						::pthread_mutex_lock(&minecraft::servs_mutex);
+						if (o == ioslaves::answer_code::OK) {
 							cli.o_int<int32_t>(s_comm.i_int<int16_t>());
 						} else {
 							cli.o_int<int32_t>(-1);
@@ -691,7 +697,7 @@ void minecraft::compressAndSend (socketxx::io::simple_socket<socketxx::base_sock
 	__log__(log_lvl::DONE, "FILES", "Done", LOG_ADD, &l);
 	if (async) {
 		#warning TO DO
-		return;
+		//return;
 	}
 	struct stat zip_stat;
 	r = ::stat(fpath.c_str(), &zip_stat);
@@ -1822,9 +1828,12 @@ std::string MC_log_interpret (const std::string line, minecraft::serv* s, minecr
 	return m_msg;
 }
 
-	/// Stop 
+	/// Stop
+	/* Server mutex IS locked here
+	 * As whyStopped == DESIRED_MASTER, we are shure that server structure will be NOT deleted by server thread after ReadEarlyStateIfNot('s') */
 void minecraft::stopServer (socketxx::io::simple_socket<socketxx::base_socket> cli, minecraft::serv* s) {
 	int r;
+	std::string servid = s->s_servid;
 	
 	try {
 		
@@ -1852,11 +1861,15 @@ void minecraft::stopServer (socketxx::io::simple_socket<socketxx::base_socket> c
 			// Sending stop command
 		socketxx::io::simple_socket<socketxx::base_fd> s_comm(socketxx::base_fd(s->s_sock_comm, SOCKETXX_MANUAL_FD));
 		s_comm.o_char((char)minecraft::internal_serv_op_code::STOP_SERVER_CLI);
+		::pthread_mutex_unlock(&minecraft::servs_mutex);
 		
 			// Waiting for stop
 		ReadEarlyStateIfNot('s',5) {
-			throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "STOP", MCLOGSCLI(s) << "Failed to send stop command");
+			throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "STOP", MCLOGCLI(servid) << "Failed to send stop command");
 		}
+		RAII_AT_END_N(del, {
+			delete s;
+		});
 		cli.o_char((char)ioslaves::answer_code::OK);
 		do {
 			errno = 0;
