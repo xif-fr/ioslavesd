@@ -66,6 +66,9 @@ bool $need_quickly = false;
 std::string $ftp_user, $ftp_hash_passwd;
 uint8_t $mc_viewdist = 7;
 time_t $autoclose_time = (time_t)-1;
+timeval $connect_timeout = {2,500000};
+timeval $comm_timeout = {5,000000};
+timeval $op_timeout = {10,000000};
 
 	// minecraft-master's core functionnality functions
 time_t getLastSaveTime (std::string serv, std::string map);
@@ -574,7 +577,7 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 		try {
 			try {
 				__log__ << LOG_ARROW << "Connecting to '" << slave << "'..." << std::flush;
-				return iosl_master::slave_api_service_connect(slave, $master_id, "minecraft");
+				return iosl_master::slave_api_service_connect(slave, $master_id, "minecraft", $connect_timeout);
 			} catch (ioslaves::answer_code& answ) {
 				if (answ == ioslaves::answer_code::BAD_STATE and $granmaster) {
 					__log__ << LOG_ARROW << "Minecraft service seems to be off. Starting it..." << std::flush;
@@ -585,7 +588,7 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 					if (answ != ioslaves::answer_code::OK) 
 						throw answ;
 				} else throw answ;
-				return iosl_master::slave_api_service_connect(slave, $master_id, "minecraft");
+				return iosl_master::slave_api_service_connect(slave, $master_id, "minecraft", $connect_timeout);
 			}
 		} catch (master_err& e) {
 			__log__ << LOG_ARROW_ERR << "ioslaves-master error : " << e.what() << std::flush;
@@ -609,6 +612,7 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 		}
 	};
 	socketxx::io::simple_socket<socketxx::base_socket> sock = get_sock();
+	sock.set_read_timeout($comm_timeout);
 	timeval utc_time; ::gettimeofday(&utc_time, NULL);
 	time_t slave_time = sock.i_int<int64_t>();
 	time_t diff;
@@ -634,6 +638,7 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 		else throw o;
 	}
 	__log__ << "Opp '" << (char)opp << "' accepted by distant minecraft service" << std::flush;
+	sock.set_read_timeout($op_timeout);
 	return sock;
 }
 
