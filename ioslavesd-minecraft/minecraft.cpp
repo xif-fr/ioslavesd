@@ -551,13 +551,20 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 	/**         Utility functions       	**/
 	/** -------------------------------	**/
 
-	/// Transfert and map functions
 	// Should always be running as euid=mcjava
 inline void assert_mcjava () {
+#ifdef __linux__
 	uid_t euid = ::getegid();
 	if (euid != minecraft::java_user_id) 
 		throw std::logic_error("should be running as mcjava !");
+#endif
 }
+#ifndef __linux__
+	#define java_user_id -1
+	#define java_group_id -1
+#endif
+
+/// Transfert and map functions
 
 // Read/write the last-save-time file on server folder
 time_t minecraft::lastsaveTimeFile (std::string path, bool set) {
@@ -845,6 +852,11 @@ std::vector<minecraft::_BigFiles_entry> minecraft::getBigFilesIndex (std::string
 	/**       Server launch and thread      	**/
 	/** ------------------------------------	**/
 
+#ifndef __linux__
+	#undef java_user_id
+	#undef java_group_id
+#endif
+
 		/// Start procedure
 void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> cli, std::string servid) {
 	int r;
@@ -943,7 +955,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			// Server folder and map
 		block_as_mcjava();
 		std::string global_serv_dir = _S( MINECRAFT_SRV_DIR,"/mc_",s->s_servid );
-		r = ::mkdir(global_serv_dir.c_str(), (mode_t)0750);
+		r = ::mkdir(global_serv_dir.c_str(), (mode_t)0755);
 		if (r == -1 and errno != EEXIST)
 			throw xif::sys_error("can't create client server dir");
 		std::string working_dir = s->s_wdir = _S( global_serv_dir,'/',s->s_map );
@@ -1443,15 +1455,17 @@ void* minecraft::serv_thread (void* arg) {
 					if (FD_ISSET(java_pipes.out, &sel_set) or FD_ISSET(java_pipes.err, &sel_set)) {
 						errno = 0;
 						char lbuf[1024];
-						fd_t out = FD_ISSET(java_pipes.out, &sel_set) ? java_pipes.out : java_pipes.err;
+						fd_t out = FD_ISSET(java_pipes.err, &sel_set) ? java_pipes.err : java_pipes.out;
 						ssize_t rs = ::read(out, lbuf, sizeof(lbuf));
 						if (rs == 0) { 
-							if (stopInfo.why == (minecraft::whyStopped)0) 
+							if (stopInfo.why == (minecraft::whyStopped)0 or stopInfo.why == minecraft::whyStopped::NOT_STARTED) 
 								throw xif::sys_error("read from java pipe", "pipe closed");
 							else {
 								__log__(log_lvl::NOTICE, THLOGSCLI(s), "Java pipe closed during closing");
 								FD_CLR(java_pipes.out, &select_set);
 								FD_CLR(java_pipes.err, &select_set);
+								::close(java_pipes.in);
+								java_pipes.in = INVALID_HANDLE;
 								goto __retry;
 							}
 						}
@@ -1748,6 +1762,7 @@ void* minecraft::serv_thread (void* arg) {
 
 	// Write command to Minecraft server
 void MC_write_command (minecraft::serv* s, pipe_proc_t java_pipes, std::string cmd) {
+	if (java_pipes.in == INVALID_HANDLE) return;
 	__log__(log_lvl::LOG, THLOGSCLI(s), logstream << "> " << cmd);
 	errno = 0;
 	ssize_t rs;
