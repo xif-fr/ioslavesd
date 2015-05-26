@@ -39,7 +39,8 @@ pthread_mutex_t xlog::logstream_impl::mutex = PTHREAD_MUTEX_INITIALIZER;
 std::ostringstream xlog::logstream_impl::stream;
 bool _log_wait_flag = false;
 void xlog::logstream_impl::log (log_lvl lvl, const char* part, std::string msg, int m, logl_t* lid) noexcept {
-	if (_log_wait_flag and not (m & LOG_ADD)) { std::clog << std::endl; _log_wait_flag = false; }
+	if (_log_wait_flag and not (m & LOG_ADD)) std::clog << std::endl;
+	_log_wait_flag = false;
 	switch (lvl) {
 		case log_lvl::LOG: case log_lvl::NOTICE: case log_lvl::IMPORTANT: case log_lvl::MAJOR: break;
 		case log_lvl::FATAL: case log_lvl::ERROR: case log_lvl::OOPS: std::clog << COLOR_RED << "Error : " << COLOR_RESET; break;

@@ -108,12 +108,12 @@ void xlog::logstream_impl::log (log_lvl lvl, const char* part, std::string msg, 
 			if (fd_log == -1) {
 				::fprintf(stderr, "\n\t*** WARNING : LOG FILE COULDN'T BE OPENED ! %s\n\n\n", ::strerror(errno));
 				fd_log = -2;
-			}
+			} else 
+				::write(fd_log, "\n\n===== LOG OPENED =====\n", 25);
 		}
 		if (fd_log != -2) {
-			rs =  ::write(fd_log, txt_output.c_str(), txt_output.length());
-			rs += ::write(fd_log, "\n", 1);
-			if (rs != (ssize_t)txt_output.length()+1) {
+			rs = ::write(fd_log, txt_output.c_str(), txt_output.length());
+			if (rs != (ssize_t)txt_output.length()) {
 				::close(fd_log);
 				goto _reopen_log;
 			}
