@@ -862,29 +862,19 @@ void ioslaves::api::report_log (ioslaves::service* _service, log_lvl _lvl, const
 	return __log__(_lvl, part, _msg, _m, _lid);
 }
 
-/// Add SRV entry
-ioslaves::answer_code ioslaves::api::dns_srv_create (const char* service_name, std::string domain, std::string host, bool with_cname, in_port_t port, bool is_tcp) noexcept {
+/// SRV entry requests
+	// Common
+constexpr timeval dnssrvreq_timeout = ::timeval{2,500000};
+ioslaves::answer_code ioslaves::dns_srv_req (std::function< ioslaves::answer_code(socketxx::io::simple_socket<socketxx::base_netsock>&) > reqf) {
 	try {
-		socketxx::simple_socket_client<socketxx::base_netsock> sock (socketxx::base_netsock::addr_info(ip_refresh_dyndns_server, 2929), timeval{1,0});
-		sock.set_read_timeout(timeval{1,0});
+		socketxx::simple_socket_client<socketxx::base_netsock> sock (socketxx::base_netsock::addr_info(ip_refresh_dyndns_server, 2929), dnssrvreq_timeout);
+		sock.set_read_timeout(dnssrvreq_timeout);
 		iosl_master::slave_api_service_connect(sock, _S("_IOSL_",hostname), "xifnetdyndns");
 		sock.o_int<in_port_t>(0);
 		sock.i_int<in_addr_t>();
 		sock.o_char((char)ioslaves::answer_code::WANT_SEND);
-		sock.o_bool(true);
-		sock.o_str(service_name);
-		sock.o_str(domain);
-		sock.o_str(host);
-		sock.o_bool(with_cname);
-		sock.o_bool(is_tcp);
-		sock.o_int<in_port_t>(port);
-		ioslaves::answer_code answ;
-		if ((answ = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) {
-			__log__(log_lvl::ERROR, "DynDNS", logstream << "Creation of SRV entry failed (answ = " << (char)answ << ")");
-			return answ;
-		}
-		sock.o_char((char)ioslaves::answer_code::OK);
-		return ioslaves::answer_code::OK;
+		ioslaves::answer_code o = reqf(sock);
+		return o;
 	} catch (socketxx::classic_error& e) {
 		__log__(log_lvl::ERROR, "DynDNS", logstream << "Network error with xifnetdyndns service : " << e.what());
 	} catch (master_err& e) {
@@ -894,32 +884,43 @@ ioslaves::answer_code ioslaves::api::dns_srv_create (const char* service_name, s
 	}
 	return ioslaves::answer_code::ERROR;
 }
-
-/// Delete SRV entry
+	// Add SRV entry
+ioslaves::answer_code ioslaves::api::dns_srv_create (const char* service_name, std::string domain, std::string host, bool with_cname, in_port_t port, bool is_tcp) noexcept {
+	return ioslaves::dns_srv_req(
+		[&] (socketxx::io::simple_socket<socketxx::base_netsock>& sock) -> ioslaves::answer_code {
+			sock.o_bool(true);
+			sock.o_str(service_name);
+			sock.o_str(domain);
+			sock.o_str(host);
+			sock.o_bool(with_cname);
+			sock.o_bool(is_tcp);
+			sock.o_int<in_port_t>(port);
+			ioslaves::answer_code answ;
+			if ((answ = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) {
+				__log__(log_lvl::ERROR, "DynDNS", logstream << "Creation of SRV entry failed (answ = " << (char)answ << ")");
+				return answ;
+			}
+			sock.o_char((char)ioslaves::answer_code::OK);
+			return ioslaves::answer_code::OK;
+		}
+	);
+}
+	// Delete SRV entry
 void ioslaves::api::dns_srv_del (const char* service_name, std::string domain, std::string host, bool is_tcp) noexcept {
-	try {
-		socketxx::simple_socket_client<socketxx::base_netsock> sock (socketxx::base_netsock::addr_info(ip_refresh_dyndns_server, 2929), timeval{1,0});
-		sock.set_read_timeout(timeval{1,0});
-		iosl_master::slave_api_service_connect(sock, _S("_IOSL_",hostname), "xifnetdyndns");
-		sock.o_int<in_port_t>(0);
-		sock.i_int<in_addr_t>();
-		sock.o_char((char)ioslaves::answer_code::WANT_SEND);
-		sock.o_bool(false);
-		sock.o_str(service_name);
-		sock.o_str(domain);
-		sock.o_str(host);
-		sock.o_bool(is_tcp);
-		ioslaves::answer_code answ;
-		if ((answ = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) 
-			throw answ;
-		sock.o_char((char)ioslaves::answer_code::OK);
-	} catch (socketxx::classic_error& e) {
-		__log__(log_lvl::ERROR, "DynDNS", logstream << "Network error with xifnetdyndns service : " << e.what());
-	} catch (master_err& e) {
-		__log__(log_lvl::ERROR, "DynDNS", logstream << "Master error while connecting to DynDNS : " << e.what());
-	} catch (ioslaves::answer_code answ) {
-		__log__(log_lvl::ERROR, "DynDNS", logstream << "Failed to delete SRV entry (answ = " << (char)answ << ")");
-	}
+	ioslaves::dns_srv_req(
+		[&] (socketxx::io::simple_socket<socketxx::base_netsock>& sock) -> ioslaves::answer_code {
+			sock.o_bool(false);
+			sock.o_str(service_name);
+			sock.o_str(domain);
+			sock.o_str(host);
+			sock.o_bool(is_tcp);
+			ioslaves::answer_code answ;
+			if ((answ = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) 
+				throw answ;
+			sock.o_char((char)ioslaves::answer_code::OK);
+			return ioslaves::answer_code::OK;
+		}
+	);
 }
 
 	///-----------------  Services  -----------------///

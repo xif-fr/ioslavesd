@@ -146,6 +146,9 @@ namespace ioslaves {
 	extern xif::polyvar::map system_stat;
 	void statusEnd ();
 	
+		/// Other opperations
+	ioslaves::answer_code dns_srv_req (std::function< ioslaves::answer_code(socketxx::io::simple_socket<socketxx::base_netsock>&) >);
+	
 }
 
 #endif
