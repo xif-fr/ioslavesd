@@ -127,6 +127,7 @@ void* minecraft::mc_ftpd_auth_thread (void* arg) {
 		::close(stopfd);
 		::close(minecraft::ftp_stopfd);
 		minecraft::ftp_serv_addr.clear();
+		minecraft::ftp_sessions.clear();
 		__log__(log_lvl::LOG, "FTP", "Thread end");
 	});
 	
@@ -287,6 +288,8 @@ void* minecraft::mc_ftpd_auth_thread (void* arg) {
 
 	// Prepare user FTP session, from panel
 void minecraft::ftp_register_user (std::string username, std::string md5passwd, std::string server, std::string map, time_t validity) {
+	if (not minecraft::ftp_th_started) 
+		minecraft::ftp_start_thread();
 	for (auto it = minecraft::ftp_sessions.begin(); it != minecraft::ftp_sessions.end();) {
 		if (it->end_validity < ::time(NULL)) {
 			__log__(log_lvl::LOG, "FTP", logstream << "FTP session for user '" << it->username << "' invalidated");
@@ -305,8 +308,6 @@ void minecraft::ftp_register_user (std::string username, std::string md5passwd, 
 	sess.end_validity = ::time(NULL) + validity;
 	sess.path = _S( MINECRAFT_SRV_DIR,"/mc_",server,'/',map );
 	sess.server = server;
-	if (not minecraft::ftp_th_started) 
-		minecraft::ftp_start_thread();
 	minecraft::ftp_sessions.insert(ftp_sessions.begin(), sess);
 	__log__(log_lvl::DONE, "FTP", logstream << "FTP session created for user " << sess.username << " valid for " << validity << " seconds");
 }
