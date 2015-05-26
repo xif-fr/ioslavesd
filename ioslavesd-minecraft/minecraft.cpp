@@ -866,6 +866,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			if (s != NULL) { 
 				if (can_del_folder) try { minecraft::deleteMapFolder(s); } catch (...) {}
 				if (close_port) try { (*ioslaves::api::close_port)(s->s_port, 1, true); } catch (...) {}
+				pthread_mutex_handle_lock(minecraft::servs_mutex);
 				delete s;
 			}
 			ioslaves::api::euid_switch(-1,-1);
@@ -1315,7 +1316,7 @@ void* minecraft::serv_thread (void* arg) {
 			"-d64",
 #endif*/
 			"-XX:+UseParallelGC",
-			"-XX:MaxPermSize=128M",
+			"-XX:MaxPermSize=200M",
 			_S("-Xmx",::ixtoa(s->s_megs_ram),"M"), _S("-Xms",::ixtoa(s->s_megs_ram),"M"),
 			"-jar", s->s_jar_path,
 			"--world", s->s_map,
@@ -1867,9 +1868,6 @@ void minecraft::stopServer (socketxx::io::simple_socket<socketxx::base_socket> c
 		ReadEarlyStateIfNot('s',5) {
 			throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "STOP", MCLOGCLI(servid) << "Failed to send stop command");
 		}
-		RAII_AT_END_N(del, {
-			delete s;
-		});
 		cli.o_char((char)ioslaves::answer_code::OK);
 		do {
 			errno = 0;
@@ -1882,6 +1880,9 @@ void minecraft::stopServer (socketxx::io::simple_socket<socketxx::base_socket> c
 		ReadEarlyStateIfNot('E',6) {
 			throw ioslaves::req_err(ioslaves::answer_code::ERROR, "STOP", MCLOGSCLI(s) << "Didn't received ack of thread exiting");
 		}
+		RAII_AT_END_N(del, {
+			delete s;
+		});
 		__log__(log_lvl::LOG, "STOP", "Ok, thread is exited");
 		cli.o_char((char)ioslaves::answer_code::OK);
 		
