@@ -327,7 +327,7 @@ int main (int argc, char* const argv[]) {
 				$start_jar_ver = optarg;
 				try {
 					ioslaves::version($start_jar_ver, true);
-				} catch (...) { try_help("jar: invalid version str\n"); }
+				} catch (std::exception& e) { try_help(_s("jar: invalid version str : ",e.what(),"\n")); }
 			} break;
 			case 'm':
 				optctx::optctx_test("--temp-map", optctx::servStart);
@@ -1103,8 +1103,9 @@ _try_start:
 			try {
 			std::vector<slave_info> slaves = iosl_dyn_slaves::select_slaves(
 				"minecraft", 
-				$needed_ram, $needed_cpu, true,
-				$needed_eff, $need_quickly,
+				$needed_ram, $needed_cpu,
+				$needed_eff, $needed_cpu, 1,
+				$need_quickly,
 				{ "dyn-hosting" },
 				[&] (const slave_info& info) -> points_t {
 					for (const std::string& sl : excluded_slaves) 

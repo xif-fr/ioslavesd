@@ -19,8 +19,7 @@ using ioslaves::answer_code;
 
 std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::select_slaves (const char* needed_service, 
 																								 ram_megs_t needed_ram, proc_power_t needed_power, 
-																								 bool comfortably, 
-																								 efficiency_ratio_t eff, 
+																								 efficiency_ratio_t eff, proc_power_t mean_power, uint8_t usable_threads, 
 																								 bool quickly, 
 																								 std::vector<std::string> needed_tags,
 																								 std::function<points_t(const iosl_dyn_slaves::slave_info&)> additional_filter) {
@@ -82,8 +81,10 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::select_slaves (const c
 			info._sl_categs_infos = std::make_tuple(0,INT32_MIN,0.f,INT32_MIN,INT32_MIN,INT32_MIN,INT32_MIN);
 			info.sl_total_points = (points_t)INT32_MIN;
 			info.sl_start_delay = (int)cfg.lookup("start_delay");
-			info.sl_power_use_full = (int)caracts_grp["power_use"];
+			info.sl_power_use_idle = (int)caracts_grp["pelec_idle"];
+			info.sl_power_use_full = (int)caracts_grp["pelec_full"];
 			info.sl_usable_mem = (int)caracts_grp["tot_mem"];
+			info.sl_proc_threads = (int)caracts_grp["proc_threads"];
 			info.sl_usable_proc = (float)caracts_grp["proc_power"];
 			libconfig::Setting& other_indices_group = caracts_grp["other_indices"];
 			other_indices_group.assertType(libconfig::Setting::TypeGroup);
@@ -180,7 +181,6 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::select_slaves (const c
 		{ // Memory
 			int16_t diff = info.sl_usable_mem - needed_ram;
 			std::get<0>(info._sl_categs_infos) = diff;
-			if (comfortably and info.sl_usable_mem < needed_ram) goto bye;
 			#define RAM_MaxPTs 150
 			#define RAM_AntiexpPw 1.004f
 			#define RAM_LinF 0.016f
@@ -191,7 +191,6 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::select_slaves (const c
 		{ // Proc power
 			float ratio = info.sl_usable_proc / needed_power;
 			std::get<2>(info._sl_categs_infos) = ratio;
-			if (comfortably and info.sl_usable_proc < needed_power) goto bye;
 			#define PROC_LowestRatio 0.2f
 			if (ratio < PROC_LowestRatio) goto bye;
 			#define PROC_InvF 170.0f
@@ -205,11 +204,13 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::select_slaves (const c
 		{ // Watt efficiency
 			points_t penaltyPerWatt[4] = {
 				[efficiency_ratio_t::REGARDLESS] = 0,
-				[efficiency_ratio_t::FOR_HOURS_MEDIUM] = 3,
-				[efficiency_ratio_t::FOR_DAY_HIGH] = 7,
-				[efficiency_ratio_t::FOR_DAYS_HIGHEST] = 12
+				[efficiency_ratio_t::FOR_HOURS_MEDIUM] = 1,
+				[efficiency_ratio_t::FOR_DAY_HIGH] = 2,
+				[efficiency_ratio_t::FOR_DAYS_HIGHEST] = 4
 			};
-			points_t watt_pt = info.sl_power_use_full * penaltyPerWatt[eff];
+			float mqproc = std::min(mean_power/info.sl_usable_proc, 1.f);
+			power_watt_t estimated_power = mqproc*info.sl_power_use_full + (1.f-mqproc)*info.sl_power_use_idle;
+			points_t watt_pt = estimated_power * penaltyPerWatt[eff];
 			std::get<4>(info._sl_categs_infos) = -watt_pt;
 			pt -= watt_pt;
 		}

@@ -109,7 +109,8 @@ namespace iosl_dyn_slaves {
 		std::string sl_name;
 		int sl_status = -1; /* 0: up | -1: down | -2: bad data | -3: error | >0: errno | -4: tag unsatisfied | -5: no service */
 		uint16_t sl_start_delay = 0;
-		power_watt_t sl_power_use_full = UINT16_MAX;
+		power_watt_t sl_power_use_idle = UINT16_MAX, sl_power_use_full = UINT16_MAX;
+		uint8_t sl_proc_threads = 1;
 		std::map<std::string,bool> sl_services_status;
 		ram_megs_t sl_usable_mem = 0;
 		proc_power_t sl_usable_proc = 0;
@@ -121,8 +122,8 @@ namespace iosl_dyn_slaves {
 	};
 	
 	std::vector<slave_info> select_slaves (const char* needed_service = NULL, 
-														ram_megs_t needed_ram = 0, proc_power_t needed_power = 0, bool comfortably = false, 
-														efficiency_ratio_t eff = REGARDLESS, 
+														ram_megs_t needed_ram = 0, proc_power_t needed_power = 0,
+														efficiency_ratio_t eff = REGARDLESS, proc_power_t mean_power = 0, uint8_t usable_threads = 1,
 														bool quickly = true, 
 														std::vector<std::string> needed_tags = {},
 														std::function<points_t(const iosl_dyn_slaves::slave_info&)> additional_filter = NULL);
