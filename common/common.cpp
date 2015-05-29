@@ -79,6 +79,7 @@ ioslaves::version::version (std::string ver_str, bool poststr_ok) : _fullstr(ver
 			else break;
 		}
 	}
+	i = ver_str.length();
 	if (not field.empty()) goto transform;
 	if (i_field < 1) throw std::runtime_error("str2version : incomplete version str");
 }

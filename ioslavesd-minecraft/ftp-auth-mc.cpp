@@ -100,6 +100,7 @@ void minecraft::ftp_stop_thead (int why) {
 		if (r == -1) 
 			__log__(log_lvl::WARNING, "FTP", logstream << "Failed to kill pure-ftpd : " << ::strerror(errno));
 	} else {
+		if (not minecraft::ftp_th_started) return;
 		__log__(log_lvl::WARNING, "FTP", logstream << "pure-ftpd stopped with code " << why << ". Stopping FTP auth thread...");
 		::sleep(2);
 	}

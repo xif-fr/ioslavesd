@@ -441,7 +441,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 						std::string map = std::string(dentr->d_name);
 						if (ioslaves::validateName(map) and not (s != NULL and s->s_map == map)) {
 							std::string lastsavetime_path = _S( MINECRAFT_SRV_DIR,"/mc_",s_servid,'/',map );
-							r = ::access(lastsavetime_path.c_str(), R_OK);
+							r = ::access(_s(lastsavetime_path,"/lastsave"), R_OK);
 							time_t lastsave = 0;
 							if (r == 0) 
 								lastsave = minecraft::lastsaveTimeFile(lastsavetime_path.c_str(), false);
@@ -576,7 +576,7 @@ time_t minecraft::lastsaveTimeFile (std::string path, bool set) {
 	path += "/lastsave"; 
 	file = ::open(path.c_str(), (set ? O_CREAT|O_WRONLY|O_TRUNC : O_RDONLY), S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP);
 	if (file == INVALID_HANDLE) 
-		throw xif::sys_error(_S("failed to open server for ",(set?"set":"get")," folder last-save-time file (",path,")"));
+		throw xif::sys_error(_S("failed to open server to ",(set?"set":"get")," folder last-save-time file (",path,")"));
 	RAII_AT_END_L( ::close(file); );
 	const size_t sz = sizeof(time_t)*2;
 	if (set) {
