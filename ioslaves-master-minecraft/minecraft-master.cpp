@@ -60,6 +60,8 @@ noPollConn* $websocket_conn = NULL;
 bool $refuse_save = false;
 iosl_dyn_slaves::ram_megs_t $needed_ram = 1024;
 iosl_dyn_slaves::proc_power_t $needed_cpu = 1.0f;
+iosl_dyn_slaves::proc_power_t $mean_cpu = 0.f;
+float $threads_num = 1.f;
 iosl_dyn_slaves::efficiency_ratio_t $needed_eff = iosl_dyn_slaves::efficiency_ratio_t::REGARDLESS;
 time_t $needed_time = 0;
 bool $need_quickly = false;
@@ -196,6 +198,8 @@ int main (int argc, char* const argv[]) {
 				{"autoclose", required_argument, NULL, 'j'},
 				{"viewdist", required_argument, NULL, 'e'},
 				{"quickly", no_argument, NULL, 'q'},
+				{"threads", no_argument, NULL, '#'},
+				{"man-cpu", no_argument, NULL, '~'},
 			{"stop", no_argument, NULL, 'o'},
 			{"status", no_argument, NULL, 't'},
 			{"permanentize", no_argument, NULL, 'P'},
@@ -236,14 +240,16 @@ int main (int argc, char* const argv[]) {
 						 "                                     Zipped dir must have the same name than the map.\n"
 						 "                                     Use it for starting server with an old save of a perm map.\n"
 						 "              --duration=TIME     Server running duration, in seconds. Must be a good estimation.\n"
-						 "            Optional :\n"
-						 "              --autoclose=TIME    Server will close after TIME sec. without players.\n"
-						 "                                   Default = --duration; 0 = disabled\n"
-						 "              --viewdist=CHUNKS   Minecraft view distance. Default = 7\n"
 						 "            Slave selection :\n"
 						 "              --cpu=CPU           Needed CPU, using CPU unit (1.0 = Core2Duo E4400).\n"
 						 "              --ram=MEGS          Needed memory, in megabytes.\n"
 						 "              --quickly           Select slave for speed of server startup\n"
+						 "            Optional :\n"
+						 "              --mean-cpu=CPU		Mean CPU power use estimation, but not max needed CPU as --cpu.\n"
+						 "              --threads=NUMBER    Non-integer number of threads which can be used by this jar.\n"
+						 "              --autoclose=TIME    Server will close after TIME sec. without players.\n"
+						 "                                   Default = --duration; 0 = disabled\n"
+						 "              --viewdist=CHUNKS   Minecraft view distance. Default = 7\n"
 						 "        --stop                  Stop the server.\n"
 						 "        --status                Refresh status of the server in database\n"
 						 "        --permanentize          Mark map as permanent (will not be deleted at server stop)\n"
@@ -362,7 +368,7 @@ int main (int argc, char* const argv[]) {
 			case 'u': {
 				optctx::optctx_test("--cpu", optctx::servStart);
 				double f = ::atof(optarg);
-				if (f == 0.0f or f <= 0.0f or f > 50.f)
+				if (f == 0.0 or f <= 0.0 or f > 50.0)
 					try_help("--cpu : invalid cpu quantity\n");
 				$needed_cpu = (float)f;
 			} break;
@@ -372,6 +378,11 @@ int main (int argc, char* const argv[]) {
 					$needed_time = ::atoix<uint32_t>(optarg);
 				} catch (...) {
 					try_help("--duration : invalid param\n");
+				}
+				if ($needed_time < 3600*2) $needed_eff = iosl_dyn_slaves::efficiency_ratio_t::FOR_HOURS_MEDIUM;
+				else {
+					if ($needed_time < 3600*16) $needed_eff = iosl_dyn_slaves::efficiency_ratio_t::FOR_DAY_HIGH;
+					else $needed_eff = iosl_dyn_slaves::efficiency_ratio_t::FOR_DAYS_HIGHEST;
 				}
 				break;
 			case 'e':
@@ -394,6 +405,22 @@ int main (int argc, char* const argv[]) {
 				optctx::optctx_test("--quickly", optctx::servStart);
 				$need_quickly = true;
 				break;
+			case '~': {
+				optctx::optctx_test("--mean-cpu", optctx::servStart);
+				if ($needed_cpu == 1.0f) 
+					try_help("--mean-cpu : --cpu must be defined\n");
+				double f = ::atof(optarg);
+				if (f == 0.0 or f <= 0.0 or f > 20.0 or $mean_cpu > $needed_cpu)
+					try_help("--mean-cpu : invalid mean cpu usage estimation\n");
+				$mean_cpu = (float)f;
+			} break;
+			case '#': {
+				optctx::optctx_test("--threads", optctx::servStart);
+				double f = ::atof(optarg);
+				if (f < 0.99)
+					try_help("--threads : invalid usable thread number\n");
+				$threads_num = (float)f;
+			} break;
 			case 'o':
 				optctx::optctx_set(optctx::servStop);
 				break;
@@ -1048,7 +1075,6 @@ void MServStart () {
 	socketxx::io::simple_socket<socketxx::base_socket>* sock;
 	goto _try_start;
 _retry_start:
-	if (not $granmaster) throw;
 	if (autoselect_slave) {
 		__log__ << LOG_ARROW << "Trying another slave..." << std::flush;
 		excluded_slaves.push_back($slave_id);
@@ -1100,11 +1126,12 @@ _try_start:
 			if (not $forced_file.empty()) lastsave_from.clear();
 			if (not lastsave_from.empty())
 				 __log__ << "Last slave who ran this map : " << lastsave_from << std::flush;
+			if ($mean_cpu == 0.f) $mean_cpu = $needed_cpu/2.f;
 			try {
 			std::vector<slave_info> slaves = iosl_dyn_slaves::select_slaves(
 				"minecraft", 
 				$needed_ram, $needed_cpu,
-				$needed_eff, $needed_cpu, 1,
+				$needed_eff, $mean_cpu, $threads_num,
 				$need_quickly,
 				{ "dyn-hosting" },
 				[&] (const slave_info& info) -> points_t {
@@ -1134,7 +1161,7 @@ _try_start:
 			{ // Nice html table
 				std::ostringstream t;
 				t << "<table>" << std::setprecision(2);
-				t << "<tr> <th>slave</th> <th>stat</th> <th>∆ram</th> <th>pt.ram</th> <th>q.proc</th> <th>pt.proc</th> <th>pt.eff</th> <th>pt.wait</th> <th>pt.net</th> <th>pt.total</th> </tr>";
+				t << "<tr> <th>slave</th> <th>stat</th> <th>∆ram</th> <th>pt.ram</th> <th>q.proc</th> <th>pt.proc</th> <th>p.estim</th> <th>pt.eff</th> <th>pt.wait</th> <th>pt.net</th> <th>pt.total</th> </tr>";
 				for (slave_info& info : slaves) {
 					if (info.sl_status == -4 or info.sl_status == -5) continue;
 					t << "<tr>";
@@ -1149,9 +1176,10 @@ _try_start:
 					SlSelTab_PrintPt(1);
 					t << "<td>" << std::get<2>(info._sl_categs_infos) << "</td>";
 					SlSelTab_PrintPt(3);
-					SlSelTab_PrintPt(4);
+					t << "<td>" << std::get<4>(info._sl_categs_infos) << "W</td>";
 					SlSelTab_PrintPt(5);
 					SlSelTab_PrintPt(6);
+					SlSelTab_PrintPt(7);
 					t << "<td>" << info.sl_total_points << "</td>";
 				bye:
 					t << "</tr>";
@@ -1170,6 +1198,7 @@ _try_start:
 					iosl_master::slave_start($slave_id, $master_id);
 				} catch (std::exception& e) {
 					__log__ << LOG_AROBASE_ERR << "Power up error : " << e.what() << std::flush;
+					if (not $granmaster) EXCEPT_ERROR_IGNORE;
 					goto _retry_start;
 				}
 				uint wait_delay = slaves.front().sl_start_delay;
@@ -1187,6 +1216,7 @@ _try_start:
 			getConnection($slave_id, $server_name, minecraft::op_code::START_SERVER, {2,0}, !autoselect_slave)
 		);
 	} catch (OPTCTX_POSTFNCT_EXCEPT_T) {
+		if (not $granmaster) throw;
 		goto _retry_start;
 	}
 	__log__ << "Sending infos..." << std::flush;
@@ -1223,6 +1253,7 @@ _try_start:
 			throw EXCEPT_ERROR_IGNORE;
 		} else if (o == ioslaves::answer_code::LACK_RSRC) {
 			__log__ << LOG_AROBASE_ERR << "Lacking ressources on slave '" << $slave_id << "' : can't start server !" << std::flush;
+			if (not $granmaster) EXCEPT_ERROR_IGNORE;
 			goto _retry_start;
 		} else
 			throw o;

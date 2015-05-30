@@ -19,7 +19,7 @@ using ioslaves::answer_code;
 
 std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::select_slaves (const char* needed_service, 
 																								 ram_megs_t needed_ram, proc_power_t needed_power, 
-																								 efficiency_ratio_t eff, proc_power_t mean_power, uint8_t usable_threads, 
+																								 efficiency_ratio_t eff, proc_power_t mean_power, float usable_threads, 
 																								 bool quickly, 
 																								 std::vector<std::string> needed_tags,
 																								 std::function<points_t(const iosl_dyn_slaves::slave_info&)> additional_filter) {
@@ -78,7 +78,7 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::select_slaves (const c
 		try {
 			libconfig::Setting& caracts_grp = cfg.lookup("caracts");
 			caracts_grp.assertType(libconfig::Setting::TypeGroup);
-			info._sl_categs_infos = std::make_tuple(0,INT32_MIN,0.f,INT32_MIN,INT32_MIN,INT32_MIN,INT32_MIN);
+			info._sl_categs_infos = std::make_tuple(0,INT32_MIN,0.f,INT32_MIN,0,INT32_MIN,INT32_MIN,INT32_MIN);
 			info.sl_total_points = (points_t)INT32_MIN;
 			info.sl_start_delay = (int)cfg.lookup("start_delay");
 			info.sl_power_use_idle = (int)caracts_grp["pelec_idle"];
@@ -189,7 +189,8 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::select_slaves (const c
 			pt += ram_pt;
 		}
 		{ // Proc power
-			float ratio = info.sl_usable_proc / needed_power;
+			float tot_usable_proc = std::min((float)info.sl_proc_threads, std::max(1.0f,usable_threads)) * info.sl_usable_proc;
+			float ratio = tot_usable_proc / needed_power;
 			std::get<2>(info._sl_categs_infos) = ratio;
 			#define PROC_LowestRatio 0.2f
 			if (ratio < PROC_LowestRatio) goto bye;
@@ -210,31 +211,32 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::select_slaves (const c
 			};
 			float mqproc = std::min(mean_power/info.sl_usable_proc, 1.f);
 			power_watt_t estimated_power = mqproc*info.sl_power_use_full + (1.f-mqproc)*info.sl_power_use_idle;
+			std::get<4>(info._sl_categs_infos) = estimated_power;
 			points_t watt_pt = estimated_power * penaltyPerWatt[eff];
-			std::get<4>(info._sl_categs_infos) = -watt_pt;
+			std::get<5>(info._sl_categs_infos) = -watt_pt;
 			pt -= watt_pt;
 		}
 		{ // Wait/Startup
 			if (info.sl_status == -1) {
 				if (info.sl_start_delay == 0) goto bye;
 				points_t wait_pt = info.sl_start_delay * (quickly ? 8 : 3);
-				std::get<5>(info._sl_categs_infos) = -wait_pt;
+				std::get<6>(info._sl_categs_infos) = -wait_pt;
 				pt -= wait_pt;
 			} else
-				std::get<5>(info._sl_categs_infos) = 0;
+				std::get<6>(info._sl_categs_infos) = 0;
 		}
 		{ // Additional filter
 			if (additional_filter)
 				try {
 					points_t ext_pt = additional_filter(info);
-					std::get<6>(info._sl_categs_infos) = ext_pt;
+					std::get<7>(info._sl_categs_infos) = ext_pt;
 					if (ext_pt == INT32_MIN) goto bye;
 					pt += ext_pt;
 				}
 				catch (xif::polyvar::bad_type) { goto bye; }
 				catch (std::runtime_error) { goto bye; }
 			else
-				std::get<6>(info._sl_categs_infos) = 0;
+				std::get<7>(info._sl_categs_infos) = 0;
 		}
 		info.sl_total_points = pt;
 		continue;

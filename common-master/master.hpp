@@ -117,13 +117,14 @@ namespace iosl_dyn_slaves {
 		std::map<std::string,float> sl_fixed_indices;
 		points_t sl_total_points = 0;
 		std::vector<std::string> sl_tags;
-		std::tuple<off_t,points_t,float,points_t,points_t,points_t,points_t> _sl_categs_infos; /* mem, proc, watt, wait, custom */
+		std::tuple<off_t,points_t, float,points_t, power_watt_t,points_t, points_t, points_t> _sl_categs_infos;
+					/*    mem            proc                elec. power       wait     custom */
 		bool operator< (const slave_info& o) const { return this->sl_total_points > o.sl_total_points; }
 	};
 	
 	std::vector<slave_info> select_slaves (const char* needed_service = NULL, 
 														ram_megs_t needed_ram = 0, proc_power_t needed_power = 0,
-														efficiency_ratio_t eff = REGARDLESS, proc_power_t mean_power = 0, uint8_t usable_threads = 1,
+														efficiency_ratio_t eff = REGARDLESS, proc_power_t mean_power = 0, float usable_threads = 1,
 														bool quickly = true, 
 														std::vector<std::string> needed_tags = {},
 														std::function<points_t(const iosl_dyn_slaves::slave_info&)> additional_filter = NULL);
