@@ -1379,6 +1379,7 @@ _try_start:
 	if ((o = (ioslaves::answer_code)sock->i_char()) != ioslaves::answer_code::OK) 
 		throw o;
 	__log__ << "Server thread is started" << std::flush;
+	sock->set_read_timeout(timeval{40,0});
 	if ((o = (ioslaves::answer_code)sock->i_char()) != ioslaves::answer_code::OK) 
 		throw o;
 	__log__ << "Java process is alive" << std::flush;

@@ -1138,11 +1138,11 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 				__log__(log_lvl::LOG, "FILES", logstream << "Getting jar " << jar_name << "...");
 				minecraft::transferAndExtract(cli, minecraft::transferWhat::JAR, jar_name, MINECRAFT_JAR_DIR);
 			}
-			if (s->s_serv_type == minecraft::serv_type::FORGE) {
+			if (s->s_serv_type == minecraft::serv_type::FORGE or s->s_serv_type == minecraft::serv_type::CAULDRON) {
 				std::string orig_jar_path = jar_path;
-				r = ::link( orig_jar_path.c_str(), (jar_path=_S( working_dir,'/',"forge.jar" )).c_str() );
+				r = ::link( orig_jar_path.c_str(), (jar_path=_S( working_dir,'/',jar_prefix,".jar" )).c_str() );
 				if (r == -1 and errno != EEXIST) 
-					throw xif::sys_error("failed to create symlink to forge.jar");
+					throw xif::sys_error("failed to create link to forge|cauldron jar");
 			}
 		}
 		s->s_jar_path = jar_path;
@@ -1198,7 +1198,14 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			ReadEarlyStateIfNot('j',1) {
 				throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "START", MCLOGCLI(servid) << "Java start failed !");
 			}
-			ReadEarlyStateIfNot('l',15) {
+			time_t line_ack_timeout = 8;
+			switch (s->s_serv_type) {
+				case serv_type::BUKKIT: case serv_type::SPIGOT: line_ack_timeout = 15; break;
+				case serv_type::CAULDRON: case serv_type::FORGE: line_ack_timeout = 35; break;
+				case serv_type::VANILLA: line_ack_timeout = 6; break;
+				case serv_type::CUSTOM: line_ack_timeout = 20; break;
+			}
+			ReadEarlyStateIfNot('l',line_ack_timeout) {
 				throw ioslaves::req_err(ioslaves::answer_code::EXTERNAL_ERROR, "START", MCLOGCLI(servid) << "Didn't received ack of first line");
 			}
 			__log__(log_lvl::LOG, "START", "Java process is alive !");
