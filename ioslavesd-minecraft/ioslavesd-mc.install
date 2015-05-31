@@ -1,10 +1,20 @@
+post_upgrade () {
+	cd /srv/mc/_bigfiles
+	rm -Rf forge_libs
+	wget http://repo.xif.fr:7979/xifnet/minecraft/forge_libs.zip
+	unzip forge_libs.zip
+	rm forge_libs.zip
+	chown -R mcjava:mcjava forge_libs
+}
+
 post_install() {
-	useradd mcjava --system --user-group --no-create-home --home-dir=/srv/mc || true
+	getent passwd mcjava > /dev/null || useradd mcjava --system --user-group --no-create-home --home-dir=/srv/mc > /dev/null
 	chown -R mcjava:mcjava /srv/mc
+	post_upgrade
 }
 
 pre_remove() {
 	systemctl stop ioslavesd || true
-	userdel mcjava || true
-	groupdel mcjava || true
+	userdel mcjava > /dev/null || true
+	groupdel mcjava > /dev/null || true
 }
