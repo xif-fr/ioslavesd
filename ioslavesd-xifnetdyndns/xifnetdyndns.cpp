@@ -167,7 +167,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 		}
 		goto __ok;
 		
-		/* Registered slave : check if slave IP has changed, and update the DNS if it's the case  */
+		/* Registered slave : check if slave's IP has changed, and update the DNS if it's the case  */
 	__slave_found:
 		if (slave->last_ip != ip_addr) {
 			__log__(log_lvl::IMPORTANT, NULL, logstream << "IP of slave '" << slave->slave_name << "' has changed from " << socketxx::base_netsock::addr_info::addr2str(slave->last_ip) << " to " << socketxx::base_netsock::addr_info::addr2str(ip_addr), LOG_WAIT, &l);

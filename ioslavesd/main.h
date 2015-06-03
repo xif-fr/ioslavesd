@@ -132,7 +132,7 @@ namespace ioslaves {
 	
 	extern std::list<ioslaves::service*> services_list;
 	
-		/// Services opperations
+		/// Services operations
 	ioslaves::service* getServiceByName (std::string name);
 	void controlService (ioslaves::service* service_stat, bool start, const char* controlling_master);
 	extern time_t services_lookup_activity_interval;
@@ -146,7 +146,7 @@ namespace ioslaves {
 	extern xif::polyvar::map system_stat;
 	void statusEnd ();
 	
-		/// Other opperations
+		/// Other operations
 	ioslaves::answer_code dns_srv_req (std::function< ioslaves::answer_code(socketxx::io::simple_socket<socketxx::base_netsock>&) >);
 	
 }

@@ -36,7 +36,7 @@ using namespace xlog;
 	// Threads and signals
 #include <signal.h>
 #include <sys/wait.h>
-fd_t serv_stop_pipe[2] = {INVALID_SOCKET,INVALID_SOCKET};
+fd_t serv_stop_pipe[2] = {INVALID_HANDLE,INVALID_HANDLE};
 void* signals_thread (void* _data);
 
 	// Services
@@ -361,7 +361,7 @@ int main (int argc, const char* argv[]) {
 		#endif
 			cli.set_read_timeout(::timeval(IN_CLIENT_TIMEOUT));
 			
-				// Really ? Are you shure ? Do you really want to disturb the powefull, scarry one, only one, THE SLAVE ?
+				// Really ? Are you sure ? Do you really want to disturb the powefull, scarry one, only one, THE SLAVE ?
 			bool really = cli.i_bool();
 			if (not really) continue;
 			ioslaves::op_code opcode;
@@ -371,7 +371,7 @@ int main (int argc, const char* argv[]) {
 			bool auth = cli.i_bool();
 				
 			if (auth and not master_id.empty()) {
-				#warning TO DO : challenge authentification
+				#warning TO DO : challenge authentication
 				std::string key = "ABCDEF";												// Find the right key for the corresponding master
 				std::string challenge = ioslaves::generate_random(256);			// Create a new challenge
 				cli.o_str(challenge);														// Send challenge
@@ -565,7 +565,7 @@ int main (int argc, const char* argv[]) {
 			// Scheduled timeout
 		catch (socketxx::timeout_event&) {
 			
-				// Contact XifNet DynDNS server for refreshing public IP
+				// Contact XifNet DynDNS server to refresh public IP
 			if (ip_refresh_dyndns_interval >= 0) {
 				static time_t dyndns_last = 0;
 				if (dyndns_last+ip_refresh_dyndns_interval < ::time(NULL)) {
@@ -760,7 +760,7 @@ void* port_thread (void*) {
 	/// Signals thread
 void _stop_serv (int);
 void _sigchild (int);
-fd_t _sig_pipe[2] = {INVALID_SOCKET,INVALID_SOCKET};
+fd_t _sig_pipe[2] = {INVALID_HANDLE,INVALID_HANDLE};
 void* signals_thread (void* _data) {
 	
 		// Create signal pipe

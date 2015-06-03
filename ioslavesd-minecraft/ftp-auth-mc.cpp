@@ -217,7 +217,7 @@ void* minecraft::mc_ftpd_auth_thread (void* arg) {
 		authsock.wait_activity_loop(NULL, 
 				// New client
 			[&](socketxx::end::socket_server<socketxx::base_unixsock,void>::client cli) -> socketxx::pool_ret_t {
-				__log__(log_lvl::LOG, "FTP", logstream << "New authentification request");
+				__log__(log_lvl::LOG, "FTP", logstream << "New authentication request");
 				pure_in_reqst fields;
 				
 				socketxx::io::text_socket<socketxx::base_unixsock> s (cli);
@@ -255,7 +255,7 @@ void* minecraft::mc_ftpd_auth_thread (void* arg) {
 								return socketxx::POOL_CONTINUE;
 							}
 							
-							__log__(log_lvl::DONE, "FTP", logstream << "User '" << fields.username << "' is succesfully authentificated for FTP session at " << it->path);
+							__log__(log_lvl::DONE, "FTP", logstream << "User '" << fields.username << "' is succesfully authenticated for FTP session at " << it->path);
 							it->end_validity += 60;
 							s.o_line("auth_ok:1");
 							s.o_line(_S("uid:",::ixtoa(java_user_id)));

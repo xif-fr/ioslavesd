@@ -108,7 +108,7 @@ void IPost (ioslaves::answer_code);
 
 #define OPTCTX_CTXS                              slctrl                         , slctrl_Ser                     , slctrl_Sstart    , slctrl_Sstop    , slctrl_Sapi       , slctrl_port , slctrl_shutd , slctrl_stat , slctrl_log , keygen        , powerup        , tojson
 #define OPTCTX_PARENTS                           ROOT                           , slctrl                         , slctrl_Ser       , slctrl_Ser      , slctrl_Ser        , slctrl      , slctrl       , slctrl      , slctrl     , ROOT          , ROOT           , ROOT
-#define OPTCTX_PARENTS_NAMES  "action"         , "slave command"                , "service opperation"           , NULL             , NULL            , NULL              , NULL        , NULL         , NULL        , NULL       , NULL          , NULL           , NULL
+#define OPTCTX_PARENTS_NAMES  "action"         , "slave command"                , "service operation"            , NULL             , NULL            , NULL              , NULL        , NULL         , NULL        , NULL       , NULL          , NULL           , NULL
 #define OPTCTX_PARENTS_FNCTS  CTXFP(NULL,IPost), CTXFP(IPreSlaveCo,IPostSlaveCo), CTXFP(IPreService,IPostService), CTXFO(IServStart), CTXFO(IServStop), CTXFO(IApi)       , CTXFO(IPort), CTXFO(IShutd), CTXFO(IStat), CTXFO(ILog), CTXFO(IKeygen), CTXFO(IPowerup), CTXFO(IioslFile2JSON)
 #define OPTCTX_NAMES                             "--control"                    , "--service"                    , "--start"        , "--stop"        , "--api-service-co", "--xxx-port", "--shutdown" , "--status"  , "--log"    , "--add-key"   , "--on"         , "--to-json"
 
@@ -197,16 +197,16 @@ int main (int argc, char* const argv[]) {
 						 "Usage: ioslaves-master MASTER-ID SLAVE-ID/ADDR --ACTION [--COMMAND [OPTIONS] ...]\n"
 						 "\n"
 						 "General options :\n"
-						 "      MASTER-ID             The master ID, used for authentification.\n"
+						 "      MASTER-ID             The master ID, used for authentication.\n"
 						 "      SLAVE-ID/ADDR         If the slave ID is used, IP and port are automatically retrieved.\n"
 						 "                            Else, the ADDR can be an IP or an hostname, with optionally :PORT\n"
 						 "  -i, --no-interactive      Disable prompting. Log in HTML.\n"
 						 "\n"
 						 "Actions :\n"
 						 "  -C, --control             Connect to distant ioslaves server. Authentification is optional but\n"
-						 "                             needed for most opperations.\n"
+						 "                             needed for most operations.\n"
 						 "      Options :\n"
-						 "        -f, --force-auth        Force authentification even if the opperation don't need it.\n"
+						 "        -f, --force-auth        Force authentication even if the operation don't need it.\n"
 						 "      Commands :\n"
 						 "        -S, --service=SERVICE   Control slave's services\n"
 						 "            Opperations :\n"
@@ -493,7 +493,7 @@ $need_auth = false;
 		$slave_sock->o_bool($need_auth);
 		if ($need_auth) {
 			std::cerr << "Authentification..." << std::endl;
-			iosl_master::authentificate(*$slave_sock, $slave_id);
+			iosl_master::authenticate(*$slave_sock, $slave_id);
 		}
 		$slave_sock->set_read_timeout($op_timeout);
 	} catch (socketxx::error& e) {
@@ -546,7 +546,7 @@ void IPostService (ioslaves::answer_code e) {
 		case ioslaves::answer_code::BAD_TYPE: std::cerr << COLOR_RED << "Opperation inapplicable : bad service type" << COLOR_RESET << std::endl; break;
 		case ioslaves::answer_code::BAD_STATE: std::cerr << COLOR_RED << "Opperation inapplicable : bad service state" << COLOR_RESET << std::endl; break;
 		case ioslaves::answer_code::NOT_FOUND: std::cerr << COLOR_RED << "Service not found" << COLOR_RESET << std::endl; break;
-		case ioslaves::answer_code::EXTERNAL_ERROR: std::cerr << COLOR_RED << "Failed to opperate on this service !" << COLOR_RESET << std::endl; break;
+		case ioslaves::answer_code::EXTERNAL_ERROR: std::cerr << COLOR_RED << "Failed to operate on this service !" << COLOR_RESET << std::endl; break;
 		default: throw answ;
 	}
 	throw EXCEPT_ERROR_IGNORE;
@@ -614,7 +614,7 @@ void IPort () {
 	ioslaves::answer_code answ = (ioslaves::answer_code)$slave_sock->i_char();
 	EXIT_FAILURE = EXIT_FAILURE_IOSL;
 	switch (answ) {
-		case ioslaves::answer_code::MAY_HAVE_FAIL: std::cerr << COLOR_YELLOW << "UPnP Opperation may have fail, but on some gateways it's OK" << COLOR_RESET << std::endl; return;
+		case ioslaves::answer_code::MAY_HAVE_FAIL: std::cerr << COLOR_YELLOW << "UPnP Opperation may have failed, but on some gateways it's OK" << COLOR_RESET << std::endl; return;
 		case ioslaves::answer_code::ERROR: std::cerr << COLOR_RED << "UPnP error !" << COLOR_RESET << std::endl; break;
 		default: throw answ;
 	}
@@ -856,7 +856,7 @@ void IPost (ioslaves::answer_code e) {
 	if (e != ctx_postfnct_excpt_default) {
 		switch (e) {
 			case ioslaves::answer_code::OK: std::cerr << COLOR_GREEN << "Success !" << COLOR_RESET << std::endl; break;
-			case ioslaves::answer_code::MAY_HAVE_FAIL: std::cerr << COLOR_YELLOW << "Opperation may have fail !" << COLOR_RESET << std::endl; break;
+			case ioslaves::answer_code::MAY_HAVE_FAIL: std::cerr << COLOR_YELLOW << "Opperation may have failed !" << COLOR_RESET << std::endl; break;
 			default: goto __error;
 		}
 		return;
@@ -869,9 +869,9 @@ void IPost (ioslaves::answer_code e) {
 			case ioslaves::answer_code::NOT_FOUND: errstr = "Not Found !"; break;
 			case ioslaves::answer_code::BAD_STATE: errstr = "Opperation inapplicable : bad state !"; break;
 			case ioslaves::answer_code::BAD_TYPE: errstr = "Opperation inapplicable : bad type !"; break;
-			case ioslaves::answer_code::WANT_REPORT: errstr = "Slave want to report something : can't handle request"; break;
-			case ioslaves::answer_code::WANT_GET: errstr = "Slave want to get something : can't handle request"; break;
-			case ioslaves::answer_code::WANT_SEND: errstr = "Slave want to tranfer something : can't handle request"; break;
+			case ioslaves::answer_code::WANT_REPORT: errstr = "Slave wants to report something : can't handle request"; break;
+			case ioslaves::answer_code::WANT_GET: errstr = "Slave wants to get something : can't handle request"; break;
+			case ioslaves::answer_code::WANT_SEND: errstr = "Slave wants to tranfer something : can't handle request"; break;
 			case ioslaves::answer_code::OP_NOT_DEF: errstr = "Opperation not defined !"; break;
 			case ioslaves::answer_code::EXISTS: errstr = "Already exists !"; break;
 			case ioslaves::answer_code::UPNP_ERROR: errstr = "Port mapping error !"; break;

@@ -513,7 +513,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				HEADER_SEARCH_PATHS = (
-					../Libs,
+					"$(inherited)",
 					/usr/local/include/nopoll,
 				);
 				OTHER_LDFLAGS = (
@@ -529,7 +529,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				HEADER_SEARCH_PATHS = (
-					../Libs,
+					"$(inherited)",
 					/usr/local/include/nopoll,
 				);
 				OTHER_LDFLAGS = (
@@ -706,7 +706,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				HEADER_SEARCH_PATHS = (
-					../Libs,
+					"$(inherited)",
 					/usr/local/include/nopoll,
 				);
 				OTHER_LDFLAGS = (
@@ -723,7 +723,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				HEADER_SEARCH_PATHS = (
-					../Libs,
+					"$(inherited)",
 					/usr/local/include/nopoll,
 				);
 				OTHER_LDFLAGS = (

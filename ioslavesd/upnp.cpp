@@ -266,7 +266,7 @@ inline void ports_table_del (in_port_t p_ext_port, ioslaves::upnpPort::proto p_p
 
 	/// Reopeing ports
 	// Scan ports in refresh ports table and reopen port if needed
-	// Port range on "reopen_justafter" gateways are would letting too big closed-portd delays. Don't use them on this case
+	// Port range on "reopen_justafter" gateways let too big closed-port delays. Don't use them on this case
 void ioslaves::upnpReopen () {
 	static time_t unreachable = 0;
 	if (unreachable != 0) {

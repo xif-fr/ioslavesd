@@ -538,7 +538,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 			} break;
 			
 			default:
-				__log__(log_lvl::ERROR, "COMM", logstream << "Bad opperation '" << (char)opp << "'");
+				__log__(log_lvl::ERROR, "COMM", logstream << "Bad operation '" << (char)opp << "'");
 				cli.o_char((char)ioslaves::answer_code::OP_NOT_DEF);
 		}
 	} catch (socketxx::error& e) {
@@ -1023,7 +1023,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 				}
 			}
 			if (s_lastsavetime == -1) {
-				__log__(log_lvl::LOG, "FILES", MCLOGSCLI(s) << "Master want to force sending of server folder. Sending the old one for backup...");
+				__log__(log_lvl::LOG, "FILES", MCLOGSCLI(s) << "Master wants to force sending of server folder. Sending the old one for backup...");
 				cli.o_char((char)ioslaves::answer_code::WANT_SEND);
 				minecraft::compressAndSend(cli, s->s_servid, s->s_map, true);
 				minecraft::transferAndExtract(cli, minecraft::transferWhat::SERVFOLD, s->s_map, _S(MINECRAFT_SRV_DIR,"/mc_",s->s_servid));
@@ -1539,7 +1539,7 @@ void* minecraft::serv_thread (void* arg) {
 											MC_write_command(s, java_pipes, cmd);
 											cli.o_char((char)ioslaves::answer_code::OK);
 										} break;
-										default: throw ioslaves::req_err(ioslaves::answer_code::OP_NOT_DEF, THLOGSCLI(s), MCLOGSCLI(s) << "Server external request : invalid '" << (char)op << "' opperation");
+										default: throw ioslaves::req_err(ioslaves::answer_code::OP_NOT_DEF, THLOGSCLI(s), MCLOGSCLI(s) << "Server external request : invalid '" << (char)op << "' operation");
 									}
 								} catch (ioslaves::req_err& re) {
 									cli.o_char((char)re.answ_code);

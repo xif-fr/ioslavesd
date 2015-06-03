@@ -67,7 +67,7 @@ namespace iosl_master {
 	enum class on_type { _AUTO, WoL, WoW, GATEWAY, PSU };
 	time_t slave_start (std::string slave_id, std::string master_id);
 	
-		// Connect to API service with authentification
+		// Connect to API service with authentication
 	socketxx::base_netsock slave_api_service_connect (std::string slave_id, std::string master_id, std::string api_service, timeval timeout = {1,0});
 	
 		// Connection
@@ -78,7 +78,7 @@ namespace iosl_master {
 	void slave_command (socketxx::base_netsock slave_sock, std::string master_id, ioslaves::op_code opp);
 	
 		// Authentification
-	void authentificate (socketxx::simple_socket_client<socketxx::base_netsock> slave_sock, std::string slave_id);
+	void authenticate (socketxx::simple_socket_client<socketxx::base_netsock> slave_sock, std::string slave_id);
 
 }
 

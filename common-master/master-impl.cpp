@@ -42,8 +42,8 @@ in_port_t iosl_master::slave_get_port_dns (std::string slave_id) {
 	return $connect_port;
 }
 
-	// Do authentification using local keys
-void iosl_master::authentificate (socketxx::simple_socket_client<socketxx::base_netsock> slave_sock, std::string slave_id) {
+	// Do authentication using local keys
+void iosl_master::authenticate (socketxx::simple_socket_client<socketxx::base_netsock> slave_sock, std::string slave_id) {
 	std::string key_path = _S( IOSLAVES_MASTER_KEYS_DIR,"/",slave_id,".key" );
 	#warning TO DO : Auth
 }
@@ -63,7 +63,7 @@ socketxx::simple_socket_client<socketxx::base_netsock> iosl_master::slave_connec
 	return sock;
 }
 
-	// Authentificate, Apply opperation
+	// Authentificate, Apply operation
 void iosl_master::slave_command (socketxx::base_netsock sock, std::string master_id, ioslaves::op_code opp) {
 	socketxx::io::simple_socket<socketxx::base_netsock> slave_sock = sock;
 	try {
@@ -71,15 +71,15 @@ void iosl_master::slave_command (socketxx::base_netsock sock, std::string master
 		slave_sock.o_str(master_id);
 		slave_sock.o_bool(false);
 		#warning TO DO : Activate auth
-		/*ioslaves::master_detail::authentificate(slave_sock, slave_id);*/
+		/*ioslaves::master_detail::authenticate(slave_sock, slave_id);*/
 		slave_sock.o_char((char)opp);
 	} catch (socketxx::error& e) {
 		if ($leave_exceptions) throw;
-		throw master_err(_S( "Failed to communicate with slave while authentificating : ",e.what() ), EXIT_FAILURE_COMM);
+		throw master_err(_S( "Failed to communicate with slave while authenticating : ",e.what() ), EXIT_FAILURE_COMM);
 	}
 }
 
-	// Connect to API service with authentification
+	// Connect to API service with authentication
 void iosl_master::slave_api_service_connect (socketxx::base_netsock sock, std::string master_id, std::string api_service) {
 	socketxx::io::simple_socket<socketxx::base_netsock> slave_sock = sock;
 	iosl_master::slave_command(slave_sock, master_id, ioslaves::op_code::CALL_API_SERVICE);

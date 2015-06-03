@@ -198,8 +198,8 @@ int main (int argc, char* const argv[]) {
 				{"autoclose", required_argument, NULL, 'j'},
 				{"viewdist", required_argument, NULL, 'e'},
 				{"quickly", no_argument, NULL, 'q'},
-				{"threads", no_argument, NULL, '#'},
-				{"man-cpu", no_argument, NULL, '~'},
+				{"threads", required_argument, NULL, '#'},
+				{"mean-cpu", required_argument, NULL, '~'},
 			{"stop", no_argument, NULL, 'o'},
 			{"status", no_argument, NULL, 't'},
 			{"permanentize", no_argument, NULL, 'P'},
@@ -219,7 +219,7 @@ int main (int argc, char* const argv[]) {
 						 "\n"
 						 "General options :\n"
 						 "  -i, --no-interactive        Enbale HTML log and JSON outputs\n"
-						 "  -G, --granmaster            Automagically manage slaves (start, stop, move...)\n"
+						 "  -G, --granmaster            Manage automagically slaves (start, stop, move...)\n"
 						 "  -w, --websocket=PORT        Wait a websocket client on PORT before executing commands and\n"
 						 "                               output log via this websocket client. Used also for live-console\n"
 						 "  -r, --refuse-save           Refuse incoming requests for saving map\n"
@@ -243,9 +243,9 @@ int main (int argc, char* const argv[]) {
 						 "            Slave selection :\n"
 						 "              --cpu=CPU           Needed CPU, using CPU unit (1.0 = Core2Duo E4400).\n"
 						 "              --ram=MEGS          Needed memory, in megabytes.\n"
-						 "              --quickly           Select slave for speed of server startup\n"
+						 "              --quickly           Select slave for quickness of server startup\n"
 						 "            Optional :\n"
-						 "              --mean-cpu=CPU		Mean CPU power use estimation, but not max needed CPU as --cpu.\n"
+						 "              --mean-cpu=CPU		Mean CPU power use estimation (≠ max needed CPU).\n"
 						 "              --threads=NUMBER    Non-integer number of threads which can be used by this jar.\n"
 						 "              --autoclose=TIME    Server will close after TIME sec. without players.\n"
 						 "                                   Default = --duration; 0 = disabled\n"
@@ -272,7 +272,7 @@ int main (int argc, char* const argv[]) {
 					try_help("unexcepted --granmaster after slave ID\n");
 				$granmaster = true;
 				::tryParseSlaveID(argc,argv);
-					// Create ioslaves-master and minecraft-matser dirs if not exist
+					// Create ioslaves-master and minecraft-master dirs if not exist
 				r = ::access(_s(IOSLAVES_MASTER_DIR), F_OK);
 				if (r == -1) {
 					r = ::mkdir(_s(IOSLAVES_MASTER_DIR), 0740);
@@ -287,7 +287,7 @@ int main (int argc, char* const argv[]) {
 					_create_minecraft_dir:
 						r = ::mkdir(_s(IOSLAVES_MINECRAFT_MASTER_DIR), 0740);
 						if (r == -1) {
-							std::cerr << COLOR_RED << "Can't create minecraft-matser directory" << COLOR_RESET << " (" << IOSLAVES_MINECRAFT_MASTER_DIR << ") : " << ::strerror(errno) << std::endl;
+							std::cerr << COLOR_RED << "Can't create minecraft-master directory" << COLOR_RESET << " (" << IOSLAVES_MINECRAFT_MASTER_DIR << ") : " << ::strerror(errno) << std::endl;
 							return EXIT_FAILURE;
 						}
 					}
@@ -309,7 +309,7 @@ int main (int argc, char* const argv[]) {
 			case 'C':
 				::testMasterID();
 				if (not $granmaster and $slave_id.empty()) 
-					try_help("Not in granmaster mode : slave ID must be defined");
+					try_help("not in granmaster mode : slave ID must be defined");
 				optctx::optctx_set(optctx::mcserv);
 				$server_name = optarg;
 				if (!ioslaves::validateName($server_name))
@@ -705,7 +705,7 @@ void acceptFileSave (socketxx::io::simple_socket<socketxx::base_socket> sock, st
 	ioslaves::infofile_set(_s(folder_saves,"/lastsave_from"), slave);
 	ioslaves::infofile_set(_s(folder_saves,"/lastsave"), ::ixtoa(lastsavetime_dist));
 	ioslaves::infofile_set(_s(folder_saves,"/truesave"), "true");
-	__log__ << LOG_AROBASE_OK << "Accepting done ! Save set as true save from " << slave << std::flush;
+	__log__ << LOG_AROBASE_OK << "Retrieval done ! Save set as true save from " << slave << std::flush;
 }
 
 	// Process a report request (stopping, crashing...) of slave
@@ -731,7 +731,7 @@ void handleReportRequest (socketxx::io::simple_socket<socketxx::base_socket> soc
 	if (not map_to_save.empty()) {
 		r = ::mkdir(map_path.c_str(), S_IRWXU|S_IRWXG);
 		if (r == -1 && errno != EEXIST) {
-			__log__ << NICE_WARNING << COLOR_YELLOW << "Warning !" << COLOR_RESET << " Can't create map folder " << map_to_save << " for accepting map save : " << ::strerror(errno) << std::flush;
+			__log__ << NICE_WARNING << COLOR_YELLOW << "Warning !" << COLOR_RESET << " Can't create map folder " << map_to_save << " for retrieving map save : " << ::strerror(errno) << std::flush;
 			sock.o_bool(false);
 			return;
 		}
@@ -1554,7 +1554,7 @@ void MPost (ioslaves::answer_code e) {
 	if (e != ctx_postfnct_excpt_default) {
 		switch (e) {
 			case ioslaves::answer_code::OK: __log__ << COLOR_GREEN << "Success !" << COLOR_RESET << std::flush; return;
-			case ioslaves::answer_code::MAY_HAVE_FAIL: __log__ << COLOR_YELLOW << "Opperation may have fail !" << COLOR_RESET << std::flush; return;
+			case ioslaves::answer_code::MAY_HAVE_FAIL: __log__ << COLOR_YELLOW << "Opperation may have failed !" << COLOR_RESET << std::flush; return;
 			default: goto __error;
 		}
 	__error:
@@ -1565,9 +1565,9 @@ void MPost (ioslaves::answer_code e) {
 			case ioslaves::answer_code::NOT_FOUND: errstr = "Not Found !"; break;
 			case ioslaves::answer_code::BAD_STATE: errstr = "Opperation inapplicable : bad state !"; break;
 			case ioslaves::answer_code::BAD_TYPE: errstr = "Opperation inapplicable : bad type !"; break;
-			case ioslaves::answer_code::WANT_REPORT: errstr = "Slave want to report something : can't handle request"; break;
-			case ioslaves::answer_code::WANT_GET: errstr = "Slave want to get something : can't handle request"; break;
-			case ioslaves::answer_code::WANT_SEND: errstr = "Slave want to tranfer something : can't handle request"; break;
+			case ioslaves::answer_code::WANT_REPORT: errstr = "Slave wants to report something : can't handle request"; break;
+			case ioslaves::answer_code::WANT_GET: errstr = "Slave wants to get something : can't handle request"; break;
+			case ioslaves::answer_code::WANT_SEND: errstr = "Slave wants to tranfer something : can't handle request"; break;
 			case ioslaves::answer_code::OP_NOT_DEF: errstr = "Opperation not defined !"; break;
 			case ioslaves::answer_code::EXISTS: errstr = "Already exists !"; break;
 			case ioslaves::answer_code::UPNP_ERROR: errstr = "Port mapping error !"; break;
