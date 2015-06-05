@@ -397,14 +397,14 @@ int main (int argc, const char* argv[]) {
 			try {
 				switch (opcode) {
 					case ioslaves::op_code::SERVICE_START:
-						__log__(log_lvl::LOG, "OP", "Opperation : Start service");
+						__log__(log_lvl::LOG, "OP", "Operation : Start service");
 						ioslaves::controlService(
 														 ioslaves::getServiceByName(cli.i_str()), 
 														 true, 
 														 master_id.c_str());
 						break;
 					case ioslaves::op_code::SERVICE_STOP:
-						__log__(log_lvl::LOG, "OP", "Opperation : Stop service");
+						__log__(log_lvl::LOG, "OP", "Operation : Stop service");
 						ioslaves::controlService(
 														 ioslaves::getServiceByName(cli.i_str()), 
 														 false, 
@@ -414,10 +414,10 @@ int main (int argc, const char* argv[]) {
 					case ioslaves::op_code::IGD_PORT_CLOSE: {
 						std::string descr;
 						if (opcode == ioslaves::op_code::IGD_PORT_OPEN) {
-							__log__(log_lvl::LOG, "OP", "Opperation : Open port on IGD");
+							__log__(log_lvl::LOG, "OP", "Operation : Open port on IGD");
 							descr = cli.i_str();
 						} else {
-							__log__(log_lvl::LOG, "OP", "Opperation : Close port on IGD");
+							__log__(log_lvl::LOG, "OP", "Operation : Close port on IGD");
 						}
 						char type = cli.i_char();
 						ioslaves::upnpPort::proto proto;
@@ -467,7 +467,7 @@ int main (int argc, const char* argv[]) {
 					} break;
 					case ioslaves::op_code::GET_STATUS: {
 						if (not auth)
-							__log__(log_lvl::LOG, "OP", "Opperation : Get status");
+							__log__(log_lvl::LOG, "OP", "Operation : Get status");
 						xif::polyvar infos = ioslaves::getStatus(true);
 						cli.o_var(infos);
 					} break;
@@ -477,7 +477,7 @@ int main (int argc, const char* argv[]) {
 						status_clients.insert(status_clients.begin(), cli);
 					} break;
 					case ioslaves::op_code::SHUTDOWN_CTRL: {
-						__log__(log_lvl::LOG, "OP", "Opperation : change auto-shutdown time");
+						__log__(log_lvl::LOG, "OP", "Operation : change auto-shutdown time");
 						time_t shutdown_in = cli.i_int<uint32_t>();
 						if (shutdown_in == 0) {
 							__log__(log_lvl::IMPORTANT, "SHUTDOWN", "Automatic shutdown disabled");
@@ -490,14 +490,14 @@ int main (int argc, const char* argv[]) {
 					case ioslaves::op_code::SLAVE_SHUTDOWN:
 					case ioslaves::op_code::SLAVE_REBOOT: {
 						bool does_reboot = (opcode == ioslaves::op_code::SLAVE_REBOOT);
-						__log__(log_lvl::MAJOR, "OP", logstream << "Opperation : " << (does_reboot ? "Rebooting" : "Shutting down") << " server NOW !");
+						__log__(log_lvl::MAJOR, "OP", logstream << "Operation : " << (does_reboot ? "Rebooting" : "Shutting down") << " server NOW !");
 						shutdown_time = does_reboot ? (time_t)-2 : (time_t)-1;
 						cli.o_char((char)ioslaves::answer_code::OK);
 						throw socketxx::stop_event(0);
 					} break;
 					case ioslaves::op_code::CALL_API_SERVICE: {
 						std::string service_name = cli.i_str();
-						__log__(log_lvl::LOG, "OP", logstream << "Opperation : Calling API service '" << service_name << "'");
+						__log__(log_lvl::LOG, "OP", logstream << "Operation : Calling API service '" << service_name << "'");
 						ioslaves::service* service = ioslaves::getServiceByName(service_name);
 						if (service->s_type != ioslaves::service::type::IOSLPLUGIN) 
 							throw ioslaves::req_err(ioslaves::answer_code::BAD_TYPE, "OP", logstream << "Service '" << service_name << "' is not an API service");
@@ -518,7 +518,7 @@ int main (int argc, const char* argv[]) {
 					}
 					case ioslaves::op_code::LOG_HISTORY: {
 						if (not auth)
-							__log__(log_lvl::LOG, "OP", logstream << "Opperation : Get log history", LOG_WAIT, &l);
+							__log__(log_lvl::LOG, "OP", logstream << "Operation : Get log history", LOG_WAIT, &l);
 						time_t log_begin = cli.i_int<int64_t>();
 						time_t log_end = cli.i_int<int64_t>();
 						if (not auth)

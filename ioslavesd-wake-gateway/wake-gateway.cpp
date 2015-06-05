@@ -21,7 +21,7 @@ using namespace xlog;
 #include "master.hpp"
 
 /** -----------------------	**/
-/**       Opperations   		**/
+/**        Operations   		**/
 /** -----------------------	**/
 
 	// Start service

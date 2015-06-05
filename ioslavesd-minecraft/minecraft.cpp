@@ -384,6 +384,22 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 					cli.o_char((char)ioslaves::answer_code::NOT_FOUND);
 				}
 			} break;
+				
+					// Kill server
+			case minecraft::op_code::KILL_SERVER: {
+				__log__(log_lvl::LOG, "COMM", logstream << "Master wants to kill server '" << s_servid << "'");
+				try {
+					minecraft::serv* s = minecraft::servs.at(s_servid);
+					cli.o_char((char)ioslaves::answer_code::OK);
+					socketxx::io::simple_socket<socketxx::base_fd> s_comm(socketxx::base_fd(s->s_sock_comm, SOCKETXX_MANUAL_FD));
+					s_comm.o_char((char)minecraft::internal_serv_op_code::KILL_THREAD);
+					__log__(log_lvl::DONE, NULL, "Kill order sent to thread");
+					cli.o_char((char)ioslaves::answer_code::OK);
+				} catch (std::out_of_range) {
+					__log__(log_lvl::ERROR, "COMM", logstream << "Server '" << s_servid << "' not found");
+					cli.o_char((char)ioslaves::answer_code::NOT_FOUND);
+				}
+			} break;
 			
 				// Send stats to client (status, running map, start time, players, port, list of server maps)
 			case minecraft::op_code::SERV_STAT: {
@@ -1588,6 +1604,7 @@ void* minecraft::serv_thread (void* arg) {
 								
 							case minecraft::internal_serv_op_code::KILL_THREAD: {
 								__log__(log_lvl::WARNING, THLOGSCLI(s), "Killing myself : everything will be loss !");
+								stopInfo.gracefully = false;
 								stopInfo.why = minecraft::whyStopped::ERROR_INTERNAL;
 								ioslaves::api::euid_switch(0,0);
 								::kill(s->s_java_pid, SIGTERM);

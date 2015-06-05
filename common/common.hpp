@@ -45,7 +45,7 @@ struct pipe_proc_t { fd_t in; fd_t out; fd_t err; };
 
 namespace ioslaves {
 	
-		// ioslaves Opperations
+		// ioslaves operations
 	enum class op_code : char {
 		SERVICE_START = 'a',
 		SERVICE_STOP = 'o',

@@ -209,7 +209,7 @@ int main (int argc, char* const argv[]) {
 						 "        -f, --force-auth        Force authentication even if the operation don't need it.\n"
 						 "      Commands :\n"
 						 "        -S, --service=SERVICE   Control slave's services\n"
-						 "            Opperations :\n"
+						 "            Operations :\n"
 						 "               -s, --start          Start service\n"
 						 "               -o, --stop           Stop service\n"
 						 "               -a, --api-service-co=UNIX_SOCK\n"
@@ -543,8 +543,8 @@ void IPostService (ioslaves::answer_code e) {
 	else answ = e;
 	EXIT_FAILURE = EXIT_FAILURE_IOSL;
 	switch (answ) {
-		case ioslaves::answer_code::BAD_TYPE: std::cerr << COLOR_RED << "Opperation inapplicable : bad service type" << COLOR_RESET << std::endl; break;
-		case ioslaves::answer_code::BAD_STATE: std::cerr << COLOR_RED << "Opperation inapplicable : bad service state" << COLOR_RESET << std::endl; break;
+		case ioslaves::answer_code::BAD_TYPE: std::cerr << COLOR_RED << "Operation inapplicable : bad service type" << COLOR_RESET << std::endl; break;
+		case ioslaves::answer_code::BAD_STATE: std::cerr << COLOR_RED << "Operation inapplicable : bad service state" << COLOR_RESET << std::endl; break;
 		case ioslaves::answer_code::NOT_FOUND: std::cerr << COLOR_RED << "Service not found" << COLOR_RESET << std::endl; break;
 		case ioslaves::answer_code::EXTERNAL_ERROR: std::cerr << COLOR_RED << "Failed to operate on this service !" << COLOR_RESET << std::endl; break;
 		default: throw answ;
@@ -614,7 +614,7 @@ void IPort () {
 	ioslaves::answer_code answ = (ioslaves::answer_code)$slave_sock->i_char();
 	EXIT_FAILURE = EXIT_FAILURE_IOSL;
 	switch (answ) {
-		case ioslaves::answer_code::MAY_HAVE_FAIL: std::cerr << COLOR_YELLOW << "UPnP Opperation may have failed, but on some gateways it's OK" << COLOR_RESET << std::endl; return;
+		case ioslaves::answer_code::MAY_HAVE_FAIL: std::cerr << COLOR_YELLOW << "UPnP Operation may have failed, but on some gateways it's OK" << COLOR_RESET << std::endl; return;
 		case ioslaves::answer_code::ERROR: std::cerr << COLOR_RED << "UPnP error !" << COLOR_RESET << std::endl; break;
 		default: throw answ;
 	}
@@ -856,7 +856,7 @@ void IPost (ioslaves::answer_code e) {
 	if (e != ctx_postfnct_excpt_default) {
 		switch (e) {
 			case ioslaves::answer_code::OK: std::cerr << COLOR_GREEN << "Success !" << COLOR_RESET << std::endl; break;
-			case ioslaves::answer_code::MAY_HAVE_FAIL: std::cerr << COLOR_YELLOW << "Opperation may have failed !" << COLOR_RESET << std::endl; break;
+			case ioslaves::answer_code::MAY_HAVE_FAIL: std::cerr << COLOR_YELLOW << "Operation may have failed !" << COLOR_RESET << std::endl; break;
 			default: goto __error;
 		}
 		return;
@@ -867,12 +867,12 @@ void IPost (ioslaves::answer_code e) {
 			case ioslaves::answer_code::INTERNAL_ERROR: errstr = "Slave system or internal error !"; break;
 			case ioslaves::answer_code::SECURITY_ERROR: errstr = "Security error !"; break;
 			case ioslaves::answer_code::NOT_FOUND: errstr = "Not Found !"; break;
-			case ioslaves::answer_code::BAD_STATE: errstr = "Opperation inapplicable : bad state !"; break;
-			case ioslaves::answer_code::BAD_TYPE: errstr = "Opperation inapplicable : bad type !"; break;
+			case ioslaves::answer_code::BAD_STATE: errstr = "Operation inapplicable : bad state !"; break;
+			case ioslaves::answer_code::BAD_TYPE: errstr = "Operation inapplicable : bad type !"; break;
 			case ioslaves::answer_code::WANT_REPORT: errstr = "Slave wants to report something : can't handle request"; break;
 			case ioslaves::answer_code::WANT_GET: errstr = "Slave wants to get something : can't handle request"; break;
 			case ioslaves::answer_code::WANT_SEND: errstr = "Slave wants to tranfer something : can't handle request"; break;
-			case ioslaves::answer_code::OP_NOT_DEF: errstr = "Opperation not defined !"; break;
+			case ioslaves::answer_code::OP_NOT_DEF: errstr = "Operation not defined !"; break;
 			case ioslaves::answer_code::EXISTS: errstr = "Already exists !"; break;
 			case ioslaves::answer_code::UPNP_ERROR: errstr = "Port mapping error !"; break;
 			case ioslaves::answer_code::DENY: errstr = "Action refused by slave !"; break;

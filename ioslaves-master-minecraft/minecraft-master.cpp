@@ -71,6 +71,7 @@ time_t $autoclose_time = (time_t)-1;
 timeval $connect_timeout = {2,500000};
 timeval $comm_timeout = {5,000000};
 timeval $op_timeout = {10,000000};
+useconds_t $websock_timeout = 2500000;
 
 	// minecraft-master's core functionnality functions
 time_t getLastSaveTime (std::string serv, std::string map);
@@ -89,6 +90,7 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 		void MServCreate ();
 		void MServConsole ();
 		void MServFTPSess ();
+		void MServKill();
 	void MServPost(ioslaves::answer_code);
 void MPost (ioslaves::answer_code);
 
@@ -98,11 +100,11 @@ void MPost (ioslaves::answer_code);
 #define OPTCTX_POSTFNCT_EXCEPT_T ioslaves::answer_code
 #define OPTCTX_POSTFNCT_EXCEPT_DEFAULT (ioslaves::answer_code)0
 
-#define OPTCTX_CTXS                              mcserv                   , servStart        , servStop        , servCreate        , servStatus        , servPerm        , servConsole        , servDelMap        , servFTPSess
-#define OPTCTX_PARENTS                           ROOT                     , mcserv           , mcserv          , mcserv            , mcserv            , mcserv          , mcserv             , mcserv            , mcserv
-#define OPTCTX_PARENTS_NAMES  "action"         , "server action"          , NULL             , NULL            , NULL              , NULL              , NULL            , NULL               , NULL              , NULL
-#define OPTCTX_PARENTS_FNCTS  CTXFP(NULL,MPost), CTXFP(MServPre,MServPost), CTXFO(MServStart), CTXFO(MServStop), CTXFO(MServCreate), CTXFO(MServStatus), CTXFO(MServPerm), CTXFO(MServConsole), CTXFO(MServDelMap), CTXFO(MServFTPSess)
-#define OPTCTX_NAMES                             "--server"               , "--start"        , "--stop"        , "--create"        , "--status"        , "--permanentize", "--console"        , "--del-map"       , "--ftp-sess"
+#define OPTCTX_CTXS                              mcserv                   , servStart        , servStop        , servCreate        , servStatus        , servPerm        , servConsole        , servDelMap        , servFTPSess        , servKill
+#define OPTCTX_PARENTS                           ROOT                     , mcserv           , mcserv          , mcserv            , mcserv            , mcserv          , mcserv             , mcserv            , mcserv             , mcserv
+#define OPTCTX_PARENTS_NAMES  "action"         , "server action"          , NULL             , NULL            , NULL              , NULL              , NULL            , NULL               , NULL              , NULL               , NULL
+#define OPTCTX_PARENTS_FNCTS  CTXFP(NULL,MPost), CTXFP(MServPre,MServPost), CTXFO(MServStart), CTXFO(MServStop), CTXFO(MServCreate), CTXFO(MServStatus), CTXFO(MServPerm), CTXFO(MServConsole), CTXFO(MServDelMap), CTXFO(MServFTPSess), CTXFO(MServKill)
+#define OPTCTX_NAMES                             "--server"               , "--start"        , "--stop"        , "--create"        , "--status"        , "--permanentize", "--console"        , "--del-map"       , "--ftp-sess"       , "--kill"
 
 #define OPTCTX_PROG_NAME "minecraft-master"
 #include <xifutils/optctx.hpp>
@@ -201,6 +203,7 @@ int main (int argc, char* const argv[]) {
 				{"threads", required_argument, NULL, '#'},
 				{"mean-cpu", required_argument, NULL, '~'},
 			{"stop", no_argument, NULL, 'o'},
+			{"kill", no_argument, NULL, 'k'},
 			{"status", no_argument, NULL, 't'},
 			{"permanentize", no_argument, NULL, 'P'},
 			{"del-map", required_argument, NULL, 'D'},
@@ -251,6 +254,7 @@ int main (int argc, char* const argv[]) {
 						 "                                   Default = --duration; 0 = disabled\n"
 						 "              --viewdist=CHUNKS   Minecraft view distance. Default = 7\n"
 						 "        --stop                  Stop the server.\n"
+						 "        --kill                  Kill a buggy server (may corrupt map; no stop report).\n"
 						 "        --status                Refresh status of the server in database\n"
 						 "        --permanentize          Mark map as permanent (will not be deleted at server stop)\n"
 						 "        --del-map=NAME          Delete the folder of the map [NAME] of the server\n"
@@ -424,6 +428,9 @@ int main (int argc, char* const argv[]) {
 			case 'o':
 				optctx::optctx_set(optctx::servStop);
 				break;
+			case 'k':
+				optctx::optctx_set(optctx::servKill);
+				break;
 			case 't':
 				optctx::optctx_set(optctx::servStatus);
 				break;
@@ -537,7 +544,7 @@ int main (int argc, char* const argv[]) {
 		nopoll_ctx_set_on_ready(wsctx, &_noPoll_callbacks::onConnReady, NULL);
 		nopoll_ctx_set_on_msg(wsctx, &_noPoll_callbacks::onMsg, NULL);
 		try {
-			nopoll_loop_wait(wsctx, 1500000);
+			nopoll_loop_wait(wsctx, $websock_timeout);
 		} catch (std::exception) {}
 		nopoll_conn_close(listener);
 		if ($websocket_conn == NULL) {
@@ -705,7 +712,7 @@ void acceptFileSave (socketxx::io::simple_socket<socketxx::base_socket> sock, st
 	ioslaves::infofile_set(_s(folder_saves,"/lastsave_from"), slave);
 	ioslaves::infofile_set(_s(folder_saves,"/lastsave"), ::ixtoa(lastsavetime_dist));
 	ioslaves::infofile_set(_s(folder_saves,"/truesave"), "true");
-	__log__ << LOG_AROBASE_OK << "Retrieval done ! Save set as true save from " << slave << std::flush;
+	__log__ << LOG_AROBASE_OK << "Retrieval done ! Save " << lastsavetime_dist << " set as true save from " << slave << std::flush;
 }
 
 	// Process a report request (stopping, crashing...) of slave
@@ -811,6 +818,18 @@ inline bool checkSlaveStatus (std::string slave) {
 	if (not isSlaveRunning) 
 		__log__ << "Slave '" << slave << "' is unreachable." << std::flush;
 	return isSlaveRunning;
+}
+
+inline void granmasterSlaveSet () {
+	if ($granmaster) {
+		std::string running_on_slave = ::getRunningOnSlave($server_name);
+		if (running_on_slave.empty()) {
+			__log__ << LOG_ARROW_ERR << "Server '" << $server_name << "' is (probably) not running !" << std::flush;
+			EXIT_FAILURE = EXIT_FAILURE_IOSL;
+			throw EXCEPT_ERROR_IGNORE;
+		}
+		$slave_id = running_on_slave;
+	}
 }
 
 void verifyMapList (std::string slave_id, std::string server_name, socketxx::io::simple_socket<socketxx::base_socket> sock) {
@@ -994,15 +1013,7 @@ void MServStatus () {
 
 void MServPerm () {
 	__log__ << LOG_ARROW << "Permanentize map on server " << $server_name << "..." << std::flush;
-	if ($granmaster) {
-		std::string running_on_slave = ::getRunningOnSlave($server_name);
-		if (running_on_slave.empty()) {
-			__log__ << LOG_ARROW_ERR << "Server '" << $server_name << "' is (probably) not running !" << std::flush;
-			EXIT_FAILURE = EXIT_FAILURE_IOSL;
-			throw EXCEPT_ERROR_IGNORE;
-		}
-		$slave_id = running_on_slave;
-	}
+	granmasterSlaveSet();
 	auto sock = getConnection($slave_id, $server_name, minecraft::op_code::PERMANENTIZE, {2,0});
 	std::string map = sock.i_str();
 	ioslaves::answer_code o;
@@ -1021,15 +1032,7 @@ void MServPerm () {
 
 void MServFTPSess () {
 	__log__ << LOG_ARROW << "Create FTP session for user '" << $ftp_user << "' on server " << $server_name << " for current running map..." << std::flush;
-	if ($granmaster) {
-		std::string running_on_slave = ::getRunningOnSlave($server_name);
-		if (running_on_slave.empty()) {
-			__log__ << LOG_ARROW_ERR << "Server '" << $server_name << "' is (probably) not running !" << std::flush;
-			EXIT_FAILURE = EXIT_FAILURE_IOSL;
-			throw EXCEPT_ERROR_IGNORE;
-		}
-		$slave_id = running_on_slave;
-	}
+	granmasterSlaveSet();
 	auto sock = getConnection($slave_id, $server_name, minecraft::op_code::FTP_SESSION, {2,0});
 	sock.o_str($ftp_user);
 	sock.o_str($ftp_hash_passwd);
@@ -1403,15 +1406,7 @@ _try_start:
 
 void MServStop () {
 	__log__ << LOG_ARROW << "Stopping server..." << std::flush;
-	if ($granmaster) {
-		std::string running_on_slave = ::getRunningOnSlave($server_name);
-		if (running_on_slave.empty()) {
-			__log__ << LOG_ARROW_ERR << "Server '" << $server_name << "' is (probably) not running !" << std::flush;
-			EXIT_FAILURE = EXIT_FAILURE_IOSL;
-			throw EXCEPT_ERROR_IGNORE;
-		}
-		$slave_id = running_on_slave;
-	}
+	granmasterSlaveSet();
 	ioslaves::answer_code o;
 	auto sock = getConnection($slave_id, $server_name, minecraft::op_code::STOP_SERVER, {2,0});
 	if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) {
@@ -1439,6 +1434,18 @@ void MServStop () {
 	__log__ << LOG_ARROW_OK << "Done ! Server is stopped" << std::flush;
 }
 
+/** ---------------------------- KILL ---------------------------- **/
+
+void MServKill() {
+	__log__ << LOG_ARROW << "Killing server..." << std::flush;
+	granmasterSlaveSet();
+	ioslaves::answer_code o;
+	auto sock = getConnection($slave_id, $server_name, minecraft::op_code::KILL_SERVER, {2,0});
+	if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK)
+		throw o;
+	__log__ << LOG_ARROW_OK << "Kill order sent." << std::flush;
+}
+
 /** ---------------------------- CONSOLE ---------------------------- **/
 
 void MServConsole () {
@@ -1447,15 +1454,7 @@ void MServConsole () {
 		::unlink(_s( IOSLAVES_MINECRAFT_MASTER_DIR,'/',$server_name,"/_mcmaster.lock" ));
 		$locked = false;
 	}
-	if ($granmaster) {
-		std::string running_on_slave = ::getRunningOnSlave($server_name);
-		if (running_on_slave.empty()) {
-			__log__ << LOG_ARROW_ERR << "Server '" << $server_name << "' is (probably) not running !" << std::flush;
-			EXIT_FAILURE = EXIT_FAILURE_IOSL;
-			throw EXCEPT_ERROR_IGNORE;
-		}
-		$slave_id = running_on_slave;
-	}
+	granmasterSlaveSet();
 	ioslaves::answer_code o;
 	auto sock = getConnection($slave_id, $server_name, minecraft::op_code::COMM_SERVER, {6,0});
 	if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) 
@@ -1554,7 +1553,7 @@ void MPost (ioslaves::answer_code e) {
 	if (e != ctx_postfnct_excpt_default) {
 		switch (e) {
 			case ioslaves::answer_code::OK: __log__ << COLOR_GREEN << "Success !" << COLOR_RESET << std::flush; return;
-			case ioslaves::answer_code::MAY_HAVE_FAIL: __log__ << COLOR_YELLOW << "Opperation may have failed !" << COLOR_RESET << std::flush; return;
+			case ioslaves::answer_code::MAY_HAVE_FAIL: __log__ << COLOR_YELLOW << "Operation may have failed !" << COLOR_RESET << std::flush; return;
 			default: goto __error;
 		}
 	__error:
@@ -1563,12 +1562,12 @@ void MPost (ioslaves::answer_code e) {
 			case ioslaves::answer_code::INTERNAL_ERROR: errstr = "Slave system or internal error !"; break;
 			case ioslaves::answer_code::SECURITY_ERROR: errstr = "Security error !"; break;
 			case ioslaves::answer_code::NOT_FOUND: errstr = "Not Found !"; break;
-			case ioslaves::answer_code::BAD_STATE: errstr = "Opperation inapplicable : bad state !"; break;
-			case ioslaves::answer_code::BAD_TYPE: errstr = "Opperation inapplicable : bad type !"; break;
+			case ioslaves::answer_code::BAD_STATE: errstr = "Operation inapplicable : bad state !"; break;
+			case ioslaves::answer_code::BAD_TYPE: errstr = "Operation inapplicable : bad type !"; break;
 			case ioslaves::answer_code::WANT_REPORT: errstr = "Slave wants to report something : can't handle request"; break;
 			case ioslaves::answer_code::WANT_GET: errstr = "Slave wants to get something : can't handle request"; break;
 			case ioslaves::answer_code::WANT_SEND: errstr = "Slave wants to tranfer something : can't handle request"; break;
-			case ioslaves::answer_code::OP_NOT_DEF: errstr = "Opperation not defined !"; break;
+			case ioslaves::answer_code::OP_NOT_DEF: errstr = "Operation not defined !"; break;
 			case ioslaves::answer_code::EXISTS: errstr = "Already exists !"; break;
 			case ioslaves::answer_code::UPNP_ERROR: errstr = "Port mapping error !"; break;
 			case ioslaves::answer_code::DENY: errstr = "Slave refuses !"; break;

@@ -75,7 +75,7 @@ namespace xdyndns {
 }
 
 /** -----------------------	**/
-/**       Opperations   		**/
+/**       Operations    		**/
 /** -----------------------	**/
 
 	// Start service

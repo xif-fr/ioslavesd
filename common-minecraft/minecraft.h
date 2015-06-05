@@ -16,7 +16,7 @@
 #define MC_MAP_PERM 0640
 
 	// Protocol version
-#define IOSLAVES_MINECRAFT_PROTO_VERS 0x19
+#define IOSLAVES_MINECRAFT_PROTO_VERS 0x20
 
 	// Minecraft service
 namespace minecraft {
@@ -26,6 +26,7 @@ namespace minecraft {
 	enum class op_code : char {
 		START_SERVER = 'S',
 		STOP_SERVER = 's',
+		KILL_SERVER = 'k',
 		COMM_SERVER = 'C',
 		SERV_STAT = 't',
 		PERMANENTIZE = 'P',
