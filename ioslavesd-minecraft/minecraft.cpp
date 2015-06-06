@@ -85,7 +85,7 @@ namespace minecraft {
 		STOP_SERVER_NOW,
 		STOP_SERVER_CLI,
 		GOT_SIGNAL,
-		KILL_THREAD,
+		KILL_JAVA,
 		GET_PLAYER_LIST
 	};
 	
@@ -392,7 +392,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 					minecraft::serv* s = minecraft::servs.at(s_servid);
 					cli.o_char((char)ioslaves::answer_code::OK);
 					socketxx::io::simple_socket<socketxx::base_fd> s_comm(socketxx::base_fd(s->s_sock_comm, SOCKETXX_MANUAL_FD));
-					s_comm.o_char((char)minecraft::internal_serv_op_code::KILL_THREAD);
+					s_comm.o_char((char)minecraft::internal_serv_op_code::KILL_JAVA);
 					__log__(log_lvl::DONE, NULL, "Kill order sent to thread");
 					cli.o_char((char)ioslaves::answer_code::OK);
 				} catch (std::out_of_range) {
@@ -1602,13 +1602,14 @@ void* minecraft::serv_thread (void* arg) {
 								MC_write_command(s, java_pipes, "stop");
 							} break;
 								
-							case minecraft::internal_serv_op_code::KILL_THREAD: {
-								__log__(log_lvl::WARNING, THLOGSCLI(s), "Killing myself : everything will be loss !");
+							case minecraft::internal_serv_op_code::KILL_JAVA: {
+								__log__(log_lvl::WARNING, THLOGSCLI(s), "Killing java !");
 								stopInfo.gracefully = false;
 								stopInfo.why = minecraft::whyStopped::ERROR_INTERNAL;
-								ioslaves::api::euid_switch(0,0);
-								::kill(s->s_java_pid, SIGTERM);
-								::pthread_exit(NULL);
+								{ asroot_block();
+									::kill(s->s_java_pid, SIGKILL);
+								}
+								loop = false;
 							} break;
 							
 							case minecraft::internal_serv_op_code::GOT_SIGNAL: {

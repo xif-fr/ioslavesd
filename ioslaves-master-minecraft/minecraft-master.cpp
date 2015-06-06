@@ -1164,7 +1164,7 @@ _try_start:
 			{ // Nice html table
 				std::ostringstream t;
 				t << "<table>" << std::setprecision(2);
-				t << "<tr> <th>slave</th> <th>stat</th> <th>∆ram</th> <th>pt.ram</th> <th>q.proc</th> <th>pt.proc</th> <th>p.estim</th> <th>pt.eff</th> <th>pt.wait</th> <th>pt.net</th> <th>pt.total</th> </tr>";
+				t << "<tr> <th>slave</th> <th>stat</th> <th>∆ram</th> <th>pt.ram</th> <th>q.proc</th> <th>pt.proc</th> <th>p.estim</th> <th>pt.eff</th> <th>pt.wait</th> <th>pt.oth</th> <th>pt.total</th> </tr>";
 				for (slave_info& info : slaves) {
 					if (info.sl_status == -4 or info.sl_status == -5) continue;
 					t << "<tr>";
