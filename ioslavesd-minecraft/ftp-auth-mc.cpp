@@ -314,14 +314,20 @@ void minecraft::ftp_register_user (std::string username, std::string md5passwd, 
 }
 
 	// Delete all FTP sessions for a server
-void minecraft::ftp_del_sess_for_serv (std::string server) {
+void minecraft::ftp_del_sess_for_serv (std::string server, time_t terminal_valididy) {
 	for (auto it = minecraft::ftp_sessions.begin(); it != minecraft::ftp_sessions.end();) {
 		if (it->end_validity < ::time(NULL)) {
 			__log__(log_lvl::LOG, "FTP", logstream << "FTP session for user '" << it->username << "' invalidated");
 			auto p_it = it++; minecraft::ftp_sessions.erase(p_it);
 		} else if (it->server == server) {
-			__log__(log_lvl::LOG, "FTP", logstream << "Deleting FTP session for user '" << it->username << "'");
-			auto p_it = it++; minecraft::ftp_sessions.erase(p_it);
+			if (terminal_valididy == 0) {
+				__log__(log_lvl::LOG, "FTP", logstream << "Deleting FTP session for user '" << it->username << "'");
+				auto p_it = it++; minecraft::ftp_sessions.erase(p_it);
+			} else {
+				__log__(log_lvl::LOG, "FTP", logstream << "Set terminal validity of FTP session for user '" << it->username << "' to " << terminal_valididy << "s");
+				it->end_validity = ::time(NULL) + terminal_valididy;
+				it++;
+			}
 		} else 
 			++it;
 	}

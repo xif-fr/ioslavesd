@@ -929,6 +929,9 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			throw ioslaves::req_err(ioslaves::answer_code::LACK_RSRC, "SERV", MCLOGSCLI(s) << "Server needs at least " << s->s_megs_ram << "MB of memory, but only " << usable_mem << "MB of RAM is usable. " << "Refusing start request.");
 		if (s->s_megs_ram < 1024) s->s_megs_ram = 1024;
 		
+			// Delete remaining FTP sessions for server
+		minecraft::ftp_del_sess_for_serv(s->s_servid, 0);
+		
 			// Check things with other servers
 			// Attribute and open port
 		{ pthread_mutex_handle_lock(minecraft::servs_mutex);
@@ -1698,7 +1701,7 @@ void* minecraft::serv_thread (void* arg) {
 		}
 		
 			// Delete FTP sessions
-		minecraft::ftp_del_sess_for_serv(s->s_servid);
+		minecraft::ftp_del_sess_for_serv(s->s_servid, 30);
 		
 			// Last-save-time
 		if (stopInfo.doneDone and s->s_is_perm_map) {

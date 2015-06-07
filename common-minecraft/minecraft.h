@@ -81,7 +81,7 @@ namespace minecraft {
 	extern pid_t pure_ftpd_pid;
 	void ftp_stop_thead (int why);
 	void ftp_register_user (std::string username, std::string md5passwd, std::string server, std::string map, time_t validity);
-	void ftp_del_sess_for_serv (std::string server);
+	void ftp_del_sess_for_serv (std::string server, time_t terminal_valididy);
 	
 	extern std::string ftp_serv_addr;
 #endif
