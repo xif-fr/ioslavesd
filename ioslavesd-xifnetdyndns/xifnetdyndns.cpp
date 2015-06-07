@@ -206,10 +206,16 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 				}
 				__log__(log_lvl::LOG, NULL, logstream << "Adding " << srv_entry.service_name << " SRV entry for " << srv_entry.hostname << " pointing to " << slave_name << ":" << srv_entry.port << "...", LOG_WAIT, &l);
 				for (auto it = xdyndns::srv_entries.begin(); it != xdyndns::srv_entries.end(); it++) {
-					if (it->on_slave == slave_it and it->service_name == srv_entry.service_name and it->domain == srv_entry.domain and it->hostname == srv_entry.hostname and it->tcp == srv_entry.tcp) {
-						__log__(log_lvl::WARNING, NULL, logstream << "SRV entry for " << srv_entry.hostname << " and service '" << srv_entry.service_name << "' already exists ! Overwriting.", LOG_WAIT, &l);
-						xdyndns::srv_entries.erase(it);
-						break;
+					if (it->service_name == srv_entry.service_name and it->domain == srv_entry.domain and it->hostname == srv_entry.hostname and it->tcp == srv_entry.tcp) {
+						if (it->on_slave == slave_it) {
+							__log__(log_lvl::WARNING, NULL, logstream << "SRV entry for " << srv_entry.hostname << " and service '" << srv_entry.service_name << "' already exists ! Overwriting.", LOG_WAIT, &l);
+							xdyndns::srv_entries.erase(it);
+							break;
+						} else {
+							__log__(log_lvl::ERROR, NULL, logstream << "SRV entry for " << srv_entry.hostname << " and service '" << srv_entry.service_name << "' is already pointing to slave '" << it->on_slave->slave_name << "' !", LOG_WAIT, &l);
+							cli.o_char((char)ioslaves::answer_code::EXISTS);
+							return;
+						}
 					}
 				}
 				xdyndns::srv_entries.push_back(srv_entry);
