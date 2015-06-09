@@ -1217,11 +1217,11 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			ReadEarlyStateIfNot('j',1) {
 				throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "START", MCLOGCLI(servid) << "Java start failed !");
 			}
-			time_t line_ack_timeout = 8;
+			time_t line_ack_timeout = 10;
 			switch (s->s_serv_type) {
-				case serv_type::BUKKIT: case serv_type::SPIGOT: line_ack_timeout = 15; break;
+				case serv_type::BUKKIT: case serv_type::SPIGOT: line_ack_timeout = 16; break;
 				case serv_type::CAULDRON: case serv_type::FORGE: line_ack_timeout = 35; break;
-				case serv_type::VANILLA: line_ack_timeout = 6; break;
+				case serv_type::VANILLA: if (s->s_mc_ver <= ioslaves::version(1,7,10)) line_ack_timeout = 8; else line_ack_timeout = 12; break;
 				case serv_type::CUSTOM: line_ack_timeout = 20; break;
 			}
 			ReadEarlyStateIfNot('l',line_ack_timeout) {
