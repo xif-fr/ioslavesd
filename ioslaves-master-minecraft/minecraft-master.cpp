@@ -72,9 +72,11 @@ timeval $connect_timeout = {2,500000};
 timeval $comm_timeout = {5,000000};
 timeval $op_timeout = {10,000000};
 useconds_t $websock_timeout = 2500000;
+std::vector<in_port_t> $additional_ports;
 
 	// minecraft-master's core functionnality functions
 time_t getLastSaveTime (std::string serv, std::string map);
+void retreivingProgressionShow (size_t done, size_t totsz);
 void handleReportRequest (socketxx::io::simple_socket<socketxx::base_socket> sock, std::string slave);
 void acceptFileSave (socketxx::io::simple_socket<socketxx::base_socket> sock, std::string servname, std::string mapname, std::string slave);
 std::string getRunningOnSlave (std::string server);
@@ -202,6 +204,7 @@ int main (int argc, char* const argv[]) {
 				{"quickly", no_argument, NULL, 'q'},
 				{"threads", required_argument, NULL, '#'},
 				{"mean-cpu", required_argument, NULL, '~'},
+				{"additional-ports", required_argument, NULL, '+'},
 			{"stop", no_argument, NULL, 'o'},
 			{"kill", no_argument, NULL, 'k'},
 			{"status", no_argument, NULL, 't'},
@@ -253,6 +256,8 @@ int main (int argc, char* const argv[]) {
 						 "              --autoclose=TIME    Server will close after TIME sec. without players.\n"
 						 "                                   Default = --duration; 0 = disabled\n"
 						 "              --viewdist=CHUNKS   Minecraft view distance. Default = 7\n"
+						 "              --additional-ports=P1,P2…  Open additional TCP ports (for JSONAPI for exemple).\n"
+						 "                                   Should be attributed uniquely across the network.\n"
 						 "        --stop                  Stop the server.\n"
 						 "        --kill                  Kill a buggy server (may corrupt map; no stop report).\n"
 						 "        --status                Refresh status of the server in database\n"
@@ -395,6 +400,23 @@ int main (int argc, char* const argv[]) {
 					$mc_viewdist = ::atoix<uint8_t>(optarg);
 				} catch (...) {
 					try_help("--viewdist : invalid view distance\n");
+				}
+				break;
+			case '+': 
+				optctx::optctx_test("--additional-ports", optctx::servStart);
+				try {
+					std::string arg = optarg;
+					size_t start = 0, end = 0;
+					while ((end = arg.find(',', start)) != std::string::npos) {
+						std::string portstr = arg.substr(start, end-start);
+						start = end + 1;
+						in_port_t port = ::atoix<in_port_t>(portstr);
+						$additional_ports.push_back(port);
+					}
+					in_port_t port = ::atoix<in_port_t>( arg.substr(start) );
+					$additional_ports.push_back(port);
+				} catch (std::exception& e) {
+					try_help(_s("--additional-ports : invalid port list : ",e.what(),"\n"));
 				}
 				break;
 			case 'j':
@@ -677,6 +699,43 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 	return sock;
 }
 
+	// File retreiving progression callback
+void retreivingProgressionShow (size_t done, size_t totsz) {
+	std::function<void(std::string)> send_websocket = [&] (std::string str) {
+		str = std::string("[trsf]") + str;
+		int rs; errno = 0;
+		rs = nopoll_conn_send_text($websocket_conn, str.c_str(), str.length());
+		if (rs != (int)str.length()) {
+			nopoll_conn_close($websocket_conn);
+			$websocket_conn = NULL;
+			std::cerr << LOG_AROBASE_ERR << "WebLog stopped : Websocket error : " << ::strerror(errno) << std::endl;
+		}
+	};
+	static timeval beg, last, now;
+	::gettimeofday(&now, NULL);
+	if (totsz == 0) {
+		if (done == 0) {
+			beg = last = now;
+			if ($websocket_conn != NULL) 
+				send_websocket("init");
+		} else {
+			if ($websocket_conn != NULL) 
+				send_websocket("finish");
+		}
+		return;
+	}
+	uint percent = (uint)lroundf( done*100.f/totsz );
+	if (optctx::interactive) {
+		std::stringstream buf;
+		buf << " " << percent << "% - " << done/1024 << "K/" << totsz/1024 << "K  ";
+		std::cout << buf.str() << std::flush;
+		std::cout << std::string(buf.str().length(), '\b') << "\033[K" << std::flush;
+	}
+	if ($websocket_conn != NULL) 
+		send_websocket(::ixtoa(percent));
+	last = now;
+}
+
 	// Retrieve server folder save
 void acceptFileSave (socketxx::io::simple_socket<socketxx::base_socket> sock, std::string servname, std::string mapname, std::string slave) {
 	__log__ << LOG_AROBASE << "Accepting server folder save of map '" << mapname << "' for server '" << servname << "'" << std::flush;
@@ -702,7 +761,9 @@ void acceptFileSave (socketxx::io::simple_socket<socketxx::base_socket> sock, st
 	}
 	sock.o_bool(true);
 	std::string tmpfn;
-	tmpfn = sock.i_file(_S( IOSLAVES_MASTER_DIR,"/ioslaves-mc-master-getmap" ));
+																													  retreivingProgressionShow(0,0);
+	tmpfn = sock.i_file(_S( IOSLAVES_MASTER_DIR,"/ioslaves-mc-master-getmap" ), std::bind(retreivingProgressionShow, std::placeholders::_1,std::placeholders::_2));
+                                                                                         retreivingProgressionShow(1,0);
 	r = ::mkdir(folder_saves.c_str(), S_IRWXU|S_IRWXG);
 	if (r == -1 and errno != EEXIST and errno != EISDIR) 
 		throw xif::sys_error("can't create server map dir");
@@ -875,7 +936,9 @@ void verifyMapList (std::string slave_id, std::string server_name, socketxx::io:
 				if (save_f == -1)
 					throw xif::sys_error("can't open map save file");
 				RAII_AT_END_L( ::close(save_f) );
-				sock.i_file(save_f);
+				                              retreivingProgressionShow(0,0);
+				sock.i_file(save_f, std::bind(retreivingProgressionShow, std::placeholders::_1,std::placeholders::_2));
+				                              retreivingProgressionShow(1,0);
 				ioslaves::infofile_set(_s(map_folder,"/lastsave"), ::ixtoa(lastsave));
 				ioslaves::infofile_set(_s(map_folder,"/truesave"), "false");
 				ioslaves::infofile_set(_s(map_folder,"/lastsave_from"), slave_id);
@@ -1247,6 +1310,9 @@ _try_start:
 	__log__ << " - last-save-time : " << lastsavetime << std::flush;
 	sock->o_int<int64_t>(lastsavetime);
 	sock->o_bool($start_earlyconsole);
+	sock->o_int<uint8_t>((uint8_t)$additional_ports.size());
+	for (size_t i = 0; i < $additional_ports.size(); i++) 
+		sock->o_int<uint16_t>($additional_ports[i]);
 	ioslaves::answer_code o;
 	if ((o = (ioslaves::answer_code)sock->i_char()) != ioslaves::answer_code::OK) {
 		if (o == ioslaves::answer_code::BAD_STATE and $granmaster) {

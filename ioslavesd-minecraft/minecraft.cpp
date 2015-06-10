@@ -69,6 +69,7 @@ namespace minecraft {
 		bool s_is_perm_map;
 		minecraft::serv_type s_serv_type;
 		in_port_t s_port = 0;
+		std::vector<in_port_t> s_oth_ports;
 		pid_t s_java_pid = -1;
 		unsigned short s_megs_ram = 0;
 		uint8_t s_viewdist;
@@ -916,10 +917,15 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 		if (*ioslaves::api::common_vars->shutdown_time != 0 and time_rest < s_running_time) 
 			throw ioslaves::req_err(ioslaves::answer_code::LACK_RSRC, "SERV", MCLOGSCLI(s) << "Server wants ~" << s_running_time/60 << "min, but slave would shutdown in " << time_rest/60 << "min. " << "Refusing start request.");
 		s->s_map = cli.i_str();
-		time_t s_lastsavetime = (time_t)cli.i_int<int64_t>();
-		bool early_console = cli.i_bool();
 		if (!ioslaves::validateName(s->s_map)) 
 			throw ioslaves::req_err(ioslaves::answer_code::SECURITY_ERROR, "PARAM", MCLOGSCLI(s) << "'" << s->s_map << "' is not a valid map name");
+		time_t s_lastsavetime = (time_t)cli.i_int<int64_t>();
+		bool early_console = cli.i_bool();
+		size_t oth_ports_sz = cli.i_int<uint8_t>();
+		for (size_t i = 0; i < oth_ports_sz; i++) {
+			in_port_t port = cli.i_int<uint16_t>();
+			s->s_oth_ports.push_back(port);
+		}
 		
 			// Check free memory
 		xif::polyvar::map sysinfo = *ioslaves::api::common_vars->system_stat;
@@ -1219,10 +1225,10 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			}
 			time_t line_ack_timeout = 10;
 			switch (s->s_serv_type) {
-				case serv_type::BUKKIT: case serv_type::SPIGOT: line_ack_timeout = 16; break;
-				case serv_type::CAULDRON: case serv_type::FORGE: line_ack_timeout = 35; break;
-				case serv_type::VANILLA: if (s->s_mc_ver <= ioslaves::version(1,7,10)) line_ack_timeout = 8; else line_ack_timeout = 12; break;
-				case serv_type::CUSTOM: line_ack_timeout = 20; break;
+				case serv_type::BUKKIT: case serv_type::SPIGOT: line_ack_timeout = 20; break;
+				case serv_type::CAULDRON: case serv_type::FORGE: line_ack_timeout = 40; break;
+				case serv_type::VANILLA: if (s->s_mc_ver <= ioslaves::version(1,7,10)) line_ack_timeout = 8; else line_ack_timeout = 20; break;
+				case serv_type::CUSTOM: line_ack_timeout = 25; break;
 			}
 			ReadEarlyStateIfNot('l',line_ack_timeout) {
 				throw ioslaves::req_err(ioslaves::answer_code::EXTERNAL_ERROR, "START", MCLOGCLI(servid) << "Didn't received ack of first line");
@@ -1398,6 +1404,16 @@ void* minecraft::serv_thread (void* arg) {
 				__log__(log_lvl::ERROR, "SERV", MCLOGSCLI(s) << "Failed to create SRV entry on DNS for domain " << s->s_servid << '.' << XIFNET_MC_DOM << " : " << (char)new_srv_answ);
 			else 
 				__log__(log_lvl::LOG, "SERV", MCLOGSCLI(s) << "Created SRV entry on DNS for domain " << s->s_servid << '.' << XIFNET_MC_DOM << ':' << s->s_port);
+		}
+		
+		{ // Open additional ports (should be unique across the network)
+			if (s->s_oth_ports.size() != 0) 
+				__log__(log_lvl::LOG, "SERV", MCLOGSCLI(s) << "Opening additional ports...");
+			for (in_port_t port : s->s_oth_ports) {
+				ioslaves::answer_code o = (*ioslaves::api::open_port)(port, true, port, 1, "additional port for mc serv");
+				if (o != ioslaves::answer_code::OK) 
+					__log__(log_lvl::ERROR, "SERV", MCLOGSCLI(s) << "Failed to open additional port " << port);
+			}
 		}
 		
 			// Live console
@@ -1735,9 +1751,15 @@ void* minecraft::serv_thread (void* arg) {
 			__log__(r_pid_lvl, NULL, logstream << "(ret code " << WEXITSTATUS(status) << ")", LOG_ADD, &l);
 		}
 		
-		// Delete SRV entry on DNS
+			// Delete SRV entry on DNS
 		(*ioslaves::api::dns_srv_del)("minecraft", XIFNET_MC_DOM, s->s_servid, true);
-
+		
+			// Close additional ports
+		if (s->s_oth_ports.size() != 0) 
+			__log__(log_lvl::LOG, "SERV", MCLOGSCLI(s) << "Closing additional ports...");
+		for (in_port_t port : s->s_oth_ports) 
+			(*ioslaves::api::close_port)(port, 1, true);
+		
 	} catch (xif::sys_error& sys_err) {
 		__log__(log_lvl::ERROR, THLOGSCLI(s), logstream << "Error in `starting java` state : " << sys_err.what());
 	} catch (std::runtime_error) {
