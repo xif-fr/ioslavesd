@@ -731,7 +731,7 @@ void retreivingProgressionShow (size_t done, size_t totsz) {
 		std::cout << buf.str() << std::flush;
 		std::cout << std::string(buf.str().length(), '\b') << "\033[K" << std::flush;
 	}
-	if ($websocket_conn != NULL) 
+	if ($websocket_conn != NULL and (now.tv_sec != last.tv_sec or now.tv_usec-last.tv_usec > 100000 or totsz == 0)) 
 		send_websocket(::ixtoa(percent));
 	last = now;
 }

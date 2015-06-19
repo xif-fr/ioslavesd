@@ -107,13 +107,14 @@ namespace minecraft {
 	gid_t java_group_id = 0;
 	in_port_t servs_port_range_beg = 25566, servs_port_range_sz = 33;
 	uint8_t max_viewdist = 6;
+	bool ignore_shutdown_time = false;
 	
 		// Start and Stop Minecraft server
 	void startServer (socketxx::io::simple_socket<socketxx::base_socket> cli, std::string servid);
 	void* serv_thread (void* arg);
 	void stopServer (socketxx::io::simple_socket<socketxx::base_socket> cli, minecraft::serv* s);
 	
-		// Transfert, files, and map functions
+		// Transfer, files, and map functions
 	void transferAndExtract (socketxx::io::simple_socket<socketxx::base_socket> sock, minecraft::transferWhat what, std::string name, std::string parent_dir, bool alt = false);
 	void compressAndSend (socketxx::io::simple_socket<socketxx::base_socket> sock, std::string servname, std::string mapname, bool async);
 	void unzip (const char* file, const char* in_dir, const char* expected_dir_name);
@@ -164,6 +165,7 @@ extern "C" bool ioslapi_start (const char* by_master) {
 			minecraft::pure_ftpd_base_port = (int)conf.lookup("ftp_base_port");
 			minecraft::pure_ftpd_pasv_range_beg = (int)conf.lookup("ftp_pasv_range_beg");
 			minecraft::pure_ftpd_max_cli = (int)conf.lookup("ftp_max_cli");
+			minecraft::ignore_shutdown_time = (bool)conf.lookup("ignore_shutdown_time");
 		}
 	} catch (libconfig::ConfigException& ce) {
 		__log__(log_lvl::FATAL, "CONF", logstream << "Reading configuration file " << MINECRAFT_CONF_FILE << " failed : " << ce.what());
@@ -581,7 +583,7 @@ inline void assert_mcjava () {
 	#define java_group_id -1
 #endif
 
-/// Transfert and map functions
+/// Transfer and map functions
 
 // Read/write the last-save-time file on server folder
 time_t minecraft::lastsaveTimeFile (std::string path, bool set) {
@@ -914,7 +916,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 		if (s->s_viewdist > minecraft::max_viewdist) s->s_viewdist = minecraft::max_viewdist;
 		time_t s_running_time = cli.i_int<uint32_t>();
 		time_t time_rest = *ioslaves::api::common_vars->shutdown_time - ::time(NULL);
-		if (*ioslaves::api::common_vars->shutdown_time != 0 and time_rest < s_running_time) 
+		if (not minecraft::ignore_shutdown_time and *ioslaves::api::common_vars->shutdown_time != 0 and time_rest < s_running_time) 
 			throw ioslaves::req_err(ioslaves::answer_code::LACK_RSRC, "SERV", MCLOGSCLI(s) << "Server wants ~" << s_running_time/60 << "min, but slave would shutdown in " << time_rest/60 << "min. " << "Refusing start request.");
 		s->s_map = cli.i_str();
 		if (!ioslaves::validateName(s->s_map)) 
@@ -1856,11 +1858,11 @@ std::string MC_log_interpret (const std::string line, minecraft::serv* s, minecr
 			break;
 		}
 	}
-	if (ctx == DATE) { 
-		__log__(log_lvl::LOG, THLOGSCLI(s), logstream << "-- " << line);
+	if (ctx != MSG) { 
+		__log__(log_lvl::LOG, THLOGSCLI(s), logstream << "-- " << line, (stopInfo->doneDone?LOG_NO_HISTORY:0));
 		return line;
 	} else {
-		__log__(log_lvl::LOG, THLOGSCLI(s), logstream << "-- [" << m_part << "] " << m_msg);
+		__log__(log_lvl::LOG, THLOGSCLI(s), logstream << "-- [" << m_part << "] " << m_msg, (stopInfo->doneDone?LOG_NO_HISTORY:0));
 		if (ctx != MSG) return m_msg;
 	}
 	for (auto it = int_req_list.begin(); it != int_req_list.end(); it++) {

@@ -322,6 +322,7 @@ const std::string& __get_homedir__() {
 		if (home != NULL and ::strlen(home) != 0) __homedir = home;
 		else {
 			struct passwd* pw = ::getpwuid(::getuid());
+			if (pw == NULL) throw xif::sys_error("getpwuid");
 			__homedir = pw->pw_dir;
 		}
 	}
