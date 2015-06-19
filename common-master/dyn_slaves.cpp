@@ -210,6 +210,7 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::select_slaves (const c
 				[efficiency_ratio_t::FOR_DAYS_HIGHEST] = 4
 			};
 			float mqproc = std::min(mean_power/info.sl_usable_proc, 1.f);
+			if (info.sl_status == 0) info.sl_power_use_idle = 0;
 			power_watt_t estimated_power = mqproc*info.sl_power_use_full + (1.f-mqproc)*info.sl_power_use_idle;
 			std::get<4>(info._sl_categs_infos) = estimated_power;
 			points_t watt_pt = estimated_power * penaltyPerWatt[eff];

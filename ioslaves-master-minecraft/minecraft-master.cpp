@@ -1227,7 +1227,7 @@ _try_start:
 			{ // Nice html table
 				std::ostringstream t;
 				t << "<table>" << std::setprecision(2);
-				t << "<tr> <th>slave</th> <th>stat</th> <th>∆ram</th> <th>pt.ram</th> <th>q.proc</th> <th>pt.proc</th> <th>p.estim</th> <th>pt.eff</th> <th>pt.wait</th> <th>pt.oth</th> <th>pt.total</th> </tr>";
+				t << "<tr> <th>slave</th> <th>stat</th> <th>∆ram</th> <th>pt.ram</th> <th>q.proc</th> <th>pt.proc</th> <th>pw.add</th> <th>pt.eff</th> <th>pt.wait</th> <th>pt.oth</th> <th>pt.total</th> </tr>";
 				for (slave_info& info : slaves) {
 					if (info.sl_status == -4 or info.sl_status == -5) continue;
 					t << "<tr>";
@@ -1242,7 +1242,7 @@ _try_start:
 					SlSelTab_PrintPt(1);
 					t << "<td>" << std::get<2>(info._sl_categs_infos) << "</td>";
 					SlSelTab_PrintPt(3);
-					t << "<td>" << std::get<4>(info._sl_categs_infos) << "W</td>";
+					t << "<td>+" << std::get<4>(info._sl_categs_infos) << "W</td>";
 					SlSelTab_PrintPt(5);
 					SlSelTab_PrintPt(6);
 					SlSelTab_PrintPt(7);
