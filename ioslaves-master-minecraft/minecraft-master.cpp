@@ -42,6 +42,13 @@ int _exit_failure_code = 29;
 #define EXIT_FAILURE _exit_failure_code
 #define EXCEPT_ERROR_IGNORE (ioslaves::answer_code)-1
 
+	// Timeouts
+#define TIMEOUT_CONNECT timeval{2,500000}
+#define TIMEOUT_COMM timeval{10,000000}
+#define TIMEOUT_ZIP_DELAY timeval{15,500000}
+#define TIMEOUT_JAVA_ALIVE timeval{40,500000}
+#define TIMEOUT_WEBSOCKET (useconds_t)2500000
+
 	// minecraft-master's option variables
 bool $granmaster;
 std::string $master_id;
@@ -68,10 +75,6 @@ bool $need_quickly = false;
 std::string $ftp_user, $ftp_hash_passwd;
 uint8_t $mc_viewdist = 7;
 time_t $autoclose_time = (time_t)-1;
-timeval $connect_timeout = {2,500000};
-timeval $comm_timeout = {5,000000};
-timeval $op_timeout = {10,000000};
-useconds_t $websock_timeout = 2500000;
 std::vector<in_port_t> $additional_ports;
 
 	// minecraft-master's core functionnality functions
@@ -566,7 +569,7 @@ int main (int argc, char* const argv[]) {
 		nopoll_ctx_set_on_ready(wsctx, &_noPoll_callbacks::onConnReady, NULL);
 		nopoll_ctx_set_on_msg(wsctx, &_noPoll_callbacks::onMsg, NULL);
 		try {
-			nopoll_loop_wait(wsctx, $websock_timeout);
+			nopoll_loop_wait(wsctx, TIMEOUT_WEBSOCKET);
 		} catch (std::exception) {}
 		nopoll_conn_close(listener);
 		if ($websocket_conn == NULL) {
@@ -634,7 +637,7 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 		try {
 			try {
 				__log__ << LOG_ARROW << "Connecting to '" << slave << "'..." << std::flush;
-				return iosl_master::slave_api_service_connect(slave, $master_id, "minecraft", $connect_timeout);
+				return iosl_master::slave_api_service_connect(slave, $master_id, "minecraft", TIMEOUT_CONNECT);
 			} catch (ioslaves::answer_code& answ) {
 				if (answ == ioslaves::answer_code::BAD_STATE and $granmaster) {
 					__log__ << LOG_ARROW << "Minecraft service seems to be off. Starting it..." << std::flush;
@@ -645,7 +648,7 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 					if (answ != ioslaves::answer_code::OK) 
 						throw answ;
 				} else throw answ;
-				return iosl_master::slave_api_service_connect(slave, $master_id, "minecraft", $connect_timeout);
+				return iosl_master::slave_api_service_connect(slave, $master_id, "minecraft", TIMEOUT_CONNECT);
 			}
 		} catch (master_err& e) {
 			__log__ << LOG_ARROW_ERR << "ioslaves-master error : " << e.what() << std::flush;
@@ -669,7 +672,6 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 		}
 	};
 	socketxx::io::simple_socket<socketxx::base_socket> sock = get_sock();
-	sock.set_read_timeout($comm_timeout);
 	timeval utc_time; ::gettimeofday(&utc_time, NULL);
 	time_t slave_time = sock.i_int<int64_t>();
 	time_t diff;
@@ -687,7 +689,6 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 	sock.o_bool($granmaster);
 	sock.o_str(servname);
 	sock.o_char((char)opp);
-	sock.set_read_timeout(timeval({120,0}));
 	ioslaves::answer_code o;
 	while ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) {
 		if (o == ioslaves::answer_code::WANT_REPORT)
@@ -695,7 +696,7 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 		else throw o;
 	}
 	__log__ << "Opp '" << (char)opp << "' accepted by distant minecraft service" << std::flush;
-	sock.set_read_timeout($op_timeout);
+	sock.set_read_timeout(TIMEOUT_COMM);
 	return sock;
 }
 
@@ -760,10 +761,12 @@ void acceptFileSave (socketxx::io::simple_socket<socketxx::base_socket> sock, st
 		return;
 	}
 	sock.o_bool(true);
+	sock.set_read_timeout(TIMEOUT_ZIP_DELAY);
 	std::string tmpfn;
-																													  retreivingProgressionShow(0,0);
+	                                                                                      retreivingProgressionShow(0,0);
 	tmpfn = sock.i_file(_S( IOSLAVES_MASTER_DIR,"/ioslaves-mc-master-getmap" ), std::bind(retreivingProgressionShow, std::placeholders::_1,std::placeholders::_2));
-                                                                                         retreivingProgressionShow(1,0);
+	                                                                                      retreivingProgressionShow(1,0);
+	sock.set_read_timeout(TIMEOUT_COMM);
 	r = ::mkdir(folder_saves.c_str(), S_IRWXU|S_IRWXG);
 	if (r == -1 and errno != EEXIST and errno != EISDIR) 
 		throw xif::sys_error("can't create server map dir");
@@ -1448,7 +1451,7 @@ _try_start:
 	if ((o = (ioslaves::answer_code)sock->i_char()) != ioslaves::answer_code::OK) 
 		throw o;
 	__log__ << "Server thread is started" << std::flush;
-	sock->set_read_timeout(timeval{40,0});
+	sock->set_read_timeout(TIMEOUT_JAVA_ALIVE);
 	if ((o = (ioslaves::answer_code)sock->i_char()) != ioslaves::answer_code::OK) 
 		throw o;
 	__log__ << "Java process is alive" << std::flush;
