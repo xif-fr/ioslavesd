@@ -1116,7 +1116,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 				__log__(log_lvl::LOG, "FILES", logstream << "Big-file '" << entry.name << "' not found here, getting from master...");
 				minecraft::transferAndExtract(cli, minecraft::transferWhat::BIGFILE, entry.name, MINECRAFT_BIGFILES_DIR);
 			}
-			__log__(log_lvl::LOG, "FILES", logstream << "Creating symlink to big-file '" << entry.name << "'");
+			__log__(log_lvl::LOG, "FILES", logstream << "Creating symlink of big-file '" << entry.name << "'");
 			if (entry.final_path.empty()) 
 				entry.final_path = _S( working_dir,'/',entry.name );
 			r = ::symlink(file_path.c_str(), entry.final_path.c_str());
@@ -1754,6 +1754,7 @@ void* minecraft::serv_thread (void* arg) {
 		}
 		
 			// Delete SRV entry on DNS
+		__log__(log_lvl::LOG, "SERV", MCLOGSCLI(s) << "Closing SRV entry...");
 		(*ioslaves::api::dns_srv_del)("minecraft", XIFNET_MC_DOM, s->s_servid, true);
 		
 			// Close additional ports
@@ -1799,6 +1800,8 @@ void* minecraft::serv_thread (void* arg) {
 		r = ::unlink(_s( MINECRAFT_SRV_DIR,"/mc_",s->s_servid,'/',s->s_map,"/minecraft_server.",s->s_mc_ver.strdigits(),".jar" ));
 		r = ::unlink(_s( MINECRAFT_SRV_DIR,"/mc_",s->s_servid,'/',s->s_map,"/libraries" ));
 		r = ::unlink(s->s_jar_path.c_str());
+		if (s->s_serv_type == minecraft::serv_type::CAULDRON) 
+			r = ::unlink(_s( MINECRAFT_SRV_DIR,"/mc_",s->s_servid,'/',s->s_map,"/cauldronbukkit-",s->s_mc_ver.str(),".jar" ));
 	}
 	
 		// Delete map folder if temporary
