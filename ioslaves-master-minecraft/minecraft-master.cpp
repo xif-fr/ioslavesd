@@ -749,7 +749,7 @@ void acceptFileSave (socketxx::io::simple_socket<socketxx::base_socket> sock, st
 	int r;
 	time_t lastsavetime_dist = sock.i_int<int64_t>();
 	time_t lastsavetime_local = getLastSaveTime(servname, mapname);
-	if ($refuse_save and not $forced_file.empty()) {
+	if ($refuse_save and $forced_file.empty()) {
 		__log__ << LOG_AROBASE_ERR << "Won't accept save : refuse option activated" << std::flush;
 		sock.o_bool(false);
 		return;
