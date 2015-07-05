@@ -737,7 +737,7 @@ void IPowerup () {
 			sock.o_str($slave_id);
 			ioslaves::answer_code o = (ioslaves::answer_code)sock.i_char();
 			if (o != ioslaves::answer_code::OK) {
-				std::cerr << COLOR_RED << "Wake-gateway service failed to start slave" << COLOR_RESET << " (" << (char)o << ")" << std::endl;
+				std::cerr << COLOR_RED << "Wake-gateway service failed to start slave" << COLOR_RESET << " (" << ioslaves::getAnswerCodeDescription(o) << ")" << std::endl;
 				EXIT_FAILURE = EXIT_FAILURE_IOSL;
 				throw EXCEPT_ERROR_IGNORE;	
 			}

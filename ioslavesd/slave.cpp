@@ -586,7 +586,7 @@ int main (int argc, const char* argv[]) {
 						my_ip_last = my_ip;
 						ioslaves::answer_code answ;
 						if ((answ = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) {
-							__log__(log_lvl::ERROR, "DynDNS", logstream << "Refresh IP failed (answ = " << (char)answ << ")");
+							__log__(log_lvl::ERROR, "DynDNS", logstream << "Refresh IP failed : " << ioslaves::getAnswerCodeDescription(answ));
 							continue;
 						}
 						sock.o_char((char)ioslaves::answer_code::OK);
@@ -596,7 +596,7 @@ int main (int argc, const char* argv[]) {
 					} catch (master_err& e) {
 						__log__(log_lvl::ERROR, "DynDNS", logstream << "Master error while connecting to DynDNS : " << e.what());
 					} catch (ioslaves::answer_code answ) {
-						__log__(log_lvl::ERROR, "DynDNS", logstream << "Failed to refresh DynDNS : " << (char)answ);
+						__log__(log_lvl::ERROR, "DynDNS", logstream << "Failed to refresh DynDNS : " << ioslaves::getAnswerCodeDescription(answ));
 					}
 				}
 			}
@@ -880,7 +880,7 @@ ioslaves::answer_code ioslaves::dns_srv_req (std::function< ioslaves::answer_cod
 	} catch (master_err& e) {
 		__log__(log_lvl::ERROR, "DynDNS", logstream << "Master error while connecting to DynDNS : " << e.what());
 	} catch (ioslaves::answer_code answ) {
-		__log__(log_lvl::ERROR, "DynDNS", logstream << "Failed to add SRV entry to DynDNS : " << (char)answ);
+		__log__(log_lvl::ERROR, "DynDNS", logstream << "Error with xifnetdyndns service : " << ioslaves::getAnswerCodeDescription(answ));
 	}
 	return ioslaves::answer_code::ERROR;
 }
@@ -897,7 +897,7 @@ ioslaves::answer_code ioslaves::api::dns_srv_create (const char* service_name, s
 			sock.o_int<in_port_t>(port);
 			ioslaves::answer_code answ;
 			if ((answ = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) {
-				__log__(log_lvl::ERROR, "DynDNS", logstream << "Creation of SRV entry failed (answ = " << (char)answ << ")");
+				__log__(log_lvl::ERROR, "DynDNS", logstream << "Failed to create SRV entry : " << ioslaves::getAnswerCodeDescription(answ));
 				return answ;
 			}
 			sock.o_char((char)ioslaves::answer_code::OK);
@@ -915,8 +915,10 @@ void ioslaves::api::dns_srv_del (const char* service_name, std::string domain, s
 			sock.o_str(host);
 			sock.o_bool(is_tcp);
 			ioslaves::answer_code answ;
-			if ((answ = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) 
-				throw answ;
+			if ((answ = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) {
+				__log__(log_lvl::ERROR, "DynDNS", logstream << "Failed to delete SRV entry : " << ioslaves::getAnswerCodeDescription(answ));
+				return answ;
+			}
 			sock.o_char((char)ioslaves::answer_code::OK);
 			return ioslaves::answer_code::OK;
 		}

@@ -170,7 +170,7 @@ void* minecraft::mc_ftpd_auth_thread (void* arg) {
 		if (open_port_answ != ioslaves::answer_code::OK) {
 			if (open_port_answ == ioslaves::answer_code::EXISTS or errno == 718 /*ConflictInMappingEntry*/)
 				goto __new_port;
-			__log__(log_lvl::ERROR, "FTP", logstream << "Failed to open port " << ftp_port);
+			__log__(log_lvl::ERROR, "FTP", logstream << "Failed to open port " << ftp_port << " : " << ioslaves::getAnswerCodeDescription(open_port_answ));
 			return NULL;
 		}
 		

@@ -967,7 +967,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			if (open_port_answ != ioslaves::answer_code::OK) {
 				if (open_port_answ == ioslaves::answer_code::EXISTS or errno == 718 /*ConflictInMappingEntry*/)
 					goto __new_port;
-				throw ioslaves::req_err(ioslaves::answer_code::ERROR, "SERV", MCLOGSCLI(s) << "Failed to open port " << s->s_port);
+				throw ioslaves::req_err(ioslaves::answer_code::ERROR, "SERV", MCLOGSCLI(s) << "Failed to open port " << s->s_port << ioslaves::getAnswerCodeDescription(open_port_answ));
 			}
 			__autodelete_serv.close_port = true;
 			__autorm_openning_state.it = minecraft::openning_servs.insert( minecraft::openning_servs.end(), s );
@@ -1403,7 +1403,7 @@ void* minecraft::serv_thread (void* arg) {
 		{	// Add SRV entry on DNS
 			ioslaves::answer_code new_srv_answ = (*ioslaves::api::dns_srv_create)("minecraft", XIFNET_MC_DOM, s->s_servid, true, s->s_port, true);
 			if (new_srv_answ != ioslaves::answer_code::OK) 
-				__log__(log_lvl::ERROR, "SERV", MCLOGSCLI(s) << "Failed to create SRV entry on DNS for domain " << s->s_servid << '.' << XIFNET_MC_DOM << " : " << (char)new_srv_answ);
+				__log__(log_lvl::ERROR, "SERV", MCLOGSCLI(s) << "Failed to create SRV entry on DNS for domain " << s->s_servid << '.' << XIFNET_MC_DOM << " : " << ioslaves::getAnswerCodeDescription(new_srv_answ));
 			else 
 				__log__(log_lvl::LOG, "SERV", MCLOGSCLI(s) << "Created SRV entry on DNS for domain " << s->s_servid << '.' << XIFNET_MC_DOM << ':' << s->s_port);
 		}
@@ -1414,7 +1414,7 @@ void* minecraft::serv_thread (void* arg) {
 			for (in_port_t port : s->s_oth_ports) {
 				ioslaves::answer_code o = (*ioslaves::api::open_port)(port, true, port, 1, "additional port for mc serv");
 				if (o != ioslaves::answer_code::OK) 
-					__log__(log_lvl::ERROR, "SERV", MCLOGSCLI(s) << "Failed to open additional port " << port);
+					__log__(log_lvl::ERROR, "SERV", MCLOGSCLI(s) << "Failed to open additional port " << port << " : " << ioslaves::getAnswerCodeDescription(o));
 			}
 		}
 		

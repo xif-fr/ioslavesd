@@ -638,17 +638,22 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 			try {
 				__log__ << LOG_ARROW << "Connecting to '" << slave << "'..." << std::flush;
 				return iosl_master::slave_api_service_connect(slave, $master_id, "minecraft", TIMEOUT_CONNECT);
-			} catch (ioslaves::answer_code& answ) {
+			} catch (ioslaves::answer_code answ) {
 				if (answ == ioslaves::answer_code::BAD_STATE and $granmaster) {
 					__log__ << LOG_ARROW << "Minecraft service seems to be off. Starting it..." << std::flush;
 					socketxx::simple_socket_client<socketxx::base_netsock> sock = iosl_master::slave_connect(slave, 0);
 					iosl_master::slave_command(sock, $master_id, ioslaves::op_code::SERVICE_START);
 					sock.o_str("minecraft");
 					answ = (ioslaves::answer_code)sock.i_char();
-					if (answ != ioslaves::answer_code::OK) 
+					if (answ != ioslaves::answer_code::OK) {
+						__log__ << LOG_ARROW_ERR << "Failed to start Minecraft service : " << ioslaves::getAnswerCodeDescription(answ) << std::flush;
 						throw answ;
-				} else throw answ;
-				return iosl_master::slave_api_service_connect(slave, $master_id, "minecraft", TIMEOUT_CONNECT);
+					}
+					return iosl_master::slave_api_service_connect(slave, $master_id, "minecraft", TIMEOUT_CONNECT);
+				} else {
+					__log__ << LOG_ARROW_ERR << "Can't connect to Minecraft service : " << ioslaves::getAnswerCodeDescription(answ) << std::flush;
+					throw answ;
+				}
 			}
 		} catch (master_err& e) {
 			__log__ << LOG_ARROW_ERR << "ioslaves-master error : " << e.what() << std::flush;
@@ -1284,7 +1289,7 @@ _try_start:
 		sock = new socketxx::io::simple_socket<socketxx::base_socket> (
 			getConnection($slave_id, $server_name, minecraft::op_code::START_SERVER, {2,0}, !autoselect_slave)
 		);
-	} catch (OPTCTX_POSTFNCT_EXCEPT_T) {
+	} catch (ioslaves::answer_code) {
 		if (not $granmaster) throw;
 		goto _retry_start;
 	}

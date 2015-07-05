@@ -308,7 +308,7 @@ time_t iosl_master::slave_start (std::string slave_id, std::string master_id) {
 			sock.o_str(slave_id);
 			ioslaves::answer_code o = (ioslaves::answer_code)sock.i_char();
 			if (o != ioslaves::answer_code::OK) 
-				throw ioslaves::req_err(o, logstream << "Wake-gateway service failed to start slave (" << (char)o << ")");
+				throw ioslaves::req_err(o, logstream << "Wake-gateway service failed to start slave (" << ioslaves::getAnswerCodeDescription(o) << ")");
 			time_t dist_delay = sock.i_int<uint16_t>();
 			if (dist_delay > $start_delay)
 				$start_delay = dist_delay;
@@ -317,7 +317,7 @@ time_t iosl_master::slave_start (std::string slave_id, std::string master_id) {
 		} catch (master_err& e) {
 			throw ioslaves::req_err(answer_code::ERROR, logstream << "Master error while connecting to wake-gateway service : " << e.what());
 		} catch (ioslaves::answer_code answ) {
-			throw ioslaves::req_err(answer_code::EXTERNAL_ERROR, logstream << "Wake-gateway service failed to start slave (" << (char)answ << ")");
+			throw ioslaves::req_err(answer_code::EXTERNAL_ERROR, logstream << "Wake-gateway service failed to start slave (" << ioslaves::getAnswerCodeDescription(answ) << ")");
 		}
 		__log__(log_lvl::DONE, "WAKE", "Start request relayed !");
 	} 

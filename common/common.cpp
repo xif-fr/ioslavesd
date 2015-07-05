@@ -5,6 +5,31 @@
 #include <xifutils/cxx.hpp>
 #include <errno.h>
 
+std::string ioslaves::getAnswerCodeDescription (ioslaves::answer_code o) {
+	switch (o) {
+		case ioslaves::answer_code::OK: return "ok";
+		case ioslaves::answer_code::MAY_HAVE_FAIL: return "operation may have failed";
+		case ioslaves::answer_code::INTERNAL_ERROR: return "slave internal/system error";
+		case ioslaves::answer_code::SECURITY_ERROR: return "security error";
+		case ioslaves::answer_code::BAD_CHALLENGE_ANSWER: return "invalid authentification";
+		case ioslaves::answer_code::NOT_FOUND: return "not found";
+		case ioslaves::answer_code::BAD_STATE: return "bad state";
+		case ioslaves::answer_code::BAD_TYPE: return "bad type";
+		case ioslaves::answer_code::WANT_REPORT: return "wants to report";
+		case ioslaves::answer_code::WANT_GET: return "wants to get something";
+		case ioslaves::answer_code::WANT_SEND: return "wants to send something";
+		case ioslaves::answer_code::OP_NOT_DEF: return "operation not defined";
+		case ioslaves::answer_code::EXISTS: return "already exists";
+		case ioslaves::answer_code::UPNP_ERROR: return "port mapping error";
+		case ioslaves::answer_code::DENY: return "refusal";
+		case ioslaves::answer_code::INVALID_DATA: return "invalid data";
+		case ioslaves::answer_code::LACK_RSRC: return "lacking ressources";
+		case ioslaves::answer_code::EXTERNAL_ERROR: return "external error";
+		case ioslaves::answer_code::ERROR: return "generic error";
+	}
+	return "unknown error";
+}
+
 /** ------------------------------------	**/
 /**           Strings validation				**/
 /** ------------------------------------	**/

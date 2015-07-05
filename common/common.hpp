@@ -88,6 +88,7 @@ namespace ioslaves {
 		INVALID_DATA = 'I',
 		LACK_RSRC = 'k'
 	};
+	std::string getAnswerCodeDescription (ioslaves::answer_code);
 		
 		// Validating names or IDs
 	bool validateShellProgramName (std::string prog_name);
