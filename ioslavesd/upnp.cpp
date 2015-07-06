@@ -8,10 +8,13 @@
  * This software is under the GNU General Public License
  \**********************************************************/
 
+	// General
 #include "main.h"
 using namespace xlog;
+#include <xifutils/cxx.hpp>
+#include <xifutils/intstr.hpp>
 
-	/// Vars
+	// Vars
 bool enable_upnp = true;
 time_t ports_reopen_interval = 0;
 bool ioslavesd_listening_port_open = false;
@@ -19,14 +22,14 @@ bool ports_reopen_justafter = false;
 bool upnp_cache_deviceurl = false;
 time_t ports_check_interval = 0;
 
-	/// miniUPnP
+	// miniUPnP
 #include <miniupnpc/miniupnpc.h>
 #include <miniupnpc/upnpcommands.h>
 #include <miniupnpc/upnperrors.h>
 #define UPNP_DISCOVER_MAX_DELAY_MS 2000
 #define UPNP_DISCOVER_INTERFACE NULL
 
-	/// Don't re-discover each time : caching datas
+	// Don't re-discover each time : caching datas
 #define UPNP_CACHE_FILE IOSLAVESD_RUN_FILES"/upnp_url.cache"
 #define UPNP_URL_MIN_SZ 16
 UPNPUrls upnp_device_url;

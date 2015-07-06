@@ -20,6 +20,7 @@ using namespace xlog;
 
 	// General
 #include <xifutils/cxx.hpp>
+#include <xifutils/intstr.hpp>
 #include <vector>
 #include <list>
 #include <stdlib.h>

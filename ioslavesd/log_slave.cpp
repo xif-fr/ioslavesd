@@ -9,6 +9,7 @@ using namespace xlog;
 #include <pthread.h>
 #include <vector>
 #include <xifutils/cxx.hpp>
+#include <xifutils/intstr.hpp>
 
 pthread_mutex_t xlog::logstream_impl::mutex = PTHREAD_MUTEX_INITIALIZER;
 std::ostringstream xlog::logstream_impl::stream;

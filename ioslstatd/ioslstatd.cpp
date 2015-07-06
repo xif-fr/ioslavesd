@@ -27,10 +27,11 @@
 
 	// Misc
 #include <stdlib.h>
-#include <getopt.h>
 #include <list>
 #include <map>
 #include <time.h>
+#include <xifutils/cxx.hpp>
+#include <xifutils/intstr.hpp>
 
 	// Network
 #include <socket++/base_inet.hpp>

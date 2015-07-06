@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <xifutils/cxx.hpp>
+#include <xifutils/intstr.hpp>
 #include <errno.h>
 
 std::string ioslaves::getAnswerCodeDescription (ioslaves::answer_code o) {

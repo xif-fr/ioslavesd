@@ -16,6 +16,7 @@ using namespace xlog;
 
 	// Misc
 #include <xifutils/cxx.hpp>
+#include <xifutils/intstr.hpp>
 #include <list>
 
 	// UNIX Socket & pure-ftpd

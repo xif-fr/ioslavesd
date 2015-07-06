@@ -17,7 +17,8 @@
 #include <algorithm>
 #include <sys/dir.h>
 #include <sys/time.h>
-#include <sys/wait.h>
+#include <xifutils/cxx.hpp>
+#include <xifutils/intstr.hpp>
 
 	// Files
 #ifndef IOSLAVES_MINECRAFT_MASTER_DIR

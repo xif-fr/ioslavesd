@@ -16,7 +16,6 @@
 #define XIF_LOG_DEFAULT_LOGSTREAM
 #include "log.h"
 #include "common.hpp"
-#include <xifutils/cxx.hpp>
 #include <list>
 #include <vector>
 

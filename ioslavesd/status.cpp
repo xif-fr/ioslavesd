@@ -8,8 +8,10 @@
  * This software is under the GNU General Public License
  \**********************************************************/
 
+	// General
 #include "main.h"
 using namespace xlog;
+#include <xifutils/cxx.hpp>
 
 	// Topp linux system monitor library
 #ifndef IOSLAVESD_NO_TOPP

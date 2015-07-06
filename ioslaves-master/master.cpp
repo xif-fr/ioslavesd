@@ -14,6 +14,8 @@
 	// Other
 #include <memory>
 #include <xifutils/polyvar.hpp>
+#include <xifutils/cxx.hpp>
+#include <xifutils/intstr.hpp>
 #include <string.h>
 #include <stdio.h>
 #include <iostream>

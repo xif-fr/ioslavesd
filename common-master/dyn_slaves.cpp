@@ -4,6 +4,7 @@ using ioslaves::answer_code;
 
 	// Misc
 #include <math.h>
+#include <algorithm>
 
 	// Conf files
 #define private public

@@ -19,6 +19,8 @@ using namespace xlog;
 
 	// General and misc
 #include <xifutils/cxx.hpp>
+#include <xifutils/intstr.hpp>
+#include <xifutils/polyvar.hpp>
 #include <vector>
 #include <list>
 #include <map>

@@ -23,6 +23,8 @@ using namespace xlog;
 #include <unistd.h>
 #include <time.h>
 #include <typeinfo>
+#include <xifutils/cxx.hpp>
+#include <xifutils/intstr.hpp>
 
 	// Files
 #include <sys/file.h>
