@@ -77,6 +77,7 @@ std::string $ftp_user, $ftp_hash_passwd;
 uint8_t $mc_viewdist = 7;
 time_t $autoclose_time = (time_t)-1;
 std::vector<in_port_t> $additional_ports;
+bool $start_temp_perm = false;
 
 	// minecraft-master's core functionnality functions
 time_t getLastSaveTime (std::string serv, std::string map);
@@ -249,6 +250,7 @@ int main (int argc, char* const argv[]) {
 						 "                  --map-file=PATH   Use this zip for updating slave's server folder or temp map.\n"
 						 "                                     Zipped dir must have the same name than the map.\n"
 						 "                                     Use it for starting server with an old save of a perm map.\n"
+						 "                  --permanentize    After --temp-map. Do not delete temporary map at server stop.\n"
 						 "              --duration=TIME     Server running duration, in seconds. Must be a good estimation.\n"
 						 "            Slave selection :\n"
 						 "              --cpu=CPU           Needed CPU, using CPU unit (1.0 = Core2Duo E4400).\n"
@@ -461,6 +463,10 @@ int main (int argc, char* const argv[]) {
 				optctx::optctx_set(optctx::servStatus);
 				break;
 			case 'P':
+				if (optctx::optctx == optctx::servStart and $start_is_perm == false) {
+					$start_is_perm = true;
+					break;
+				}
 				optctx::optctx_set(optctx::servPerm);
 				break;
 			case 'f': {
@@ -1299,7 +1305,9 @@ _try_start:
 	sock->o_str($start_jar_ver);
 	sock->o_int<uint16_t>($needed_ram);
 	sock->o_bool($start_is_perm);
-	__log__ << " - " << ($start_is_perm?"permanent":"temporary") << " map : " << $start_map << std::flush;
+	__log__ << " - " << ($start_is_perm?"permanent":($start_temp_perm?"temporary with save":"temporary")) << " map : " << $start_map << std::flush;
+	if (not $start_is_perm)
+		sock->o_bool($start_temp_perm);
 	if ($autoclose_time == (time_t)-1) $autoclose_time = $needed_time;
 	if ($autoclose_time != 0) 
 		__log__ << " - autoclose time : " << $autoclose_time/60 << "min" << std::flush;

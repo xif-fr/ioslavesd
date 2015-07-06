@@ -913,6 +913,9 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 		s->s_mc_ver = ioslaves::version(cli.i_str(),true);
 		s->s_megs_ram = cli.i_int<uint16_t>();
 		s->s_is_perm_map = cli.i_bool();
+		bool start_temp_perm;
+		if (not s->s_is_perm_map)
+			start_temp_perm = cli.i_bool();
 		s->s_delay_noplayers = cli.i_int<uint32_t>();
 		s->s_viewdist = cli.i_int<uint8_t>();
 		if (s->s_viewdist > minecraft::max_viewdist) s->s_viewdist = minecraft::max_viewdist;
@@ -1252,6 +1255,8 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			__log__(log_lvl::DONE, "START", MCLOGCLI(servid) << "Minecraft wrote \"Done !\"");
 			
 				// Done !
+			if (start_temp_perm)
+				s->s_is_perm_map = true;
 			cli.o_char((char)ioslaves::answer_code::OK);
 			return;
 		}
