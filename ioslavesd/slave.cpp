@@ -604,7 +604,7 @@ int main (int argc, const char* argv[]) {
 			}
 			
 				// Auto shutdown
-			#define IOSL_SHUTDOWN_CHK_INTERVAL 10*60
+			#define IOSL_SHUTDOWN_CHK_INTERVAL 2*60
 			if (shutdown_time != 0) {
 				static time_t last_shutdown_chk = 0;
 				if (last_shutdown_chk + IOSL_SHUTDOWN_CHK_INTERVAL < ::time(NULL)) {

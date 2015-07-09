@@ -464,7 +464,7 @@ int main (int argc, char* const argv[]) {
 				break;
 			case 'P':
 				if (optctx::optctx == optctx::servStart and $start_is_perm == false) {
-					$start_is_perm = true;
+					$start_temp_perm = true;
 					break;
 				}
 				optctx::optctx_set(optctx::servPerm);
