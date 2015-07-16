@@ -30,10 +30,8 @@ const std::string& __get_homedir__();
 
 	// Network
 #include <../lib/socket++/include/config.h>
-#include <socket++/base_inet.hpp>
-#include <socket++/io/simple_socket.hpp>
-#include <socket++/quickdefs.h>
-struct pipe_proc_t { fd_t in; fd_t out; fd_t err; }; 
+#include <socket++/base_io.hpp>
+struct pipe_proc_t { fd_t in; fd_t out; fd_t err; };
 
 #ifdef XIFNET
 	#define XIFNET_SLAVES_DOM "net.xif.fr"

@@ -13,6 +13,7 @@
 using namespace xlog;
 #include <xifutils/cxx.hpp>
 #include <xifutils/intstr.hpp>
+#include <fcntl.h>
 
 	// Vars
 bool enable_upnp = true;

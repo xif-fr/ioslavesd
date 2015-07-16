@@ -3,6 +3,7 @@ using namespace xlog;
 #include <sstream>
 #include <stdio.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <time.h>
 #include <string.h>
 #include <errno.h>

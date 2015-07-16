@@ -104,6 +104,11 @@ struct log_entry {
 extern std::vector<log_entry> log_history;
 extern const char* log_file_path;
 
+	// Network
+#include <socket++/base_inet.hpp>
+#include <socket++/io/simple_socket.hpp>
+#include <socket++/quickdefs.h>
+
 	// ioslavesd
 namespace ioslaves {
 	

@@ -1,10 +1,15 @@
 #include "common.hpp"
 
-#include <unistd.h>
-#include <stdlib.h>
+	// General
 #include <xifutils/cxx.hpp>
 #include <xifutils/intstr.hpp>
+
+	// OS headers
 #include <errno.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 
 std::string ioslaves::getAnswerCodeDescription (ioslaves::answer_code o) {
 	switch (o) {
