@@ -606,7 +606,7 @@ int main (int argc, const char* argv[]) {
 				// Auto shutdown
 			#define IOSL_SHUTDOWN_CHK_INTERVAL 2*60
 			if (shutdown_time != 0) {
-				static time_t last_shutdown_chk = 0;
+				static time_t last_shutdown_chk = ::time(NULL);
 				if (last_shutdown_chk + IOSL_SHUTDOWN_CHK_INTERVAL < ::time(NULL)) {
 					last_shutdown_chk = ::time(NULL);
 					if (::time(NULL) > shutdown_time) {
@@ -687,6 +687,7 @@ void* status_thread (void*) {
 	
 		// Block signals
 	thread_block_signals();
+	start_time = ::time(NULL);
 	
 	try {
 		
