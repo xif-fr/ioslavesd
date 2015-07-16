@@ -28,6 +28,10 @@ using namespace xlog;
 
 	// Files
 #include <sys/file.h>
+#include <sys/dir.h>
+#define private public
+#include <libconfig.h++>
+#undef private
 
 	// Process
 #include <sys/sysctl.h>
@@ -371,25 +375,27 @@ int main (int argc, const char* argv[]) {
 				// Authentification
 			std::string master_id = cli.i_str();
 			bool auth = cli.i_bool();
-				
+			ioslaves::perms_t perms;
+			
 			if (auth and not master_id.empty()) {
-				#warning TO DO : challenge authentication
-				std::string key = "ABCDEF";												// Find the right key for the corresponding master
-				std::string challenge = ioslaves::generate_random(256);			// Create a new challenge
-				cli.o_str(challenge);														// Send challenge
-				std::string expected_answer = ioslaves::hash(challenge+key);	// Calculate expected answer
-				std::string master_answer = cli.i_str();								// Get answer
-				if (master_answer != expected_answer) { 								// Verify answer
+				ioslaves::key_t key;
+				std::tie (key,perms) = ioslaves::load_master_key(master_id);
+				std::string challenge = ioslaves::generate_random(256);
+				cli.o_str(challenge);
+				std::string expected_answer = ioslaves::hash(challenge+key);
+				std::string master_answer = cli.i_str();
+				if (master_answer != expected_answer) {
 					cli.o_char((char)ioslaves::answer_code::BAD_CHALLENGE_ANSWER);
 					__log__(log_lvl::NOTICE, "AUTH", logstream << "Authentification failed for " << cli.addr.get_ip_str() << " as '" << master_id << "' ! Bad answer to challenge [" << challenge.substr(0,6) << "...]");
 					continue;
 				} else {
 					opcode = (ioslaves::op_code)cli.i_char();
-					if (opcode != ioslaves::op_code::GET_STATUS and opcode != ioslaves::op_code::LOG_HISTORY)
+					if (ioslaves::perms_verify_op(perms, opcode).props["silent"] == "true")
 						__log__(log_lvl::LOG, "AUTH", logstream << "Authentification succeeded for '" << master_id << "' (" << cli.addr.get_ip_str() << ")");
 				}
 			} else {
 				__log__(log_lvl::LOG, "AUTH", logstream << "Connection of " << cli.addr.get_ip_str() << " as " << (master_id.empty() ? "anonymous" : _S("'",master_id,"' (not verified, no auth)")));
+				perms.by_default = false;
 				opcode = (ioslaves::op_code)cli.i_char();
 			}
 			auth = true; /***** TEMPORARY ***/

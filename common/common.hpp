@@ -55,7 +55,10 @@ namespace ioslaves {
 		GET_STATUS = 'g',
 		PERM_STATUS = 'S',
 		CALL_API_SERVICE = 'l',
-		LOG_HISTORY = 'h'
+		LOG_HISTORY = 'h',
+		KEY_AUTH = 't',
+		KEY_DEL = 'd',
+		KEY_SEND = 'k'
 	};
 	
 		// Authentification - Crypto
@@ -66,13 +69,14 @@ namespace ioslaves {
 	
 		// Universal answer code (0 is reserved)
 	enum class answer_code : char { 
-		OK = '|', 
+		OK = '|',
 		MAY_HAVE_FAIL = 'M',
 		ERROR = '*',
-		INTERNAL_ERROR = 'i', 
-		BAD_CHALLENGE_ANSWER = 'c', 
+		INTERNAL_ERROR = 'i',
+		BAD_CHALLENGE_ANSWER = 'c',
+		NOT_AUTHORIZED = '#',
 		SECURITY_ERROR = 'r',
-		NOT_FOUND = 'f', 
+		NOT_FOUND = 'f',
 		EXTERNAL_ERROR = 'e',
 		BAD_STATE = 's',
 		BAD_TYPE = 't',

@@ -17,6 +17,7 @@ std::string ioslaves::getAnswerCodeDescription (ioslaves::answer_code o) {
 		case ioslaves::answer_code::MAY_HAVE_FAIL: return "operation may have failed";
 		case ioslaves::answer_code::INTERNAL_ERROR: return "slave internal/system error";
 		case ioslaves::answer_code::SECURITY_ERROR: return "security error";
+		case ioslaves::answer_code::NOT_AUTHORIZED: return "permission denied";
 		case ioslaves::answer_code::BAD_CHALLENGE_ANSWER: return "invalid authentification";
 		case ioslaves::answer_code::NOT_FOUND: return "not found";
 		case ioslaves::answer_code::BAD_STATE: return "bad state";

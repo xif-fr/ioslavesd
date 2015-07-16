@@ -36,6 +36,7 @@
 		AA41B7681ADECB3900B369BE /* master.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B7651ADECB3900B369BE /* master.cpp */; };
 		AA41B76D1ADECB9B00B369BE /* minecraft-master.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B76A1ADECB9B00B369BE /* minecraft-master.cpp */; };
 		AA41B76E1ADECBE200B369BE /* master-impl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B75B1ADECB1700B369BE /* master-impl.cpp */; };
+		AA4A44C91B57AADB005CBBDC /* keys.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA4A44C81B57AADB005CBBDC /* keys.cpp */; };
 		AA6B99FD1AED9F1700146475 /* log.h in Headers */ = {isa = PBXBuildFile; fileRef = AA6B99FC1AED9F1700146475 /* log.h */; };
 		AA6B99FE1AED9F1700146475 /* log.h in Headers */ = {isa = PBXBuildFile; fileRef = AA6B99FC1AED9F1700146475 /* log.h */; };
 		AA6B99FF1AED9F1700146475 /* log.h in Headers */ = {isa = PBXBuildFile; fileRef = AA6B99FC1AED9F1700146475 /* log.h */; };
@@ -76,6 +77,7 @@
 		AA41B75D1ADECB1700B369BE /* wol.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = wol.cpp; path = "common-master/wol.cpp"; sourceTree = SOURCE_ROOT; };
 		AA41B7651ADECB3900B369BE /* master.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = master.cpp; sourceTree = "<group>"; };
 		AA41B76A1ADECB9B00B369BE /* minecraft-master.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "minecraft-master.cpp"; path = "ioslaves-master-minecraft/minecraft-master.cpp"; sourceTree = SOURCE_ROOT; };
+		AA4A44C81B57AADB005CBBDC /* keys.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = keys.cpp; path = ioslavesd/keys.cpp; sourceTree = "<group>"; };
 		AA6B99FC1AED9F1700146475 /* log.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = log.h; path = common/log.h; sourceTree = "<group>"; };
 		AA7EEC49193C9221002AD7E4 /* libxifnetdyndns.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = libxifnetdyndns.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA90C531189F7461003A8C60 /* libminecraft.ioslaves.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = libminecraft.ioslaves.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -228,6 +230,7 @@
 				AA41B7441ADEC34500B369BE /* main.h */,
 				AA41B7431ADEC34500B369BE /* log_slave.cpp */,
 				AA41B7471ADEC34500B369BE /* slave.cpp */,
+				AA4A44C81B57AADB005CBBDC /* keys.cpp */,
 				AA41B74A1ADEC34500B369BE /* upnp.cpp */,
 				AA41B7491ADEC34500B369BE /* status.cpp */,
 				AA99F1B0184C65DD00BB6836 /* ioslavesd */,
@@ -467,6 +470,7 @@
 				AA41B74E1ADEC34500B369BE /* status.cpp in Sources */,
 				AA41B74F1ADEC34500B369BE /* upnp.cpp in Sources */,
 				AA1D3ACF1ADECD7600E2C7F6 /* master-impl.cpp in Sources */,
+				AA4A44C91B57AADB005CBBDC /* keys.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

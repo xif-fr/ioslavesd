@@ -56,10 +56,6 @@ extern time_t ports_check_interval;
 
 	// ioslaves' files
 #define IOSLAVESD_SERVICE_FILE_EXT ".service"
-#define private public
-#include <libconfig.h++>
-#undef private
-#include <sys/dir.h>
 #ifdef IOSLAVES_DIR					/* centralised ioslavesd dir */
 	#define IOSLAVESD_ETC_DIR			IOSLAVES_DIR
 	#define IOSLAVESD_API_DL_DIR		IOSLAVES_DIR"/services/api"
@@ -135,6 +131,19 @@ namespace ioslaves {
 	};
 	
 	extern std::list<ioslaves::service*> services_list;
+	
+		/// Permissions
+	struct perms_t {
+		bool by_default;
+		struct op_perm_t {
+			bool authorized;
+			std::map<std::string,std::string> props;
+		};
+		std::map<ioslaves::op_code, op_perm_t> ops;
+	};
+	typedef std::string key_t;
+	std::pair<key_t, perms_t> load_master_key (std::string master);
+	perms_t::op_perm_t perms_verify_op (const perms_t&, ioslaves::op_code);
 	
 		/// Services operations
 	ioslaves::service* getServiceByName (std::string name);
