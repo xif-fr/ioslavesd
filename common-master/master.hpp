@@ -7,7 +7,7 @@
  * This software is under the GNU General Public License
  \**********************************************************/
 
-	/// Common
+	// Common
 #define XIF_LOG_DEFAULT_LOGSTREAM
 #include "log.h"
 #include "common.hpp"
@@ -15,7 +15,7 @@
 
 #ifdef IOSLAVES_MASTER_FINAL
 
-	/// Logging
+	// Logging
 #include <xifutils/optctx.hpp>
 #define LOG_ARROW       (optctx::interactive ? "\033[34;1m=> \033[0m"   : "<log_arrow imp/>")
 #define LOG_ARROW_OK    (optctx::interactive ? "\033[32;1m=> \033[0m"   : "<log_arrow ok/>")
@@ -31,14 +31,15 @@
 
 #endif
 
-	/// Files
+	// Files
 #ifndef IOSLAVES_MASTER_DIR
 	#define IOSLAVES_MASTER_DIR "/var/ioslaves/master"
 #endif
 #define IOSLAVES_MASTER_KEYS_DIR _s(IOSLAVES_MASTER_DIR,"/keys")
 #define IOSLAVES_MASTER_SLAVES_DIR _s(IOSLAVES_MASTER_DIR,"/slaves")
 
-	/// Network
+	// Network
+#include <socket++/io/simple_socket.hpp>
 #include <socket++/handler/socket_client.hpp>
 #include <socket++/base_inet.hpp>
 #include <socket++/quickdefs.h>
@@ -46,7 +47,7 @@
 #define HAVE_STDBOOL_H // LDNS bug
 #include <ldns/ldns.h>
 
-	/// Master errors
+	// Master errors
 class master_err : public std::runtime_error { 
 	public: int ret; bool down;
 	master_err (std::string descr, int retcode, bool down = false) : std::runtime_error(descr), ret(retcode), down(down) {} 

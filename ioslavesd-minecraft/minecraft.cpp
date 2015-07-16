@@ -39,6 +39,9 @@ struct _block_as_mcjava {
 
 	// Network
 #include <socket++/io/simple_socket.hpp>
+#include <socket++/handler/socket_client.hpp>
+#include <socket++/base_inet.hpp>
+#include <socket++/quickdefs.h>
 
 	// Files
 #include <sys/stat.h>

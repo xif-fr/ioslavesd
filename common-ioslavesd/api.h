@@ -185,6 +185,7 @@ void xlog::logstream_impl::log (log_lvl lvl, const char* part, std::string msg, 
 #endif /* IOSLAVESD_API_SERVICE */
 
 	// Run a block of code as root (errno is preserved, initial uid/gid restored)
+#include <unistd.h>
 struct _block_asroot {
 	uid_t uid; gid_t gid;
 	_block_asroot () { uid = ::geteuid(); gid = ::getegid(); ioslaves::api::euid_switch(0,0); }

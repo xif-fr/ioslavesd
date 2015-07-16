@@ -25,9 +25,11 @@ using namespace xlog;
 #include <list>
 #include <stdlib.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 	// Network
 #include <socket++/io/simple_socket.hpp>
+#include <socket++/base_inet.hpp>
 
 namespace xdyndns {
 	

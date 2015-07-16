@@ -28,6 +28,7 @@
 
 	// Files
 #include <sys/stat.h>
+#include <fcntl.h>
 
 	// Network
 #include <socket++/handler/socket_client.hpp>
