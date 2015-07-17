@@ -108,6 +108,9 @@ void ioslaves::api::euid_switch (uid_t uid, gid_t gid) {
 }
 #endif
 
+	// Keys
+#define IOSLAVES_KEY_SEND_DELAY 4
+
 	// Vars
 char hostname[64];
 short ip_refresh_dyndns_interval = -1;
@@ -379,7 +382,12 @@ int main (int argc, const char* argv[]) {
 			
 			if (auth and not master_id.empty()) {
 				ioslaves::key_t key;
-				std::tie (key,perms) = ioslaves::load_master_key(master_id);
+				try {
+					std::tie (key,perms) = ioslaves::load_master_key(master_id);
+				} catch (ioslaves::req_err& e) {
+					__log__(log_lvl::ERROR, "KEY", logstream << "Key loading failed : " << e.descr);
+					throw;
+				}
 				std::string challenge = ioslaves::generate_random(256);
 				cli.o_str(challenge);
 				std::string expected_answer = ioslaves::hash(challenge+key);
@@ -404,6 +412,76 @@ int main (int argc, const char* argv[]) {
 			#warning TO DO : Verify permissions
 			try {
 				switch (opcode) {
+					case ioslaves::op_code::KEY_AUTH: {
+						__log__(log_lvl::LOG, "OP", logstream << "Operation : Key sending authorization");
+						std::string footprint = cli.i_str();
+						std::string keyperms = cli.i_str();
+						std::string auth_master = cli.i_str();
+						std::string auth_ip_str = cli.i_str();
+						in_addr_t auth_ip;
+						if (not auth_ip_str.empty()) {
+							r = ::inet_pton(AF_INET, auth_ip_str.c_str(), &auth_ip);
+							if (r != 1) 
+								throw ioslaves::req_err(ioslaves::answer_code::INVALID_DATA, "KEY", "Invalid sender master IP");
+						}
+						if (not ioslaves::validateSlaveName(auth_master))
+							throw ioslaves::req_err(ioslaves::answer_code::INVALID_DATA, "KEY", "Invalid sender master ID");
+						if (footprint.length() != 32 or not ioslaves::validateHexa(footprint))
+							throw ioslaves::req_err(ioslaves::answer_code::INVALID_DATA, "KEY", "Invalid key footprint");
+						try {
+							libconfig::Config test_c;
+							test_c.readString(keyperms);
+							bool def = test_c.getRoot()["allow_by_default"];
+							__log__(log_lvl::IMPORTANT, "KEY", logstream << "Master '" << master_id << "' allows sending of key " << footprint << " in favor of master '" << auth_master << "' with default " << (def?"allowing":"denying") << " permissions for " << IOSLAVES_KEY_SEND_DELAY << "s");
+						} catch (libconfig::ConfigException&) {
+							throw ioslaves::req_err(ioslaves::answer_code::INVALID_DATA, "KEY", "Invalid permissions settings");
+						}
+							// Waiting for the key sender master
+						serv.set_pool_timeout(timeval({IOSLAVES_KEY_SEND_DELAY,0}));
+						RAII_AT_END({
+							serv.set_pool_timeout(::timeval(POOL_TIMEOUT));
+						});
+						try {
+							__log__(log_lvl::LOG, NULL, logstream << "Waiting for sender master connection...");
+							decltype(serv)::client clikey = serv.wait_new_client_timeout();
+							bool really = clikey.i_bool();
+							if (really) 
+								throw ioslaves::req_err(ioslaves::answer_code::DENY, NULL, "Normal connection occured while waiting for key sender");
+							__log__(log_lvl::LOG, "KEY", "Sender master connected");
+							std::string of_master = clikey.i_str();
+							if (of_master != auth_master or not (auth_ip_str.empty() or clikey.addr.get_ip_addr().s_addr == auth_ip)) {
+								clikey.o_char((char)ioslaves::answer_code::DENY);
+								throw ioslaves::req_err(ioslaves::answer_code::DENY, NULL, logstream << "Sender master '" << of_master << "' (" << clikey.addr.get_ip_str() << ") is not authorized master '" << auth_master << "'" << (auth_ip_str.empty()?"":_S( '(',auth_ip_str,')' )));
+							}
+							std::string key = clikey.i_str();
+							std::string sent_footprint = ioslaves::md5(key);
+							if (sent_footprint != footprint) {
+								clikey.o_char((char)ioslaves::answer_code::DENY);
+								throw ioslaves::req_err(ioslaves::answer_code::DENY, NULL, logstream << "Sent key's footprint (" << sent_footprint << ") does not corresponds to the authorized footprint (" << footprint << ")");
+							}
+							__log__(log_lvl::DONE, "KEY", logstream << "Key with footprint " << footprint << " is accepted for master " << of_master << " (" << clikey.addr.get_ip_str() << ")");
+							clikey.o_char((char)ioslaves::answer_code::OK);
+							cli.o_char((char)ioslaves::answer_code::OK);
+							cli.o_str(clikey.addr.get_ip_str());
+							#warning TO DO : Add key
+						} catch (socketxx::timeout_event&) {
+							throw ioslaves::req_err(ioslaves::answer_code::EXTERNAL_ERROR, NULL, "Delay expired for key sending !");
+						} catch (socketxx::classic_error& e) {
+							throw ioslaves::req_err(ioslaves::answer_code::EXTERNAL_ERROR, NULL, "Communication error occured with master while receiving key !");
+						}
+					} break;
+					case ioslaves::op_code::KEY_DEL: {
+						std::string of_master = cli.i_str();
+						__log__(log_lvl::IMPORTANT, "OP", logstream << "Operation : Delete key of master '" << of_master << "'");
+						r = ::unlink( _s( IOSLAVESD_KEYS_DIR,'/',of_master,".key" ) );
+						if (r == -1) {
+							if (errno == ENOENT) 
+								throw ioslaves::req_err(ioslaves::answer_code::NOT_FOUND, "KEY", "Key not found !");
+							else 
+								throw xif::sys_error("can't delete key");
+						}
+						__log__(log_lvl::DONE, "KEY", logstream << "Key of master '" << of_master << "' is revoked");
+					} break;
 					case ioslaves::op_code::SERVICE_START:
 						__log__(log_lvl::LOG, "OP", "Operation : Start service");
 						ioslaves::controlService(
@@ -569,7 +647,11 @@ int main (int argc, const char* argv[]) {
 		} catch (socketxx::error& se) {
 			__log__(log_lvl::OOPS, "NET", logstream << "Communication error with client : " << se.what());
 			continue;
-		} 
+		}
+			// System error
+		catch (xif::sys_error& e) {
+			__log__(log_lvl::ERROR, NULL, logstream << "Catched system error : " << e.what());
+		}
 			// Scheduled timeout
 		catch (socketxx::timeout_event&) {
 			

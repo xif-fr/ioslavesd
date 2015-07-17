@@ -56,9 +56,8 @@ namespace ioslaves {
 		PERM_STATUS = 'S',
 		CALL_API_SERVICE = 'l',
 		LOG_HISTORY = 'h',
-		KEY_AUTH = 't',
+		KEY_AUTH = 'k',
 		KEY_DEL = 'd',
-		KEY_SEND = 'k'
 	};
 	
 		// Authentification - Crypto
