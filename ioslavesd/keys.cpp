@@ -16,6 +16,7 @@ using namespace xlog;
 
 	// Files
 #include <stdio.h>
+#include <sys/stat.h>
 #define private public
 #include <libconfig.h++>
 #undef private
@@ -38,7 +39,7 @@ std::pair<ioslaves::key_t, ioslaves::perms_t> ioslaves::load_master_key (std::st
 		key = key_c.lookup("key").operator std::string();
 		if (key.length() != IOSLAVES_KEY_SIZE or not ioslaves::validateHexa(key)) 
 			throw ioslaves::req_err(answer_code::INVALID_DATA, logstream << "Master '" << master << "' : invalid key");
-		const libconfig::Setting& perms_c = key_c.lookup("perms_c");
+		const libconfig::Setting& perms_c = key_c.lookup("perms");
 		perms_c.assertType(libconfig::Setting::TypeGroup);
 		perms.by_default = (bool)perms_c["allow_by_default"];
 		const libconfig::Setting& ok_ops_c = perms_c["allowed_ops"];
@@ -72,6 +73,34 @@ std::pair<ioslaves::key_t, ioslaves::perms_t> ioslaves::load_master_key (std::st
 	}
 	return std::make_pair(key, perms);
 };
+
+void ioslaves::key_save (std::string master, ioslaves::key_t key, std::string perms_conf) {
+	int r;
+	std::string key_path = _S( IOSLAVESD_KEYS_DIR,'/',master,".key" );
+	r = ::access(key_path.c_str(), F_OK);
+	if (r != -1) 
+		__log__(log_lvl::WARNING, "KEY", logstream << "Key " << key_path << " already exists !");
+	std::string key_file = _S(
+		"key: \"", key, "\";\n",
+		"perms: {\n", perms_conf, "\n};\n"
+	);
+	fd_t key_f = ::open(key_path.c_str(), O_WRONLY|O_CREAT|O_TRUNC|O_NOFOLLOW, 0600);
+	if (key_f == -1) 
+		throw xif::sys_error("can't open key file");
+	ssize_t rs;
+	rs = ::write(key_f, key_file.c_str(), key_file.length());
+	if (rs != (ssize_t)key_file.length()) {
+		::close(key_f);
+		throw xif::sys_error("can't write to key file");
+	}
+	r = ::fchmod(key_f, 0400);
+	if (r == -1) {
+		::close(key_f);
+		throw xif::sys_error("failed to chmod key file");
+	}
+	::close(key_f);
+	__log__(log_lvl::DONE, "KEY", logstream << "Key " << key_path << " has been added");
+}
 
 ioslaves::perms_t::op_perm_t ioslaves::perms_verify_op (const ioslaves::perms_t& perms, ioslaves::op_code op) {
 	auto it = perms.ops.find(op);

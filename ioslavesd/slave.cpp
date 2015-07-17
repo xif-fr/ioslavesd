@@ -453,17 +453,19 @@ int main (int argc, const char* argv[]) {
 								clikey.o_char((char)ioslaves::answer_code::DENY);
 								throw ioslaves::req_err(ioslaves::answer_code::DENY, NULL, logstream << "Sender master '" << of_master << "' (" << clikey.addr.get_ip_str() << ") is not authorized master '" << auth_master << "'" << (auth_ip_str.empty()?"":_S( '(',auth_ip_str,')' )));
 							}
-							std::string key = clikey.i_str();
+							ioslaves::key_t key = clikey.i_str();
 							std::string sent_footprint = ioslaves::md5(key);
 							if (sent_footprint != footprint) {
 								clikey.o_char((char)ioslaves::answer_code::DENY);
 								throw ioslaves::req_err(ioslaves::answer_code::DENY, NULL, logstream << "Sent key's footprint (" << sent_footprint << ") does not corresponds to the authorized footprint (" << footprint << ")");
 							}
-							__log__(log_lvl::DONE, "KEY", logstream << "Key with footprint " << footprint << " is accepted for master " << of_master << " (" << clikey.addr.get_ip_str() << ")");
+							__log__(log_lvl::IMPORTANT, "KEY", logstream << "Key with footprint " << footprint << " is accepted for master " << of_master << " (" << clikey.addr.get_ip_str() << ")");
 							clikey.o_char((char)ioslaves::answer_code::OK);
 							cli.o_char((char)ioslaves::answer_code::OK);
 							cli.o_str(clikey.addr.get_ip_str());
-							#warning TO DO : Add key
+							ioslaves::key_save(of_master, 
+													 key, 
+													 keyperms);
 						} catch (socketxx::timeout_event&) {
 							throw ioslaves::req_err(ioslaves::answer_code::EXTERNAL_ERROR, NULL, "Delay expired for key sending !");
 						} catch (socketxx::classic_error& e) {
@@ -641,6 +643,9 @@ int main (int argc, const char* argv[]) {
 				cli.o_char((char)ioslaves::answer_code::OK);
 			} catch (ioslaves::req_err& e) {
 				cli.o_char((char)e.answ_code);
+			} catch (xif::sys_error& e) {
+				cli.o_char((char)ioslaves::answer_code::INTERNAL_ERROR);
+				throw;
 			}
 		
 			// Net error
@@ -651,6 +656,7 @@ int main (int argc, const char* argv[]) {
 			// System error
 		catch (xif::sys_error& e) {
 			__log__(log_lvl::ERROR, NULL, logstream << "Catched system error : " << e.what());
+			continue;
 		}
 			// Scheduled timeout
 		catch (socketxx::timeout_event&) {
