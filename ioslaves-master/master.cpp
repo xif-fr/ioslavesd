@@ -19,6 +19,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <iostream>
+#include <fstream>
 #include <algorithm>
 
 	// Config
@@ -86,7 +87,9 @@ bool $ignore_net_errors = false;
 time_t $log_begin, $log_end;
 int16_t $autoshutdown = -1;
 std::string $key_sl_auth_footprint;
-std::string $key_sl_revoke_master;
+std::string $key_sl_auth_ip;
+const char* $key_sl_auth_perms_file_path = NULL;
+std::string $key_sl_master;
 
 // ioslaves' core functionnality functions
 	void IPreSlaveCo ();
@@ -160,6 +163,7 @@ inline void test_for_IDs () {
 }
 
 int main (int argc, char* const argv[]) {
+	int r;
 	
 	struct option long_options[] = {
 		{"help", no_argument, NULL, 'h'},
@@ -178,7 +182,7 @@ int main (int argc, char* const argv[]) {
 			{"shutdown", optional_argument, NULL, 'D'},
 			{"status", no_argument, NULL, 'G'},
 			{"log", optional_argument, NULL, 'L'},
-			{"auth-key", required_argument, NULL, 'k'},
+			{"auth-key", no_argument, NULL, 'k'},
 			{"revoke-key", required_argument, NULL, 'r'},
 		{"keygen", no_argument, NULL, 'K'},
 		{"on", optional_argument, NULL, 'O'},
@@ -223,8 +227,8 @@ int main (int argc, char* const argv[]) {
 						 "               -s, --start          Start service\n"
 						 "               -o, --stop           Stop service\n"
 						 "               -a, --api-service-co=UNIX_SOCK\n"
-						 "                                    Get connection to an ioslaves API service. ioslaves role\n"
-						 "                                     here is only a relay between the distant API service and\n"
+						 "                                    Get connection to an ioslaves API service. Here, ioslaves only\n"
+						 "                                     relays between the distant API service and\n"
 						 "                                     a progam that knows the service's protocol, via unix socket.\n"
 						 "        -P, --open-port=(T|U)PORT[-END] [DESCR]\n"
 						 "                                    Open port(s) (TCP/UDP) on the distant slave's gatway using UPnP.\n"
@@ -237,9 +241,11 @@ int main (int argc, char* const argv[]) {
 						 "        -G, --status                Report overview status of the slave as JSON.\n"
 						 "        -L, --log [BEGIN[-END]]      Get slave's log line from timestamps BEGIN to END\n"
 						 "                                     (0 for no limit). Returns JSON if not interactive.\n"
-						 "        -k, --auth-key=FOOTPRINT    Authorize a master for 4 seconds to send it's new key with known\n"
-						 "                                     footprint, which should be transfered with integrity guaranty.\n"
-						 "        -r, --revoke-key=MASTER     Delete key of giver master.\n"
+						 "        -k, --auth-key MASTER FOOTPRINT PERMFILE [IP]   Authorize a master for 4 seconds to send it's\n"
+						 "                                     new key with known footprint, which should be transfered with\n"
+						 "                                     integrity guaranty. Master IP verification is optional. Models of\n"
+						 "                                     perms files can be found in " IOSLAVES_MASTER_KEYS_MODELS_DIR "\n"
+						 "        -r, --revoke-key=MASTER     Delete key of given master.\n"
 						 "  -K, --keygen             Generate (and replace if exists) a key for the slave. The key can be copied\n"
 						 "                            on the slave manually or automatically with the authorization of a master.\n"
 						 "  -O, --on [METHOD ARG[s]] Power on slave using several methods :\n"
@@ -376,15 +382,35 @@ int main (int argc, char* const argv[]) {
 			} break;
 			case 'k': {
 				optctx::optctx_set(optctx::slctrl_authk);
-				std::string footprint = optarg;
+				if (optind == argc or argv[optind][0] == '-') 
+					try_help("--auth-key must take key sender master id as first argument\n");
+				$key_sl_master = argv[optind++];
+				if (not ioslaves::validateSlaveName($key_sl_master)) 
+					try_help("--auth-key: invalid master id\n");
+				if (optind == argc or argv[optind][0] == '-') 
+					try_help("--auth-key must take key footprint as second argument\n");
+				std::string footprint = argv[optind++];
 				if (not ioslaves::validateHexa(footprint) or footprint.length() != 32) 
 					try_help("--auth-key: invalid key footprint\n");
 				std::transform(footprint.begin(), footprint.end(), std::back_inserter($key_sl_auth_footprint), ::tolower);
+				if (optind == argc or argv[optind][0] == '-') 
+					try_help("--auth-key must take key permissions settings file as third argument\n");
+				$key_sl_auth_perms_file_path = argv[optind++];
+				r = ::access($key_sl_auth_perms_file_path, R_OK);
+				if (r == -1) 
+					try_help("--auth-key: unable to access to key permissions settings file\n");
+				if (optind == argc or argv[optind][0] == '-') 
+					break;
+				$key_sl_auth_ip = argv[optind++];
+				in_addr_t auth_ip;
+				r = ::inet_pton(AF_INET, $key_sl_auth_ip.c_str(), &auth_ip);
+				if (r != 1) 
+					try_help("--auth-key: invalid key sender master IP\n");
 			} break;
 			case 'r': {
 				optctx::optctx_set(optctx::slctrl_delk);
-				$key_sl_revoke_master = optarg;
-				if (not ioslaves::validateSlaveName($key_sl_revoke_master)) 
+				$key_sl_master = optarg;
+				if (not ioslaves::validateSlaveName($key_sl_master)) 
 					try_help("--revoke-key: invalid master ID");
 			} break;
 			case 'K': {
@@ -815,6 +841,7 @@ void IKeygen () {
 	if (optctx::interactive) {
 		std::cout << "The key can be sent to the slave automatically with the authorization of an authorized master." << std::endl;
 		std::cout << "For that, the key footprint must be sent to the master via an channel that guarantees integrity." << std::endl;
+		std::cout << "You have " << IOSLAVES_KEY_SEND_DELAY << " seconds after the master sent the authorization to send the key." << std::endl;
 		std::cout << LOG_ARROW << "Ready to send ?" << COLOR_RESET << " (Enter/Ctrl-C)" << std::flush;
 		std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 		#warning TO DO : Send key
@@ -822,7 +849,50 @@ void IKeygen () {
 }
 
 void ISlKeyAuth () {
-	#warning TO DO
+	std::cerr << LOG_ARROW << "Authorizing master '" << $key_sl_master << "' to send its key with footprint " << $key_sl_auth_footprint << "..." << std::endl;
+	$slave_sock->o_char((char)ioslaves::op_code::KEY_AUTH);
+	$slave_sock->o_str($key_sl_auth_footprint);
+	std::string perms_str;
+	try {
+		std::ifstream perms_f; perms_f.exceptions(std::ifstream::failbit|std::ifstream::badbit);
+		perms_f.open($key_sl_auth_perms_file_path);
+		perms_str = std::string (std::istreambuf_iterator<char>(perms_f),
+		                         std::istreambuf_iterator<char>());
+	} catch (std::ifstream::failure& e) {
+		std::cerr << LOG_ARROW_ERR << "Failed to read key permissions settings file : " << e.what() << std::endl;
+		throw EXCEPT_ERROR_IGNORE;
+	}
+	libconfig::Config perms_c;
+	try {
+		perms_c.readString(perms_str);
+		perms_c.lookup("allow_by_default").assertType(libconfig::Setting::TypeBoolean);
+		perms_c.lookup("allowed_ops").assertType(libconfig::Setting::TypeGroup);
+		perms_c.lookup("denied_ops").assertType(libconfig::Setting::TypeArray);
+	} catch (libconfig::ParseException& e) {
+		std::cerr << LOG_ARROW_ERR << "Parse error in permissions settings file at line " << e.getLine() << " : " << e.getError() << std::endl;
+		throw EXCEPT_ERROR_IGNORE;
+	} catch (libconfig::SettingException& e) {
+		std::cerr << LOG_ARROW_ERR << "Missing/bad setting @" << e.getPath() << " in permissions settings file" << std::endl;
+		throw EXCEPT_ERROR_IGNORE;
+	}
+	$slave_sock->o_str(perms_str);
+	$slave_sock->o_str($key_sl_master);
+	$slave_sock->o_str($key_sl_auth_ip);
+	ioslaves::answer_code o;
+	o = (ioslaves::answer_code)$slave_sock->i_char();
+	if (o != ioslaves::answer_code::OK)
+		throw o;
+	std::cerr << LOG_ARROW_OK << "Authorization acceped ! Waiting for sender master's connection to slave (max " << IOSLAVES_KEY_SEND_DELAY << " seconds)..." << std::endl;
+	$slave_sock->set_read_timeout(timeval({IOSLAVES_KEY_SEND_DELAY+1,0}));
+	o = (ioslaves::answer_code)$slave_sock->i_char();
+	EXIT_FAILURE = EXIT_FAILURE_IOSL;
+	switch (o) {
+		case ioslaves::answer_code::DENY: std::cerr << COLOR_RED << "Key sender master was refused !" << COLOR_RESET << std::endl; break;
+		case ioslaves::answer_code::TIMEOUT: std::cerr << COLOR_RED << "Key sender master did not connect in the 4s time window." << COLOR_RESET << std::endl; break;
+		case ioslaves::answer_code::EXTERNAL_ERROR: std::cerr << COLOR_RED << "Communication error with key sender master." << COLOR_RESET << std::endl; break;
+		default: throw o;
+	}
+	throw EXCEPT_ERROR_IGNORE;
 }
 
 void ISlKeyDel () {
@@ -920,6 +990,7 @@ void IPost (ioslaves::answer_code e) {
 			case ioslaves::answer_code::EXTERNAL_ERROR: errstr = "Slave external error !"; break;
 			case ioslaves::answer_code::INVALID_DATA: errstr = "Invalid data !"; break;
 			case ioslaves::answer_code::LACK_RSRC: errstr = "Lacking ressources !"; break;
+			case ioslaves::answer_code::TIMEOUT: errstr = "Timeout !"; break;
 			default: case ioslaves::answer_code::ERROR: errstr = "Unknown error !";
 		}
 		std::cerr << COLOR_RED << errstr << COLOR_RESET << std::endl;

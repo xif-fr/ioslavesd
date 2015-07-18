@@ -32,6 +32,7 @@ std::string ioslaves::getAnswerCodeDescription (ioslaves::answer_code o) {
 		case ioslaves::answer_code::INVALID_DATA: return "invalid data";
 		case ioslaves::answer_code::LACK_RSRC: return "lacking ressources";
 		case ioslaves::answer_code::EXTERNAL_ERROR: return "external error";
+		case ioslaves::answer_code::TIMEOUT: return "timeout";
 		case ioslaves::answer_code::ERROR: return "generic error";
 	}
 	return "unknown error";

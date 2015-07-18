@@ -40,6 +40,7 @@ struct pipe_proc_t { fd_t in; fd_t out; fd_t err; };
 	// Keys
 #define IOSLAVES_KEY_SIZE 256
 #define IOSLAVES_CHALLENGE_SIZE 128
+#define IOSLAVES_KEY_SEND_DELAY 4
 
 namespace ioslaves {
 	
@@ -87,7 +88,8 @@ namespace ioslaves {
 		UPNP_ERROR = 'U',
 		DENY = 'D',
 		INVALID_DATA = 'I',
-		LACK_RSRC = 'k'
+		LACK_RSRC = 'k',
+		TIMEOUT = 'T'
 	};
 	std::string getAnswerCodeDescription (ioslaves::answer_code);
 		

@@ -108,9 +108,6 @@ void ioslaves::api::euid_switch (uid_t uid, gid_t gid) {
 }
 #endif
 
-	// Keys
-#define IOSLAVES_KEY_SEND_DELAY 4
-
 	// Vars
 char hostname[64];
 short ip_refresh_dyndns_interval = -1;
@@ -441,6 +438,7 @@ int main (int argc, const char* argv[]) {
 						RAII_AT_END({
 							serv.set_pool_timeout(::timeval(POOL_TIMEOUT));
 						});
+						cli.o_char((char)ioslaves::answer_code::OK);
 						try {
 							__log__(log_lvl::LOG, NULL, logstream << "Waiting for sender master connection...");
 							decltype(serv)::client clikey = serv.wait_new_client_timeout();
@@ -467,7 +465,7 @@ int main (int argc, const char* argv[]) {
 													 key, 
 													 keyperms);
 						} catch (socketxx::timeout_event&) {
-							throw ioslaves::req_err(ioslaves::answer_code::EXTERNAL_ERROR, NULL, "Delay expired for key sending !");
+							throw ioslaves::req_err(ioslaves::answer_code::TIMEOUT, NULL, "Delay expired for key sending !");
 						} catch (socketxx::classic_error& e) {
 							throw ioslaves::req_err(ioslaves::answer_code::EXTERNAL_ERROR, NULL, "Communication error occured with master while receiving key !");
 						}

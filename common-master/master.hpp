@@ -37,6 +37,7 @@
 #endif
 #define IOSLAVES_MASTER_KEYS_DIR _s(IOSLAVES_MASTER_DIR,"/keys")
 #define IOSLAVES_MASTER_SLAVES_DIR _s(IOSLAVES_MASTER_DIR,"/slaves")
+#define IOSLAVES_MASTER_KEYS_MODELS_DIR "/usr/share/ioslaves/master/key-perms/"
 
 	// Network
 #include <socket++/io/simple_socket.hpp>
