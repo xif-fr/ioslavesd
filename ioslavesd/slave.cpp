@@ -458,12 +458,13 @@ int main (int argc, const char* argv[]) {
 								throw ioslaves::req_err(ioslaves::answer_code::DENY, NULL, logstream << "Sent key's footprint (" << sent_footprint << ") does not corresponds to the authorized footprint (" << footprint << ")");
 							}
 							__log__(log_lvl::IMPORTANT, "KEY", logstream << "Key with footprint " << footprint << " is accepted for master " << of_master << " (" << clikey.addr.get_ip_str() << ")");
-							clikey.o_char((char)ioslaves::answer_code::OK);
-							cli.o_char((char)ioslaves::answer_code::OK);
-							cli.o_str(clikey.addr.get_ip_str());
 							ioslaves::key_save(of_master, 
 													 key, 
 													 keyperms);
+							clikey.o_char((char)ioslaves::answer_code::OK);
+							cli.o_char((char)ioslaves::answer_code::OK);
+							clikey.o_str(keyperms);
+							cli.o_str(clikey.addr.get_ip_str());
 						} catch (socketxx::timeout_event&) {
 							throw ioslaves::req_err(ioslaves::answer_code::TIMEOUT, NULL, "Delay expired for key sending !");
 						} catch (socketxx::classic_error& e) {

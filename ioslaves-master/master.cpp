@@ -824,7 +824,7 @@ void IKeygen () {
 	if (optctx::interactive) {
 		r = ::access(key_path.c_str(), F_OK);
 		if (r == 0) {
-			std::cerr << COLOR_YELLOW << "Replacing old key ? " << COLOR_RESET << " (Enter/Ctrl-C)" << std::flush;
+			std::cerr << COLOR_YELLOW << "Replace the old key ? " << COLOR_RESET << " (Enter/Ctrl-C)" << std::flush;
 			std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 		}
 	}
@@ -844,7 +844,20 @@ void IKeygen () {
 		std::cout << "You have " << IOSLAVES_KEY_SEND_DELAY << " seconds after the master sent the authorization to send the key." << std::endl;
 		std::cout << LOG_ARROW << "Ready to send ?" << COLOR_RESET << " (Enter/Ctrl-C)" << std::flush;
 		std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-		#warning TO DO : Send key
+		socketxx::simple_socket_client<socketxx::base_netsock> slsock = 
+			iosl_master::slave_connect ($slave_id, IOSLAVES_MASTER_DEFAULT_PORT, timeval({1,0}));
+		slsock.o_bool(false);
+		slsock.o_str($master_id);
+		slsock.o_str(key);
+		#warning TO DO : Must be encrypted
+		ioslaves::answer_code o;
+		o = (ioslaves::answer_code)slsock.i_char();
+		if (o != ioslaves::answer_code::OK)
+			throw o;
+		std::cout << LOG_ARROW_OK << "Key is accepted ! Keep in mind : With great power comes great responsibility." << std::endl;
+		std::cout << "Below are permissions associated with this key : " << std::endl << "--------------------" << std::endl;
+		std::cout << slsock.i_str() << std::endl;
+		std::cout << "--------------------" << std::endl;
 	}
 }
 
@@ -885,6 +898,13 @@ void ISlKeyAuth () {
 	std::cerr << LOG_ARROW_OK << "Authorization acceped ! Waiting for sender master's connection to slave (max " << IOSLAVES_KEY_SEND_DELAY << " seconds)..." << std::endl;
 	$slave_sock->set_read_timeout(timeval({IOSLAVES_KEY_SEND_DELAY+1,0}));
 	o = (ioslaves::answer_code)$slave_sock->i_char();
+	if (o == ioslaves::answer_code::OK) {
+		$key_sl_auth_ip = $slave_sock->i_str();
+		std::cerr << LOG_ARROW_OK << "Key of master '" << $key_sl_master << "' (" << $key_sl_auth_ip << ") acceped !" << std::endl;
+		delete $slave_sock;
+		$slave_sock = NULL;
+		return;
+	}
 	EXIT_FAILURE = EXIT_FAILURE_IOSL;
 	switch (o) {
 		case ioslaves::answer_code::DENY: std::cerr << COLOR_RED << "Key sender master was refused !" << COLOR_RESET << std::endl; break;
@@ -896,7 +916,9 @@ void ISlKeyAuth () {
 }
 
 void ISlKeyDel () {
-	#warning TO DO
+	std::cerr << LOG_ARROW << "Deleting key of master master '" << $key_sl_master << "'..." << std::endl;
+	$slave_sock->o_char((char)ioslaves::op_code::KEY_DEL);
+	$slave_sock->o_str($key_sl_master);
 }
 		
 	///---- Convert slave file to JSON ----////

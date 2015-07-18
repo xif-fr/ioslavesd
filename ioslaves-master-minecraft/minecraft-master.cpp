@@ -1657,6 +1657,7 @@ void MPost (ioslaves::answer_code e) {
 			case ioslaves::answer_code::INVALID_DATA: errstr = "Slave reports invalid data !"; break;
 			case ioslaves::answer_code::LACK_RSRC: errstr = "Lacking ressources !"; break;
 			case ioslaves::answer_code::EXTERNAL_ERROR: errstr = "Error outside the scope of ioslavesd-minecraft !"; break;
+			case ioslaves::answer_code::TIMEOUT: errstr = "Timeout !"; break;
 			default: case ioslaves::answer_code::ERROR: errstr = "Unknown error !";
 		}
 		__log__ << COLOR_RED << errstr << COLOR_RESET << std::flush;
