@@ -943,6 +943,7 @@ void verifyMapList (std::string slave_id, std::string server_name, socketxx::io:
 			}
 			if (want_get and not $refuse_save) {
 				__log__ << LOG_AROBASE << "Retrieving map save at " << lastsave << "..." << std::flush;
+				sock.set_read_timeout(TIMEOUT_ZIP_DELAY);
 				sock.o_char((char)ioslaves::answer_code::WANT_GET);
 				lastsave = sock.i_int<int64_t>();
 				sock.o_bool(true);
@@ -958,6 +959,7 @@ void verifyMapList (std::string slave_id, std::string server_name, socketxx::io:
 				ioslaves::infofile_set(_s(map_folder,"/truesave"), "false");
 				ioslaves::infofile_set(_s(map_folder,"/lastsave_from"), slave_id);
 				__log__ << LOG_AROBASE_OK << "Retrieving done !" << std::flush;
+				sock.set_read_timeout(TIMEOUT_COMM);
 			} else
 				sock.o_char((char)ioslaves::answer_code::OK);
 		}

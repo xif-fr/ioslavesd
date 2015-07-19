@@ -57,6 +57,7 @@ class master_err : public std::runtime_error {
 #define EXIT_FAILURE_AUTH 21
 #define EXIT_FAILURE_COMM 22
 #define EXIT_FAILURE_IOSL 23
+#define EXIT_FAILURE_ERR  24
 
 	/// Public connect API
 
@@ -68,20 +69,20 @@ namespace iosl_master {
 		// Start slave
 	enum class on_type { _AUTO, WoL, WoW, GATEWAY, PSU };
 	time_t slave_start (std::string slave_id, std::string master_id);
-	
-		// Connect to API service with authentication
-	socketxx::base_netsock slave_api_service_connect (std::string slave_id, std::string master_id, std::string api_service, timeval timeout = {1,0});
-	
+
 		// Connection
 	class ldns_error : public std::runtime_error { public: ldns_error (ldns_status r) noexcept : std::runtime_error(_S("ldns error : ",ldns_error_str[r].name)) {} };
 	in_port_t slave_get_port_dns (std::string slave_id);
-	socketxx::simple_socket_client<socketxx::base_netsock> slave_connect (std::string slave_id, in_port_t default_port = IOSLAVES_MASTER_DEFAULT_PORT, timeval timeout = {1,0});
-	void slave_api_service_connect (socketxx::base_netsock slave_sock, std::string master_id, std::string api_service);
-	void slave_command (socketxx::base_netsock slave_sock, std::string master_id, ioslaves::op_code opp);
+	socketxx::base_netsock slave_connect (std::string slave_id, in_port_t default_port = IOSLAVES_MASTER_DEFAULT_PORT, timeval timeout = {1,0});
+	
+		// Opperations
+	void slave_command (socketxx::io::simple_socket<socketxx::base_netsock> slave_sock, std::string master_id, ioslaves::op_code opp);
+	void slave_command_auth (socketxx::io::simple_socket<socketxx::base_netsock> slave_sock, std::string master_id, ioslaves::op_code opp, std::string slave_id);
+	void slave_api_service_connect (socketxx::io::simple_socket<socketxx::base_netsock> slave_sock, std::string master_id, std::string api_service);
+	socketxx::base_netsock slave_api_service_connect (std::string slave_id, std::string master_id, std::string api_service, timeval timeout = {1,0});
 	
 		// Authentification
-	void authenticate (socketxx::simple_socket_client<socketxx::base_netsock> slave_sock, std::string slave_id);
-
+	void authenticate (socketxx::io::simple_socket<socketxx::base_netsock> slave_sock, std::string slave_id);
 }
 
 	/// Wake on Lan/Wan sender

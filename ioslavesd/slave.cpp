@@ -394,6 +394,7 @@ int main (int argc, const char* argv[]) {
 					__log__(log_lvl::NOTICE, "AUTH", logstream << "Authentification failed for " << cli.addr.get_ip_str() << " as '" << master_id << "' ! Bad answer to challenge [" << challenge.substr(0,6) << "...]");
 					continue;
 				} else {
+					cli.o_char((char)ioslaves::answer_code::OK);
 					opcode = (ioslaves::op_code)cli.i_char();
 					if (ioslaves::perms_verify_op(perms, opcode).props["silent"] == "true")
 						__log__(log_lvl::LOG, "AUTH", logstream << "Authentification succeeded for '" << master_id << "' (" << cli.addr.get_ip_str() << ")");

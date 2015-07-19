@@ -79,7 +79,8 @@ std::string $on_gateway;
 uint16_t $on_psu_id = -1;
 std::string $new_key_file_path;
 std::string $api_co_unix_sock_path;
-bool $need_auth = false;
+bool $auth = false;
+bool $auto_auth = true;
 timeval $connect_timeout = {1,000000};
 timeval $comm_timeout = {4,000000};
 timeval $op_timeout = {60,000000};
@@ -170,7 +171,7 @@ int main (int argc, char* const argv[]) {
 		{"verbose", no_argument, NULL, 'v'},
 		{"no-interactive", no_argument, NULL, 'i'},
 		{"control", no_argument, NULL, 'C'},
-			{"force-auth", no_argument, NULL, 'f'},
+			{"auth", required_argument, NULL, 'f'},
 			{"port", required_argument, NULL, 'p'},
 			{"service", required_argument, NULL, 'S'},
 				{"start", no_argument, NULL, 's'},
@@ -220,7 +221,7 @@ int main (int argc, char* const argv[]) {
 						 "  -C, --control             Connect to distant ioslaves server. Authentification is optional but\n"
 						 "                             needed for most operations.\n"
 						 "      Options :\n"
-						 "        -f, --force-auth        Force authentication even if the operation don't need it.\n"
+						 "        -f, --auth=(yes|auto|no)  Force authentication or not.\n"
 						 "      Commands :\n"
 						 "        -S, --service=SERVICE   Control slave's services\n"
 						 "            Operations :\n"
@@ -272,12 +273,16 @@ int main (int argc, char* const argv[]) {
 				test_for_IDs();
 				break;
 			case 'f':
-				optctx::optctx_test("--auth-force", optctx::slctrl);
-				$need_auth = true;
+				optctx::optctx_test("--auth", optctx::slctrl);
+				     if (_S(optarg) == "yes")  { $auto_auth = false; $auth = true; }
+				else if (_S(optarg) == "auto") { $auto_auth = true; }
+				else if (_S(optarg) == "no")   { $auto_auth = false; $auth = false; }
+				else 
+					try_help("--auth mode must be 'yes', 'no', or 'auto'\n");
 				break;
 			case 'S':
 				optctx::optctx_set(optctx::slctrl_Ser);
-				$need_auth = true;
+				if ($auto_auth) $auth = true;
 				$service_name = optarg;
 				if (!ioslaves::validateName($service_name)) 
 					try_help("--service: invalid service ID\n");
@@ -297,7 +302,7 @@ int main (int argc, char* const argv[]) {
 				optctx::optctx_set(optctx::slctrl_port);
 				$port_open = true;
 			__port_section: {
-				$need_auth = true;
+				if ($auto_auth) $auth = true;
 				std::string port_str = optarg;
 				if (port_str.size() < 2 or (port_str[0] != 'T' and port_str[0] != 'U')) 
 					try_help(_s(optctx::optctx_optnm[optctx::slctrl_port]," : Protocol letter must be 'T' for TCP or 'U' for UDP, followed by a port number.\n"));
@@ -345,7 +350,7 @@ int main (int argc, char* const argv[]) {
 				optctx::optctx_optnm[optctx::slctrl_shutd] = "--reboot";
 				optctx::optctx_set(optctx::slctrl_shutd);
 				$shutd_reboot = true;
-				$need_auth = true;
+				if ($auto_auth) $auth = true;
 				break;
 			case 'D':
 				optctx::optctx_set(optctx::slctrl_shutd);
@@ -356,13 +361,15 @@ int main (int argc, char* const argv[]) {
 						try_help("--shutdown: invalid automatic shutdown delay");
 					}	
 				} else $autoshutdown = -1;
-				$need_auth = true;
+				if ($auto_auth) $auth = true;
 				break;
 			case 'G':
 				optctx::optctx_set(optctx::slctrl_stat);
+				if ($auto_auth) $auth = false;
 				break;
 			case 'L': {
 				optctx::optctx_set(optctx::slctrl_log);
+				if ($auto_auth) $auth = false;
 				$log_begin = 0;
 				$log_end = 0;
 				if (optarg != NULL) {
@@ -382,6 +389,7 @@ int main (int argc, char* const argv[]) {
 			} break;
 			case 'k': {
 				optctx::optctx_set(optctx::slctrl_authk);
+				if ($auto_auth) $auth = true;
 				if (optind == argc or argv[optind][0] == '-') 
 					try_help("--auth-key must take key sender master id as first argument\n");
 				$key_sl_master = argv[optind++];
@@ -409,6 +417,7 @@ int main (int argc, char* const argv[]) {
 			} break;
 			case 'r': {
 				optctx::optctx_set(optctx::slctrl_delk);
+				if ($auto_auth) $auth = true;
 				$key_sl_master = optarg;
 				if (not ioslaves::validateSlaveName($key_sl_master)) 
 					try_help("--revoke-key: invalid master ID");
@@ -470,12 +479,11 @@ int main (int argc, char* const argv[]) {
 	}
 	optctx::optctx_end();
 	
-	#warning TO DO : auth
-	/*if ($need_auth and $slave_id.empty()) {
+	if ($auth and $slave_id.empty()) {
 		std::cerr << COLOR_RED << "Authentification needed : must use a slave ID !" << COLOR_RESET << std::endl;
 		EXIT_FAILURE = EXIT_FAILURE_AUTH;
 		return EXIT_FAILURE;
-	}*/
+	}
 	
 	/// Execute
 	try {
@@ -539,10 +547,8 @@ void IPreSlaveCo () {
 		$slave_sock->o_bool(true);
 			// Authentification
 		$slave_sock->o_str($master_id);
-#warning TO DO : Auth
-$need_auth = false;
-		$slave_sock->o_bool($need_auth);
-		if ($need_auth) {
+		$slave_sock->o_bool($auth);
+		if ($auth) {
 			std::cerr << "Authentification..." << std::endl;
 			iosl_master::authenticate(*$slave_sock, $slave_id);
 		}
@@ -844,7 +850,7 @@ void IKeygen () {
 		std::cout << "You have " << IOSLAVES_KEY_SEND_DELAY << " seconds after the master sent the authorization to send the key." << std::endl;
 		std::cout << LOG_ARROW << "Ready to send ?" << COLOR_RESET << " (Enter/Ctrl-C)" << std::flush;
 		std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-		socketxx::simple_socket_client<socketxx::base_netsock> slsock = 
+		socketxx::io::simple_socket<socketxx::base_netsock> slsock = 
 			iosl_master::slave_connect ($slave_id, IOSLAVES_MASTER_DEFAULT_PORT, timeval({1,0}));
 		slsock.o_bool(false);
 		slsock.o_str($master_id);

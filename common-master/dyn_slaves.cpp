@@ -122,7 +122,7 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::select_slaves (const c
 			iosl_dyn_slaves::slave_info& info = *((iosl_dyn_slaves::slave_info*)data);
 			xif::polyvar stat;
 			try {
-				socketxx::simple_socket_client<socketxx::base_netsock> sock = iosl_master::slave_connect(info.sl_name, 0, timeval{1,0});
+				socketxx::io::simple_socket<socketxx::base_netsock> sock = iosl_master::slave_connect(info.sl_name, 0, timeval{1,0});
 				sock.o_bool(true);
 				sock.o_str(""); // No auth, no identification
 				sock.o_bool(false);
