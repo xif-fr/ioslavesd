@@ -205,7 +205,7 @@ int main (int argc, char* const argv[]) {
 	try_parse_IDs(argc, argv);
 	
 	int opt, opt_charind = 0;
-	while ((opt = ::getopt_long(argc, argv, "-hiCfp:S:soa:P:X:RDGL::KO::", long_options, &opt_charind)) != -1) {
+	while ((opt = ::getopt_long(argc, argv, "-hiCf:S:soa:P:X:RDGL::kr:KO::J", long_options, &opt_charind)) != -1) {
 		switch (opt) {
 			case 'h':
 				::puts("ioslaves-master | ioslaves control programm for network masters\n"
@@ -369,7 +369,7 @@ int main (int argc, char* const argv[]) {
 				break;
 			case 'L': {
 				optctx::optctx_set(optctx::slctrl_log);
-				if ($auto_auth) $auth = false;
+				if ($auto_auth) $auth = true;
 				$log_begin = 0;
 				$log_end = 0;
 				if (optarg != NULL) {
@@ -817,9 +817,7 @@ void IPowerup () {
 void IKeygen () {
 	std::cerr << LOG_ARROW << "Generating key for slave '" << $slave_id << "'..." << std::endl;
 	std::string key;
-	key += ioslaves::md5($slave_id);
-	key += ioslaves::md5($master_id);
-	key += ioslaves::generate_random(384);
+	key += ioslaves::generate_random(IOSLAVES_KEY_SIZE/2);
 	int r;
 	r = ::access(IOSLAVES_MASTER_KEYS_DIR, F_OK);
 	if (r == -1) {
@@ -847,7 +845,7 @@ void IKeygen () {
 	if (optctx::interactive) {
 		std::cout << "The key can be sent to the slave automatically with the authorization of an authorized master." << std::endl;
 		std::cout << "For that, the key footprint must be sent to the master via an channel that guarantees integrity." << std::endl;
-		std::cout << "You have " << IOSLAVES_KEY_SEND_DELAY << " seconds after the master sent the authorization to send the key." << std::endl;
+		std::cout << "You have " << IOSLAVES_KEY_SEND_DELAY << " seconds to send the key after the master sent the authorization." << std::endl;
 		std::cout << LOG_ARROW << "Ready to send ?" << COLOR_RESET << " (Enter/Ctrl-C)" << std::flush;
 		std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 		socketxx::io::simple_socket<socketxx::base_netsock> slsock = 
@@ -1019,6 +1017,7 @@ void IPost (ioslaves::answer_code e) {
 			case ioslaves::answer_code::INVALID_DATA: errstr = "Invalid data !"; break;
 			case ioslaves::answer_code::LACK_RSRC: errstr = "Lacking ressources !"; break;
 			case ioslaves::answer_code::TIMEOUT: errstr = "Timeout !"; break;
+			case ioslaves::answer_code::NOT_AUTHORIZED: errstr = "Permission denied !"; break;
 			default: case ioslaves::answer_code::ERROR: errstr = "Unknown error !";
 		}
 		std::cerr << COLOR_RED << errstr << COLOR_RESET << std::endl;

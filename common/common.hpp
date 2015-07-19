@@ -38,7 +38,7 @@ struct pipe_proc_t { fd_t in; fd_t out; fd_t err; };
 #endif
 
 	// Keys
-#define IOSLAVES_KEY_SIZE 256
+#define IOSLAVES_KEY_SIZE 512
 #define IOSLAVES_CHALLENGE_SIZE 128
 #define IOSLAVES_KEY_SEND_DELAY 4
 

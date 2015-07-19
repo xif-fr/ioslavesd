@@ -386,8 +386,9 @@ int main (int argc, const char* argv[]) {
 				try {
 					std::tie (key,perms) = ioslaves::load_master_key(master_id);
 				} catch (ioslaves::req_err& e) {
-					__log__(log_lvl::ERROR, "KEY", logstream << "Key loading failed : " << e.descr);
-					throw;
+					__log__(log_lvl::ERROR, "KEY", logstream << "Authentification of " << cli.addr.get_ip_str() << " : Key loading failed : " << e.descr);
+					cli.o_char((char)e.answ_code);
+					continue;
 				}
 				std::string challenge = ioslaves::generate_random(256);
 				cli.o_str(challenge);
@@ -400,7 +401,7 @@ int main (int argc, const char* argv[]) {
 				} else {
 					cli.o_char((char)ioslaves::answer_code::OK);
 					opcode = (ioslaves::op_code)cli.i_char();
-					if (ioslaves::perms_verify_op(perms, opcode).props["silent"] == "true")
+					if (ioslaves::perms_verify_op(perms, opcode).props["silent"] != "true")
 						__log__(log_lvl::LOG, "AUTH", logstream << "Authentification succeeded for '" << master_id << "' (" << cli.addr.get_ip_str() << ")");
 				}
 			} else {
@@ -423,7 +424,22 @@ int main (int argc, const char* argv[]) {
 						std::string keyperms = cli.i_str();
 						std::string auth_master = cli.i_str();
 						std::string auth_ip_str = cli.i_str();
-						OpPermsCheck();
+						if (auth)
+							OpPermsCheck();
+						else {
+							DIR* dir = ::opendir(IOSLAVESD_KEYS_DIR);
+							if (dir == NULL) 
+								throw xif::sys_error("can't open keys dir");
+							dirent* dp, *dentr = (dirent*) ::malloc((size_t)offsetof(struct dirent, d_name) + std::max(sizeof(dirent::d_name), (size_t)::fpathconf(dirfd(dir),_PC_NAME_MAX)) +1);
+							RAII_AT_END({ ::closedir(dir); ::free(dentr); });
+							int rr;
+							while ((rr = ::readdir_r(dir, dentr, &dp)) != -1 and dp != NULL) {
+								if (dentr->d_type != DT_DIR) 
+									throw ioslaves::req_err(ioslaves::answer_code::NOT_AUTHORIZED, "PERMS", "Key folder not empty : first key sending can't be satisfied");
+							}
+							if (rr == -1) throw xif::sys_error("readdir error while listing keys dir");
+							__log__(log_lvl::IMPORTANT, "PERMS", logstream << "Master is not authenticated but key folder is empty : authorizing first key sending");
+						}
 						in_addr_t auth_ip;
 						if (not auth_ip_str.empty()) {
 							r = ::inet_pton(AF_INET, auth_ip_str.c_str(), &auth_ip);
@@ -661,8 +677,7 @@ int main (int argc, const char* argv[]) {
 						}
 						if (log_begin > log_end) { beg = 0; end = 0; }
 					_log_send:
-						if (not auth)
-							__log__(log_lvl::LOG, "OP", logstream << "(" << (end-beg) << " lines)", LOG_ADD, &l);
+						__log__(log_lvl::LOG, "OP", logstream << "(" << (end-beg) << " lines)", LOG_ADD, &l);
 						cli.o_int<uint64_t>(end-beg);
 						for (i = beg; i < end; i++) {
 							cli.o_int<uint64_t>(log_history[i].le_time);

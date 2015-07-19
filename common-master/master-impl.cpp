@@ -76,9 +76,12 @@ void iosl_master::slave_command (socketxx::io::simple_socket<socketxx::base_nets
 
 	// Authentification
 void iosl_master::authenticate (socketxx::io::simple_socket<socketxx::base_netsock> slave_sock, std::string slave_id) {
+	std::string key_path = _S( IOSLAVES_MASTER_KEYS_DIR,"/",slave_id,".key" );
+	int r = ::access(key_path.c_str(), F_OK);
+	if (r == -1) 
+		throw master_err(_S( "No key for slave '",slave_id,"'" ), EXIT_FAILURE_ERR);
 	std::string key;
 	try {
-		std::string key_path = _S( IOSLAVES_MASTER_KEYS_DIR,"/",slave_id,".key" );
 		std::ifstream key_f; key_f.exceptions(std::ifstream::failbit|std::ifstream::badbit);
 		key_f.open(key_path);
 		key = std::string (std::istreambuf_iterator<char>(key_f),
