@@ -318,11 +318,11 @@ extern "C" bool ioslapi_got_sigchld (pid_t pid, int pid_status) {
 	return false;
 }
 
-extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const char* auth_as, in_addr_t) {
+extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const char* masterid, ioslaves::api::api_perm_t* perms, in_addr_t) {
 	int r;
 	
-	if (auth_as == NULL) 
-		return;
+	if (perms == NULL) 
+		throw ioslaves::req_err(ioslaves::answer_code::NOT_AUTHORIZED, "PERMS", logstream << "Minecraft API service requires authentification");
 	
 	try {
 		socketxx::io::simple_socket<socketxx::base_socket> cli (_cli_sock);
