@@ -38,8 +38,9 @@ struct pipe_proc_t { fd_t in; fd_t out; fd_t err; };
 #endif
 
 	// Keys
-#define IOSLAVES_KEY_SIZE 256
+#define IOSLAVES_KEY_SIZE 512
 #define IOSLAVES_CHALLENGE_SIZE 128
+#define IOSLAVES_KEY_SEND_DELAY 4
 
 namespace ioslaves {
 	
@@ -55,7 +56,9 @@ namespace ioslaves {
 		GET_STATUS = 'g',
 		PERM_STATUS = 'S',
 		CALL_API_SERVICE = 'l',
-		LOG_HISTORY = 'h'
+		LOG_HISTORY = 'h',
+		KEY_AUTH = 'k',
+		KEY_DEL = 'd',
 	};
 	
 		// Authentification - Crypto
@@ -66,13 +69,14 @@ namespace ioslaves {
 	
 		// Universal answer code (0 is reserved)
 	enum class answer_code : char { 
-		OK = '|', 
+		OK = '|',
 		MAY_HAVE_FAIL = 'M',
 		ERROR = '*',
-		INTERNAL_ERROR = 'i', 
-		BAD_CHALLENGE_ANSWER = 'c', 
+		INTERNAL_ERROR = 'i',
+		BAD_CHALLENGE_ANSWER = 'c',
+		NOT_AUTHORIZED = '#',
 		SECURITY_ERROR = 'r',
-		NOT_FOUND = 'f', 
+		NOT_FOUND = 'f',
 		EXTERNAL_ERROR = 'e',
 		BAD_STATE = 's',
 		BAD_TYPE = 't',
@@ -84,7 +88,8 @@ namespace ioslaves {
 		UPNP_ERROR = 'U',
 		DENY = 'D',
 		INVALID_DATA = 'I',
-		LACK_RSRC = 'k'
+		LACK_RSRC = 'k',
+		TIMEOUT = 'T'
 	};
 	std::string getAnswerCodeDescription (ioslaves::answer_code);
 		

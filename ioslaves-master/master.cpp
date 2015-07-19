@@ -19,6 +19,8 @@
 #include <string.h>
 #include <stdio.h>
 #include <iostream>
+#include <fstream>
+#include <algorithm>
 
 	// Config
 #define private public
@@ -77,13 +79,18 @@ std::string $on_gateway;
 uint16_t $on_psu_id = -1;
 std::string $new_key_file_path;
 std::string $api_co_unix_sock_path;
-bool $need_auth = false;
+bool $auth = false;
+bool $auto_auth = true;
 timeval $connect_timeout = {1,000000};
 timeval $comm_timeout = {4,000000};
 timeval $op_timeout = {60,000000};
 bool $ignore_net_errors = false;
 time_t $log_begin, $log_end;
 int16_t $autoshutdown = -1;
+std::string $key_sl_auth_footprint;
+std::string $key_sl_auth_ip;
+const char* $key_sl_auth_perms_file_path = NULL;
+std::string $key_sl_master;
 
 // ioslaves' core functionnality functions
 	void IPreSlaveCo ();
@@ -96,6 +103,8 @@ int16_t $autoshutdown = -1;
 		void IShutd ();
 		void IStat ();
 		void ILog ();
+		void ISlKeyAuth ();
+		void ISlKeyDel ();
 	void IPostSlaveCo (ioslaves::answer_code);
 	void IKeygen ();
 	void IPowerup ();
@@ -109,11 +118,11 @@ void IPost (ioslaves::answer_code);
 #define OPTCTX_POSTFNCT_EXCEPT_DEFAULT (ioslaves::answer_code)0
 #define EXCEPT_ERROR_IGNORE (ioslaves::answer_code)1
 
-#define OPTCTX_CTXS                              slctrl                         , slctrl_Ser                     , slctrl_Sstart    , slctrl_Sstop    , slctrl_Sapi       , slctrl_port , slctrl_shutd , slctrl_stat , slctrl_log , keygen        , powerup        , tojson
-#define OPTCTX_PARENTS                           ROOT                           , slctrl                         , slctrl_Ser       , slctrl_Ser      , slctrl_Ser        , slctrl      , slctrl       , slctrl      , slctrl     , ROOT          , ROOT           , ROOT
-#define OPTCTX_PARENTS_NAMES  "action"         , "slave command"                , "service operation"            , NULL             , NULL            , NULL              , NULL        , NULL         , NULL        , NULL       , NULL          , NULL           , NULL
-#define OPTCTX_PARENTS_FNCTS  CTXFP(NULL,IPost), CTXFP(IPreSlaveCo,IPostSlaveCo), CTXFP(IPreService,IPostService), CTXFO(IServStart), CTXFO(IServStop), CTXFO(IApi)       , CTXFO(IPort), CTXFO(IShutd), CTXFO(IStat), CTXFO(ILog), CTXFO(IKeygen), CTXFO(IPowerup), CTXFO(IioslFile2JSON)
-#define OPTCTX_NAMES                             "--control"                    , "--service"                    , "--start"        , "--stop"        , "--api-service-co", "--xxx-port", "--shutdown" , "--status"  , "--log"    , "--add-key"   , "--on"         , "--to-json"
+#define OPTCTX_CTXS                              slctrl                         , slctrl_Ser                     , slctrl_Sstart    , slctrl_Sstop    , slctrl_Sapi       , slctrl_port , slctrl_shutd , slctrl_stat , slctrl_log , slctrl_authk     , slctrl_delk     , keygen        , powerup        , tojson
+#define OPTCTX_PARENTS                           ROOT                           , slctrl                         , slctrl_Ser       , slctrl_Ser      , slctrl_Ser        , slctrl      , slctrl       , slctrl      , slctrl     , slctrl           , slctrl          , ROOT          , ROOT           , ROOT
+#define OPTCTX_PARENTS_NAMES  "action"         , "slave command"                , "service operation"            , NULL             , NULL            , NULL              , NULL        , NULL         , NULL        , NULL       , NULL             , NULL            , NULL          , NULL           , NULL
+#define OPTCTX_PARENTS_FNCTS  CTXFP(NULL,IPost), CTXFP(IPreSlaveCo,IPostSlaveCo), CTXFP(IPreService,IPostService), CTXFO(IServStart), CTXFO(IServStop), CTXFO(IApi)       , CTXFO(IPort), CTXFO(IShutd), CTXFO(IStat), CTXFO(ILog), CTXFO(ISlKeyAuth), CTXFO(ISlKeyDel), CTXFO(IKeygen), CTXFO(IPowerup), CTXFO(IioslFile2JSON)
+#define OPTCTX_NAMES                             "--control"                    , "--service"                    , "--start"        , "--stop"        , "--api-service-co", "--xxx-port", "--shutdown" , "--status"  , "--log"    , "--auth-key"     , "--revoke-key"  , "--add-key"   , "--on"         , "--to-json"
 
 #define OPTCTX_PROG_NAME "ioslaves-master"
 #include <xifutils/optctx.hpp>
@@ -155,13 +164,14 @@ inline void test_for_IDs () {
 }
 
 int main (int argc, char* const argv[]) {
+	int r;
 	
 	struct option long_options[] = {
 		{"help", no_argument, NULL, 'h'},
 		{"verbose", no_argument, NULL, 'v'},
 		{"no-interactive", no_argument, NULL, 'i'},
 		{"control", no_argument, NULL, 'C'},
-			{"force-auth", no_argument, NULL, 'f'},
+			{"auth", required_argument, NULL, 'f'},
 			{"port", required_argument, NULL, 'p'},
 			{"service", required_argument, NULL, 'S'},
 				{"start", no_argument, NULL, 's'},
@@ -173,6 +183,8 @@ int main (int argc, char* const argv[]) {
 			{"shutdown", optional_argument, NULL, 'D'},
 			{"status", no_argument, NULL, 'G'},
 			{"log", optional_argument, NULL, 'L'},
+			{"auth-key", no_argument, NULL, 'k'},
+			{"revoke-key", required_argument, NULL, 'r'},
 		{"keygen", no_argument, NULL, 'K'},
 		{"on", optional_argument, NULL, 'O'},
 		{"to-json", no_argument, NULL, 'J'},
@@ -193,7 +205,7 @@ int main (int argc, char* const argv[]) {
 	try_parse_IDs(argc, argv);
 	
 	int opt, opt_charind = 0;
-	while ((opt = ::getopt_long(argc, argv, "-hiCfp:S:soa:P:X:RDGL::KO::", long_options, &opt_charind)) != -1) {
+	while ((opt = ::getopt_long(argc, argv, "-hiCf:S:soa:P:X:RDGL::kr:KO::J", long_options, &opt_charind)) != -1) {
 		switch (opt) {
 			case 'h':
 				::puts("ioslaves-master | ioslaves control programm for network masters\n"
@@ -209,15 +221,15 @@ int main (int argc, char* const argv[]) {
 						 "  -C, --control             Connect to distant ioslaves server. Authentification is optional but\n"
 						 "                             needed for most operations.\n"
 						 "      Options :\n"
-						 "        -f, --force-auth        Force authentication even if the operation don't need it.\n"
+						 "        -f, --auth=(yes|auto|no)  Force authentication or not.\n"
 						 "      Commands :\n"
 						 "        -S, --service=SERVICE   Control slave's services\n"
 						 "            Operations :\n"
 						 "               -s, --start          Start service\n"
 						 "               -o, --stop           Stop service\n"
 						 "               -a, --api-service-co=UNIX_SOCK\n"
-						 "                                    Get connection to an ioslaves API service. ioslaves role\n"
-						 "                                     here is only a relay between the distant API service and\n"
+						 "                                    Get connection to an ioslaves API service. Here, ioslaves only\n"
+						 "                                     relays between the distant API service and\n"
 						 "                                     a progam that knows the service's protocol, via unix socket.\n"
 						 "        -P, --open-port=(T|U)PORT[-END] [DESCR]\n"
 						 "                                    Open port(s) (TCP/UDP) on the distant slave's gatway using UPnP.\n"
@@ -230,8 +242,13 @@ int main (int argc, char* const argv[]) {
 						 "        -G, --status                Report overview status of the slave as JSON.\n"
 						 "        -L, --log [BEGIN[-END]]      Get slave's log line from timestamps BEGIN to END\n"
 						 "                                     (0 for no limit). Returns JSON if not interactive.\n"
-						 "  -K, --keygen             Generate (and replace if exists) a key for the slave. The key need to\n"
-						 "                            copied on the slave.\n"
+						 "        -k, --auth-key MASTER FOOTPRINT PERMFILE [IP]   Authorize a master for 4 seconds to send it's\n"
+						 "                                     new key with known footprint, which should be transfered with\n"
+						 "                                     integrity guaranty. Master IP verification is optional. Models of\n"
+						 "                                     perms files can be found in " IOSLAVES_MASTER_KEYS_MODELS_DIR "\n"
+						 "        -r, --revoke-key=MASTER     Delete key of given master.\n"
+						 "  -K, --keygen             Generate (and replace if exists) a key for the slave. The key can be copied\n"
+						 "                            on the slave manually or automatically with the authorization of a master.\n"
 						 "  -O, --on [METHOD ARG[s]] Power on slave using several methods :\n"
 						 "                            MAGIC_PKT: wake up the slave using a magic packet containing the\n"
 						 "                                        MAC address of its compatible NIC (UDP packet on port 9).\n"
@@ -256,16 +273,19 @@ int main (int argc, char* const argv[]) {
 				test_for_IDs();
 				break;
 			case 'f':
-				optctx::optctx_test("--auth-force", optctx::slctrl);
-				$need_auth = true;
+				optctx::optctx_test("--auth", optctx::slctrl);
+				     if (_S(optarg) == "yes")  { $auto_auth = false; $auth = true; }
+				else if (_S(optarg) == "auto") { $auto_auth = true; }
+				else if (_S(optarg) == "no")   { $auto_auth = false; $auth = false; }
+				else 
+					try_help("--auth mode must be 'yes', 'no', or 'auto'\n");
 				break;
 			case 'S':
 				optctx::optctx_set(optctx::slctrl_Ser);
-				$need_auth = true;
+				if ($auto_auth) $auth = true;
 				$service_name = optarg;
-				if (!ioslaves::validateName($service_name)) {
+				if (!ioslaves::validateName($service_name)) 
 					try_help("--service: invalid service ID\n");
-				}
 				break;
 			case 's':
 				optctx::optctx_set(optctx::slctrl_Sstart);
@@ -282,7 +302,7 @@ int main (int argc, char* const argv[]) {
 				optctx::optctx_set(optctx::slctrl_port);
 				$port_open = true;
 			__port_section: {
-				$need_auth = true;
+				if ($auto_auth) $auth = true;
 				std::string port_str = optarg;
 				if (port_str.size() < 2 or (port_str[0] != 'T' and port_str[0] != 'U')) 
 					try_help(_s(optctx::optctx_optnm[optctx::slctrl_port]," : Protocol letter must be 'T' for TCP or 'U' for UDP, followed by a port number.\n"));
@@ -330,7 +350,7 @@ int main (int argc, char* const argv[]) {
 				optctx::optctx_optnm[optctx::slctrl_shutd] = "--reboot";
 				optctx::optctx_set(optctx::slctrl_shutd);
 				$shutd_reboot = true;
-				$need_auth = true;
+				if ($auto_auth) $auth = true;
 				break;
 			case 'D':
 				optctx::optctx_set(optctx::slctrl_shutd);
@@ -341,13 +361,15 @@ int main (int argc, char* const argv[]) {
 						try_help("--shutdown: invalid automatic shutdown delay");
 					}	
 				} else $autoshutdown = -1;
-				$need_auth = true;
+				if ($auto_auth) $auth = true;
 				break;
 			case 'G':
 				optctx::optctx_set(optctx::slctrl_stat);
+				if ($auto_auth) $auth = false;
 				break;
 			case 'L': {
 				optctx::optctx_set(optctx::slctrl_log);
+				if ($auto_auth) $auth = true;
 				$log_begin = 0;
 				$log_end = 0;
 				if (optarg != NULL) {
@@ -361,15 +383,50 @@ int main (int argc, char* const argv[]) {
 							$log_begin = ::atoix<time_t>(timestamps);
 						}
 					} catch (...) {
-						try_help("--log : invalid timestamps\n");
+						try_help("--log: invalid timestamps\n");
 					}
 				}
+			} break;
+			case 'k': {
+				optctx::optctx_set(optctx::slctrl_authk);
+				if ($auto_auth) $auth = true;
+				if (optind == argc or argv[optind][0] == '-') 
+					try_help("--auth-key must take key sender master id as first argument\n");
+				$key_sl_master = argv[optind++];
+				if (not ioslaves::validateSlaveName($key_sl_master)) 
+					try_help("--auth-key: invalid master id\n");
+				if (optind == argc or argv[optind][0] == '-') 
+					try_help("--auth-key must take key footprint as second argument\n");
+				std::string footprint = argv[optind++];
+				if (not ioslaves::validateHexa(footprint) or footprint.length() != 32) 
+					try_help("--auth-key: invalid key footprint\n");
+				std::transform(footprint.begin(), footprint.end(), std::back_inserter($key_sl_auth_footprint), ::tolower);
+				if (optind == argc or argv[optind][0] == '-') 
+					try_help("--auth-key must take key permissions settings file as third argument\n");
+				$key_sl_auth_perms_file_path = argv[optind++];
+				r = ::access($key_sl_auth_perms_file_path, R_OK);
+				if (r == -1) 
+					try_help("--auth-key: unable to access to key permissions settings file\n");
+				if (optind == argc or argv[optind][0] == '-') 
+					break;
+				$key_sl_auth_ip = argv[optind++];
+				in_addr_t auth_ip;
+				r = ::inet_pton(AF_INET, $key_sl_auth_ip.c_str(), &auth_ip);
+				if (r != 1) 
+					try_help("--auth-key: invalid key sender master IP\n");
+			} break;
+			case 'r': {
+				optctx::optctx_set(optctx::slctrl_delk);
+				if ($auto_auth) $auth = true;
+				$key_sl_master = optarg;
+				if (not ioslaves::validateSlaveName($key_sl_master)) 
+					try_help("--revoke-key: invalid master ID");
 			} break;
 			case 'K': {
 				optctx::optctx_set(optctx::keygen);
 				test_for_IDs();
 				if ($slave_id.empty()) 
-					try_help("--keygen : must use a slave ID\n");
+					try_help("--keygen: must use a slave ID\n");
 			} break;
 			case 'O': {
 				optctx::optctx_set(optctx::powerup);
@@ -395,10 +452,10 @@ int main (int argc, char* const argv[]) {
 				else if (on_str_type == "GATEWAY") {
 					$poweron_type = iosl_master::on_type::GATEWAY;
 					if (optind == argc or argv[optind][0] == '-') 
-						try_help("--on=GATEWAY must take gateway's name or hostname as argument\n");
+						try_help("--on=GATEWAY must take gateway's name as argument\n");
 					$on_gateway = argv[optind++];
-					if (not ioslaves::validateHostname($on_gateway))
-						try_help("--on=GATEWAY : invalid gateway hostname\n"); 
+					if (not ioslaves::validateSlaveName($on_gateway))
+						try_help("--on=GATEWAY : invalid gateway name\n"); 
 				} 
 				else if (on_str_type == "SERIAL_PSU") {
 					$poweron_type = iosl_master::on_type::PSU;
@@ -422,12 +479,11 @@ int main (int argc, char* const argv[]) {
 	}
 	optctx::optctx_end();
 	
-	#warning TO DO : auth
-	/*if ($need_auth and $slave_id.empty()) {
+	if ($auth and $slave_id.empty()) {
 		std::cerr << COLOR_RED << "Authentification needed : must use a slave ID !" << COLOR_RESET << std::endl;
 		EXIT_FAILURE = EXIT_FAILURE_AUTH;
 		return EXIT_FAILURE;
-	}*/
+	}
 	
 	/// Execute
 	try {
@@ -491,10 +547,8 @@ void IPreSlaveCo () {
 		$slave_sock->o_bool(true);
 			// Authentification
 		$slave_sock->o_str($master_id);
-#warning TO DO : Auth
-$need_auth = false;
-		$slave_sock->o_bool($need_auth);
-		if ($need_auth) {
+		$slave_sock->o_bool($auth);
+		if ($auth) {
 			std::cerr << "Authentification..." << std::endl;
 			iosl_master::authenticate(*$slave_sock, $slave_id);
 		}
@@ -761,11 +815,9 @@ void IPowerup () {
 	///---- Keys ----///
 
 void IKeygen () {
-	std::cerr << "Generating key for slave '" << $slave_id << "'..." << std::endl;
+	std::cerr << LOG_ARROW << "Generating key for slave '" << $slave_id << "'..." << std::endl;
 	std::string key;
-	key += ioslaves::hash($slave_id);
-	key += ioslaves::hash($master_id);
-	key += ioslaves::generate_random(384);
+	key += ioslaves::generate_random(IOSLAVES_KEY_SIZE/2);
 	int r;
 	r = ::access(IOSLAVES_MASTER_KEYS_DIR, F_OK);
 	if (r == -1) {
@@ -776,7 +828,7 @@ void IKeygen () {
 	if (optctx::interactive) {
 		r = ::access(key_path.c_str(), F_OK);
 		if (r == 0) {
-			std::cerr << COLOR_YELLOW << "Replacing old key ? " << COLOR_RESET << " (Enter/Ctrl-C)" << std::flush;
+			std::cerr << COLOR_YELLOW << "Replace the old key ? " << COLOR_RESET << " (Enter/Ctrl-C)" << std::flush;
 			std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 		}
 	}
@@ -788,8 +840,89 @@ void IKeygen () {
 	if (rs != (ssize_t)key.size())
 		throw xif::sys_error("failed to write into key file");
 	::close(f);
-	if (optctx::interactive) std::cerr << "Key footprint of '" << key_path << "' : " << std::flush;
+	if (optctx::interactive) std::cerr << LOG_ARROW_OK << "Key footprint of '" << key_path << "' : " << std::flush;
 	std::cout << ioslaves::md5(key) << std::endl;
+	if (optctx::interactive) {
+		std::cout << "The key can be sent to the slave automatically with the authorization of an authorized master." << std::endl;
+		std::cout << "For that, the key footprint must be sent to the master via an channel that guarantees integrity." << std::endl;
+		std::cout << "You have " << IOSLAVES_KEY_SEND_DELAY << " seconds to send the key after the master sent the authorization." << std::endl;
+		std::cout << LOG_ARROW << "Ready to send ?" << COLOR_RESET << " (Enter/Ctrl-C)" << std::flush;
+		std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+		socketxx::io::simple_socket<socketxx::base_netsock> slsock = 
+			iosl_master::slave_connect ($slave_id, IOSLAVES_MASTER_DEFAULT_PORT, timeval({1,0}));
+		slsock.o_bool(false);
+		slsock.o_str($master_id);
+		slsock.o_str(key);
+		#warning TO DO : Must be encrypted
+		ioslaves::answer_code o;
+		o = (ioslaves::answer_code)slsock.i_char();
+		if (o != ioslaves::answer_code::OK)
+			throw o;
+		std::cout << LOG_ARROW_OK << "Key is accepted ! Keep in mind : With great power comes great responsibility." << std::endl;
+		std::cout << "Below are permissions associated with this key : " << std::endl << "--------------------" << std::endl;
+		std::cout << slsock.i_str() << std::endl;
+		std::cout << "--------------------" << std::endl;
+	}
+}
+
+void ISlKeyAuth () {
+	std::cerr << LOG_ARROW << "Authorizing master '" << $key_sl_master << "' to send its key with footprint " << $key_sl_auth_footprint << "..." << std::endl;
+	$slave_sock->o_char((char)ioslaves::op_code::KEY_AUTH);
+	$slave_sock->o_str($key_sl_auth_footprint);
+	std::string perms_str;
+	try {
+		std::ifstream perms_f; perms_f.exceptions(std::ifstream::failbit|std::ifstream::badbit);
+		perms_f.open($key_sl_auth_perms_file_path);
+		perms_str = std::string (std::istreambuf_iterator<char>(perms_f),
+		                         std::istreambuf_iterator<char>());
+	} catch (std::ifstream::failure& e) {
+		std::cerr << LOG_ARROW_ERR << "Failed to read key permissions settings file : " << e.what() << std::endl;
+		throw EXCEPT_ERROR_IGNORE;
+	}
+	libconfig::Config perms_c;
+	try {
+		perms_c.readString(perms_str);
+		perms_c.lookup("allow_by_default").assertType(libconfig::Setting::TypeBoolean);
+		perms_c.lookup("allowed_ops").assertType(libconfig::Setting::TypeGroup);
+		perms_c.lookup("denied_ops").assertType(libconfig::Setting::TypeArray);
+	} catch (libconfig::ParseException& e) {
+		std::cerr << LOG_ARROW_ERR << "Parse error in permissions settings file at line " << e.getLine() << " : " << e.getError() << std::endl;
+		throw EXCEPT_ERROR_IGNORE;
+	} catch (libconfig::SettingException& e) {
+		std::cerr << LOG_ARROW_ERR << "Missing/bad setting @" << e.getPath() << " in permissions settings file" << std::endl;
+		throw EXCEPT_ERROR_IGNORE;
+	}
+	$slave_sock->o_str(perms_str);
+	$slave_sock->o_str($key_sl_master);
+	$slave_sock->o_str($key_sl_auth_ip);
+	ioslaves::answer_code o;
+	o = (ioslaves::answer_code)$slave_sock->i_char();
+	if (o != ioslaves::answer_code::OK)
+		throw o;
+	std::cerr << LOG_ARROW_OK << "Authorization acceped ! Waiting for sender master's connection to slave (max " << IOSLAVES_KEY_SEND_DELAY << " seconds)..." << std::endl;
+	$slave_sock->set_read_timeout(timeval({IOSLAVES_KEY_SEND_DELAY+1,0}));
+	o = (ioslaves::answer_code)$slave_sock->i_char();
+	if (o == ioslaves::answer_code::OK) {
+		$key_sl_auth_ip = $slave_sock->i_str();
+		std::cerr << LOG_ARROW_OK << "Key of master '" << $key_sl_master << "' (" << $key_sl_auth_ip << ") acceped !" << std::endl;
+		delete $slave_sock;
+		$slave_sock = NULL;
+		return;
+	}
+	EXIT_FAILURE = EXIT_FAILURE_IOSL;
+	switch (o) {
+		case ioslaves::answer_code::DENY: std::cerr << COLOR_RED << "Key sender master was refused !" << COLOR_RESET << std::endl; break;
+		case ioslaves::answer_code::TIMEOUT: std::cerr << COLOR_RED << "Key sender master did not connect in the 4s time window." << COLOR_RESET << std::endl; break;
+		case ioslaves::answer_code::EXTERNAL_ERROR: std::cerr << COLOR_RED << "Communication error with key sender master." << COLOR_RESET << std::endl; break;
+		default: throw o;
+	}
+	throw EXCEPT_ERROR_IGNORE;
+}
+
+void ISlKeyDel () {
+	std::cerr << LOG_ARROW << "Deleting key of master master '" << $key_sl_master << "'..." << std::endl;
+	$slave_sock->o_char((char)ioslaves::op_code::KEY_DEL);
+	$slave_sock->o_str($key_sl_master);
 }
 		
 	///---- Convert slave file to JSON ----////
@@ -883,6 +1016,8 @@ void IPost (ioslaves::answer_code e) {
 			case ioslaves::answer_code::EXTERNAL_ERROR: errstr = "Slave external error !"; break;
 			case ioslaves::answer_code::INVALID_DATA: errstr = "Invalid data !"; break;
 			case ioslaves::answer_code::LACK_RSRC: errstr = "Lacking ressources !"; break;
+			case ioslaves::answer_code::TIMEOUT: errstr = "Timeout !"; break;
+			case ioslaves::answer_code::NOT_AUTHORIZED: errstr = "Permission denied !"; break;
 			default: case ioslaves::answer_code::ERROR: errstr = "Unknown error !";
 		}
 		std::cerr << COLOR_RED << errstr << COLOR_RESET << std::endl;

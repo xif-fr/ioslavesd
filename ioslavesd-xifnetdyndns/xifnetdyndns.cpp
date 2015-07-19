@@ -42,6 +42,7 @@ namespace xdyndns {
 		in_addr_t last_ip;
 		struct ip_change_t { time_t when; in_addr_t new_ip; };
 		std::vector<slave_info_t::ip_change_t> ip_changes;
+		bool was_auth;
 	};
 	
 	std::list<xdyndns::slave_info_t> slaves;
@@ -114,12 +115,14 @@ extern "C" xif::polyvar* ioslapi_status_info () {
 	return info;
 }
 
-extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const char* auth_as, in_addr_t ip_addr) {
+extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const char* master_id, ioslaves::api::api_perm_t* perms, in_addr_t ip_addr) {
 	logl_t l;
-	if (auth_as == NULL) return;
-	std::string slave_name = auth_as;
-	if (slave_name.length() < 9 or slave_name.find("_IOSL_") != 0) return;
+	
+	std::string slave_name = master_id;
+	if (slave_name.length() < 9 or slave_name.find("_IOSL_") != 0) 
+		throw ioslaves::req_err(ioslaves::answer_code::DENY, NULL, logstream << "Only special slave-as-master ID are accepted");
 	slave_name = slave_name.substr(6, std::string::npos);
+	
 	try {
 		socketxx::io::simple_socket<socketxx::base_socket> cli (_cli_sock);
 		in_port_t ioslavesd_port = cli.i_int<in_port_t>();
@@ -143,10 +146,13 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 				return;	
 			}
 			__log__(log_lvl::IMPORTANT, NULL, logstream << "Registering new slave '" << slave_name << "' with IP " << socketxx::base_netsock::addr_info::addr2str(ip_addr) << "...", LOG_WAIT, &l);
+			if (perms == NULL)
+				__log__(log_lvl::WARNING, NULL, logstream << "Slave is not authentified !");
 			xdyndns::slave_info_t new_slave;
 			new_slave.slave_name = slave_name;
 			new_slave.ip_changes.push_back(xdyndns::slave_info_t::ip_change_t({time(NULL),ip_addr}));
 			new_slave.last_ip = ip_addr;
+			new_slave.was_auth = not (perms == NULL);
 			slave_it = xdyndns::slaves.insert(xdyndns::slaves.begin(), new_slave);
 			xdyndns::srv_t srv_entry;
 			srv_entry.on_slave = slave_it;
@@ -172,7 +178,13 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 		
 		/* Registered slave : check if slave's IP has changed, and update the DNS if it's the case  */
 	__slave_found:
+		if (perms == NULL and slave->was_auth) {
+			__log__(log_lvl::WARNING, "SECURITY", logstream << "Non-authentified client tries to spoof " << slave->slave_name << "'s IP !");
+			return;
+		}
 		if (slave->last_ip != ip_addr) {
+			if (slave->was_auth == false and not (perms == NULL)) 
+				__log__(log_lvl::WARNING, "SECURITY", logstream << "Slave " << slave->slave_name << " now connects in an authenticated manner and IP is different. Precendent slave could be a spoofer !");
 			__log__(log_lvl::IMPORTANT, NULL, logstream << "IP of slave '" << slave->slave_name << "' has changed from " << socketxx::base_netsock::addr_info::addr2str(slave->last_ip) << " to " << socketxx::base_netsock::addr_info::addr2str(ip_addr), LOG_WAIT, &l);
 			slave->last_ip = ip_addr;
 			slave->ip_changes.push_back(xdyndns::slave_info_t::ip_change_t({time(NULL),ip_addr}));

@@ -28,6 +28,10 @@ using namespace xlog;
 
 	// Files
 #include <sys/file.h>
+#include <sys/dir.h>
+#define private public
+#include <libconfig.h++>
+#undef private
 
 	// Process
 #include <sys/sysctl.h>
@@ -370,48 +374,158 @@ int main (int argc, const char* argv[]) {
 			
 				// Authentification
 			std::string master_id = cli.i_str();
+			if (not master_id.empty() and not ioslaves::validateSlaveName(master_id)) {
+				__log__(log_lvl::NOTICE, NULL, logstream << cli.addr.get_ip_str() << " : Invalid master ID");
+				continue;
+			}
 			bool auth = cli.i_bool();
-				
+			ioslaves::perms_t perms;
+			
 			if (auth and not master_id.empty()) {
-				#warning TO DO : challenge authentication
-				std::string key = "ABCDEF";												// Find the right key for the corresponding master
-				std::string challenge = ioslaves::generate_random(256);			// Create a new challenge
-				cli.o_str(challenge);														// Send challenge
-				std::string expected_answer = ioslaves::hash(challenge+key);	// Calculate expected answer
-				std::string master_answer = cli.i_str();								// Get answer
-				if (master_answer != expected_answer) { 								// Verify answer
+				ioslaves::key_t key;
+				try {
+					std::tie (key,perms) = ioslaves::load_master_key(master_id);
+				} catch (ioslaves::req_err& e) {
+					__log__(log_lvl::ERROR, "KEY", logstream << "Authentification of " << cli.addr.get_ip_str() << " : Key loading failed : " << e.descr);
+					cli.o_char((char)e.answ_code);
+					continue;
+				}
+				std::string challenge = ioslaves::generate_random(256);
+				cli.o_str(challenge);
+				std::string expected_answer = ioslaves::hash(challenge+key);
+				std::string master_answer = cli.i_str();
+				if (master_answer != expected_answer) {
 					cli.o_char((char)ioslaves::answer_code::BAD_CHALLENGE_ANSWER);
 					__log__(log_lvl::NOTICE, "AUTH", logstream << "Authentification failed for " << cli.addr.get_ip_str() << " as '" << master_id << "' ! Bad answer to challenge [" << challenge.substr(0,6) << "...]");
 					continue;
 				} else {
+					cli.o_char((char)ioslaves::answer_code::OK);
 					opcode = (ioslaves::op_code)cli.i_char();
-					if (opcode != ioslaves::op_code::GET_STATUS and opcode != ioslaves::op_code::LOG_HISTORY)
+					if (ioslaves::perms_verify_op(perms, opcode).props["silent"] != "true")
 						__log__(log_lvl::LOG, "AUTH", logstream << "Authentification succeeded for '" << master_id << "' (" << cli.addr.get_ip_str() << ")");
 				}
 			} else {
 				__log__(log_lvl::LOG, "AUTH", logstream << "Connection of " << cli.addr.get_ip_str() << " as " << (master_id.empty() ? "anonymous" : _S("'",master_id,"' (not verified, no auth)")));
+				perms.by_default = false;
 				opcode = (ioslaves::op_code)cli.i_char();
 			}
-			auth = true; /***** TEMPORARY ***/
+			ioslaves::perms_t::op_perm_t op_perms = ioslaves::perms_verify_op(perms, opcode);
+			auto OpPermsCheck = [&] () {
+				if (not op_perms.authorized) 
+					throw ioslaves::req_err(ioslaves::answer_code::NOT_AUTHORIZED, "PERMS", "Permissions are not satisfied for this operation.");
+			};
 			
 				// Query
-			#warning TO DO : Verify permissions
 			try {
 				switch (opcode) {
-					case ioslaves::op_code::SERVICE_START:
-						__log__(log_lvl::LOG, "OP", "Operation : Start service");
-						ioslaves::controlService(
-														 ioslaves::getServiceByName(cli.i_str()), 
-														 true, 
-														 master_id.c_str());
-						break;
-					case ioslaves::op_code::SERVICE_STOP:
-						__log__(log_lvl::LOG, "OP", "Operation : Stop service");
-						ioslaves::controlService(
-														 ioslaves::getServiceByName(cli.i_str()), 
-														 false, 
-														 master_id.c_str());
-						break;
+					case ioslaves::op_code::KEY_AUTH: {
+						__log__(log_lvl::LOG, "OP", logstream << "Operation : Key sending authorization");
+						std::string footprint = cli.i_str();
+						std::string keyperms = cli.i_str();
+						std::string auth_master = cli.i_str();
+						std::string auth_ip_str = cli.i_str();
+						if (auth)
+							OpPermsCheck();
+						else {
+							DIR* dir = ::opendir(IOSLAVESD_KEYS_DIR);
+							if (dir == NULL) 
+								throw xif::sys_error("can't open keys dir");
+							dirent* dp, *dentr = (dirent*) ::malloc((size_t)offsetof(struct dirent, d_name) + std::max(sizeof(dirent::d_name), (size_t)::fpathconf(dirfd(dir),_PC_NAME_MAX)) +1);
+							RAII_AT_END({ ::closedir(dir); ::free(dentr); });
+							int rr;
+							while ((rr = ::readdir_r(dir, dentr, &dp)) != -1 and dp != NULL) {
+								if (dentr->d_type != DT_DIR) 
+									throw ioslaves::req_err(ioslaves::answer_code::NOT_AUTHORIZED, "PERMS", "Key folder not empty : first key sending can't be satisfied");
+							}
+							if (rr == -1) throw xif::sys_error("readdir error while listing keys dir");
+							__log__(log_lvl::IMPORTANT, "PERMS", logstream << "Master is not authenticated but key folder is empty : authorizing first key sending");
+						}
+						in_addr_t auth_ip;
+						if (not auth_ip_str.empty()) {
+							r = ::inet_pton(AF_INET, auth_ip_str.c_str(), &auth_ip);
+							if (r != 1) 
+								throw ioslaves::req_err(ioslaves::answer_code::INVALID_DATA, "KEY", "Invalid sender master IP");
+						}
+						if (not ioslaves::validateSlaveName(auth_master))
+							throw ioslaves::req_err(ioslaves::answer_code::INVALID_DATA, "KEY", "Invalid sender master ID");
+						if (footprint.length() != 32 or not ioslaves::validateHexa(footprint))
+							throw ioslaves::req_err(ioslaves::answer_code::INVALID_DATA, "KEY", "Invalid key footprint");
+						try {
+							libconfig::Config test_c;
+							test_c.readString(keyperms);
+							bool def = test_c.getRoot()["allow_by_default"];
+							__log__(log_lvl::IMPORTANT, "KEY", logstream << "Master '" << master_id << "' allows sending of key " << footprint << " in favor of master '" << auth_master << "' with default " << (def?"allowing":"denying") << " permissions for " << IOSLAVES_KEY_SEND_DELAY << "s");
+						} catch (libconfig::ConfigException&) {
+							throw ioslaves::req_err(ioslaves::answer_code::INVALID_DATA, "KEY", "Invalid permissions settings");
+						}
+							// Waiting for the key sender master
+						serv.set_pool_timeout(timeval({IOSLAVES_KEY_SEND_DELAY,0}));
+						RAII_AT_END({
+							serv.set_pool_timeout(::timeval(POOL_TIMEOUT));
+						});
+						cli.o_char((char)ioslaves::answer_code::OK);
+						try {
+							__log__(log_lvl::LOG, NULL, logstream << "Waiting for sender master connection...");
+							decltype(serv)::client clikey = serv.wait_new_client_timeout();
+							bool really = clikey.i_bool();
+							if (really) 
+								throw ioslaves::req_err(ioslaves::answer_code::DENY, NULL, "Normal connection occured while waiting for key sender");
+							__log__(log_lvl::LOG, "KEY", "Sender master connected");
+							std::string of_master = clikey.i_str();
+							if (of_master != auth_master or not (auth_ip_str.empty() or clikey.addr.get_ip_addr().s_addr == auth_ip)) {
+								clikey.o_char((char)ioslaves::answer_code::DENY);
+								throw ioslaves::req_err(ioslaves::answer_code::DENY, NULL, logstream << "Sender master '" << of_master << "' (" << clikey.addr.get_ip_str() << ") is not authorized master '" << auth_master << "'" << (auth_ip_str.empty()?"":_S( '(',auth_ip_str,')' )));
+							}
+							ioslaves::key_t key = clikey.i_str();
+							std::string sent_footprint = ioslaves::md5(key);
+							if (sent_footprint != footprint) {
+								clikey.o_char((char)ioslaves::answer_code::DENY);
+								throw ioslaves::req_err(ioslaves::answer_code::DENY, NULL, logstream << "Sent key's footprint (" << sent_footprint << ") does not corresponds to the authorized footprint (" << footprint << ")");
+							}
+							__log__(log_lvl::IMPORTANT, "KEY", logstream << "Key with footprint " << footprint << " is accepted for master " << of_master << " (" << clikey.addr.get_ip_str() << ")");
+							ioslaves::key_save(of_master, 
+													 key, 
+													 keyperms);
+							clikey.o_char((char)ioslaves::answer_code::OK);
+							cli.o_char((char)ioslaves::answer_code::OK);
+							clikey.o_str(keyperms);
+							cli.o_str(clikey.addr.get_ip_str());
+						} catch (socketxx::timeout_event&) {
+							throw ioslaves::req_err(ioslaves::answer_code::TIMEOUT, NULL, "Delay expired for key sending !");
+						} catch (socketxx::classic_error& e) {
+							throw ioslaves::req_err(ioslaves::answer_code::EXTERNAL_ERROR, NULL, "Communication error occured with master while receiving key !");
+						}
+					} break;
+					case ioslaves::op_code::KEY_DEL: {
+						std::string of_master = cli.i_str();
+						__log__(log_lvl::IMPORTANT, "OP", logstream << "Operation : Delete key of master '" << of_master << "'");
+						OpPermsCheck();
+						r = ::unlink( _s( IOSLAVESD_KEYS_DIR,'/',of_master,".key" ) );
+						if (r == -1) {
+							if (errno == ENOENT) 
+								throw ioslaves::req_err(ioslaves::answer_code::NOT_FOUND, "KEY", "Key not found !");
+							else 
+								throw xif::sys_error("can't delete key");
+						}
+						__log__(log_lvl::DONE, "KEY", logstream << "Key of master '" << of_master << "' is revoked");
+					} break;
+					case ioslaves::op_code::SERVICE_START: 
+					case ioslaves::op_code::SERVICE_STOP: {
+						bool start = opcode == ioslaves::op_code::SERVICE_START;
+						__log__(log_lvl::LOG, "OP", logstream << "Operation : " << (start?"Start":"Stop") << " service");
+						std::string service = cli.i_str();
+						OpPermsCheck();
+						bool bydefault = op_perms.props["[default]"] == "true" or false;
+						bool auth;
+						     if (op_perms.props[service] == "true")  auth = true;
+						else if (op_perms.props[service] == "false") auth = false;
+						else                                         auth = bydefault;
+						if (not auth) 
+							throw ioslaves::req_err(ioslaves::answer_code::NOT_AUTHORIZED, "PERMS", logstream << "Permissions are not satisfied to manage service '" << service << "'");
+						ioslaves::controlService( ioslaves::getServiceByName(service), 
+						                          (bool)start, 
+						                          master_id.c_str());
+					} break;
 					case ioslaves::op_code::IGD_PORT_OPEN:
 					case ioslaves::op_code::IGD_PORT_CLOSE: {
 						std::string descr;
@@ -439,6 +553,7 @@ int main (int argc, const char* argv[]) {
 								throw ioslaves::req_err(ioslaves::answer_code::INVALID_DATA, "UPnP", logstream << "Range : End can't be lower than begin");
 							range_sz = port_end-port+1;
 						}
+						OpPermsCheck();
 						if (opcode == ioslaves::op_code::IGD_PORT_OPEN) {
 							if (enable_upnp) try {
 								ioslaves::upnpPort p = {port, proto, port, range_sz, descr};
@@ -468,7 +583,7 @@ int main (int argc, const char* argv[]) {
 						}
 					} break;
 					case ioslaves::op_code::GET_STATUS: {
-						if (not auth)
+						if (op_perms.props["silent"] != "true")
 							__log__(log_lvl::LOG, "OP", "Operation : Get status");
 						xif::polyvar infos = ioslaves::getStatus(true);
 						cli.o_var(infos);
@@ -481,6 +596,7 @@ int main (int argc, const char* argv[]) {
 					case ioslaves::op_code::SHUTDOWN_CTRL: {
 						__log__(log_lvl::LOG, "OP", "Operation : change auto-shutdown time");
 						time_t shutdown_in = cli.i_int<uint32_t>();
+						OpPermsCheck();
 						if (shutdown_in == 0) {
 							__log__(log_lvl::IMPORTANT, "SHUTDOWN", "Automatic shutdown disabled");
 							shutdown_time = 0;
@@ -493,6 +609,7 @@ int main (int argc, const char* argv[]) {
 					case ioslaves::op_code::SLAVE_REBOOT: {
 						bool does_reboot = (opcode == ioslaves::op_code::SLAVE_REBOOT);
 						__log__(log_lvl::MAJOR, "OP", logstream << "Operation : " << (does_reboot ? "Rebooting" : "Shutting down") << " server NOW !");
+						OpPermsCheck();
 						shutdown_time = does_reboot ? (time_t)-2 : (time_t)-1;
 						cli.o_char((char)ioslaves::answer_code::OK);
 						throw socketxx::stop_event(0);
@@ -500,6 +617,26 @@ int main (int argc, const char* argv[]) {
 					case ioslaves::op_code::CALL_API_SERVICE: {
 						std::string service_name = cli.i_str();
 						__log__(log_lvl::LOG, "OP", logstream << "Operation : Calling API service '" << service_name << "'");
+						if (auth)
+							OpPermsCheck();
+						bool bydefault = op_perms.props["[default]"] == "true" or false;
+						bool auth;
+						     if (op_perms.props[service_name] == "true")  auth = true;
+						else if (op_perms.props[service_name] == "false") auth = false;
+						else                                              auth = bydefault;
+						if (not auth) 
+							throw ioslaves::req_err(ioslaves::answer_code::NOT_AUTHORIZED, "PERMS", logstream << "Permissions are not satisfied to connect to API service '" << service_name << "'");
+						ioslaves::api::api_perm_t api_perms;
+						api_perms.by_default = perms.by_default;
+						for (auto p : op_perms.props) {
+							if (p.first.find(service_name+':') == 0) {
+								std::string prop = p.first.substr(service_name.length()+1);
+								if (prop == "[default]") 
+									api_perms.by_default = p.second == "true" or false;
+								else 
+									api_perms.props.insert({ prop, p.second });
+							}
+						}
 						ioslaves::service* service = ioslaves::getServiceByName(service_name);
 						if (service->s_type != ioslaves::service::type::IOSLPLUGIN) 
 							throw ioslaves::req_err(ioslaves::answer_code::BAD_TYPE, "OP", logstream << "Service '" << service_name << "' is not an API service");
@@ -511,20 +648,21 @@ int main (int argc, const char* argv[]) {
 							throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "API", logstream << "Error getting function with dlsym(\"ioslapi_net_client_call\") : " << ::dlerror());
 						cli.o_char((char)ioslaves::answer_code::OK);
 						try {
-							(*cli_call_f)(cli, auth?(master_id.empty()?NULL:master_id.c_str()):NULL, cli.addr.get_ip_addr().s_addr);
+							(*cli_call_f)(cli, master_id.c_str(), (auth ? &api_perms : NULL), cli.addr.get_ip_addr().s_addr);
 							ioslaves::api::euid_switch(-1,-1);
+						} catch (ioslaves::req_err& e) {
+							throw;
 						} catch (std::exception& e) {
 							throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "API", logstream << "Error in ioslapi_net_client_call: " << e.what());
 						}
 						continue;
 					}
 					case ioslaves::op_code::LOG_HISTORY: {
-						if (not auth)
-							__log__(log_lvl::LOG, "OP", logstream << "Operation : Get log history", LOG_WAIT, &l);
+						__log__(log_lvl::LOG, "OP", logstream << "Operation : Get log history", LOG_WAIT, &l);
 						time_t log_begin = cli.i_int<int64_t>();
 						time_t log_end = cli.i_int<int64_t>();
-						if (not auth)
-							__log__(log_lvl::LOG, "OP", logstream << "from " << log_begin << " to " << (log_end==0?"end":ixtoa(log_end)), LOG_WAIT|LOG_ADD, &l);
+						OpPermsCheck();
+						__log__(log_lvl::LOG, "OP", logstream << "from " << log_begin << " to " << (log_end==0?"end":ixtoa(log_end)), LOG_WAIT|LOG_ADD, &l);
 						size_t i, beg = 0, end = log_history.size();
 						if (log_begin != 0) {
 							for (i = 0; i < log_history.size(); i++) 
@@ -539,8 +677,7 @@ int main (int argc, const char* argv[]) {
 						}
 						if (log_begin > log_end) { beg = 0; end = 0; }
 					_log_send:
-						if (not auth)
-							__log__(log_lvl::LOG, "OP", logstream << "(" << (end-beg) << " lines)", LOG_ADD, &l);
+						__log__(log_lvl::LOG, "OP", logstream << "(" << (end-beg) << " lines)", LOG_ADD, &l);
 						cli.o_int<uint64_t>(end-beg);
 						for (i = beg; i < end; i++) {
 							cli.o_int<uint64_t>(log_history[i].le_time);
@@ -557,13 +694,21 @@ int main (int argc, const char* argv[]) {
 				cli.o_char((char)ioslaves::answer_code::OK);
 			} catch (ioslaves::req_err& e) {
 				cli.o_char((char)e.answ_code);
+			} catch (xif::sys_error& e) {
+				cli.o_char((char)ioslaves::answer_code::INTERNAL_ERROR);
+				throw;
 			}
 		
 			// Net error
 		} catch (socketxx::error& se) {
 			__log__(log_lvl::OOPS, "NET", logstream << "Communication error with client : " << se.what());
 			continue;
-		} 
+		}
+			// System error
+		catch (xif::sys_error& e) {
+			__log__(log_lvl::ERROR, NULL, logstream << "Catched system error : " << e.what());
+			continue;
+		}
 			// Scheduled timeout
 		catch (socketxx::timeout_event&) {
 			

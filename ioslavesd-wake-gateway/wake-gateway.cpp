@@ -47,7 +47,10 @@ extern "C" xif::polyvar* ioslapi_status_info () {
 }
 
 	// Master requests
-extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const char* auth_as, in_addr_t ip_addr) {
+extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const char* masterid, ioslaves::api::api_perm_t* perms, in_addr_t ip_addr) {
+	if (perms == NULL) 
+		throw ioslaves::req_err(ioslaves::answer_code::NOT_AUTHORIZED, "PERMS", logstream << "Wake gateway API service requires authentification");
+	
 	try {
 		socketxx::io::simple_socket<socketxx::base_socket> cli (_cli_sock);
 		std::string slave_up = cli.i_str();

@@ -63,6 +63,16 @@ namespace ioslaves { namespace api {
 	common_vars_t* common_vars = &api_vars;
 #endif
 	
+	struct api_perm_t {
+		bool by_default;
+		std::map<std::string,std::string> props;
+		bool operator[] (std::string idx) {
+			     if (this->props[idx] == "true")  return true;
+			else if (this->props[idx] == "false") return false;
+			else                                  return by_default;
+		}
+	};
+	
 }}
 
 /// Common callbacks definitions
@@ -88,7 +98,7 @@ namespace ioslaves { namespace api {
 												ioslaves::api::open_port_f, ioslaves::api::close_port_f,
 												ioslaves::api::dns_srv_create_f, ioslaves::api::dns_srv_del_f,
 												ioslaves::api::euid_switch_f);
-	typedef void (*net_client_call_f) (socketxx::base_socket&, const char* auth_as, in_addr_t);
+	typedef void (*net_client_call_f) (socketxx::base_socket&, const char* masterid, api_perm_t*, in_addr_t);
 	typedef bool (*got_sigchld_f) (pid_t pid, int pid_status);
 	typedef xif::polyvar* (*status_info_f) ();
 	typedef bool (*shutdown_inhibit_f) ();
@@ -128,7 +138,7 @@ extern "C" {
 										 ioslaves::api::dns_srv_create_f, ioslaves::api::dns_srv_del_f,
 										 ioslaves::api::euid_switch_f);
 	bool ioslapi_start (const char* by_master); // Called at service start, when callbacks are defined (by_master = NULL if autostarted)
-	void ioslapi_net_client_call (socketxx::base_socket&, const char* auth_as, in_addr_t); // Network request from a master for the API service (auth_as = NULL if not authenticated)
+	void ioslapi_net_client_call (socketxx::base_socket&, const char* masterid, ioslaves::api::api_perm_t* perms, in_addr_t); // Network request from a master for the API service (perms = NULL if not authenticated, master ID can be empty)
 	bool ioslapi_got_sigchld (pid_t pid, int pid_status); // Report that a SIGCHILD was catched for this pid with this status. Return true if the API service is the owner of the terminated process.
 	xif::polyvar* ioslapi_status_info (); // Returns a small allocated resumé free format of the service's status
 	bool ioslapi_shutdown_inhibit (); // Returns if service shutdown should be inhibited

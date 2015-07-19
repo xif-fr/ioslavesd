@@ -648,7 +648,7 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 			} catch (ioslaves::answer_code answ) {
 				if (answ == ioslaves::answer_code::BAD_STATE and $granmaster) {
 					__log__ << LOG_ARROW << "Minecraft service seems to be off. Starting it..." << std::flush;
-					socketxx::simple_socket_client<socketxx::base_netsock> sock = iosl_master::slave_connect(slave, 0);
+					socketxx::io::simple_socket<socketxx::base_netsock> sock = iosl_master::slave_connect(slave, 0);
 					iosl_master::slave_command(sock, $master_id, ioslaves::op_code::SERVICE_START);
 					sock.o_str("minecraft");
 					answ = (ioslaves::answer_code)sock.i_char();
@@ -943,6 +943,7 @@ void verifyMapList (std::string slave_id, std::string server_name, socketxx::io:
 			}
 			if (want_get and not $refuse_save) {
 				__log__ << LOG_AROBASE << "Retrieving map save at " << lastsave << "..." << std::flush;
+				sock.set_read_timeout(TIMEOUT_ZIP_DELAY);
 				sock.o_char((char)ioslaves::answer_code::WANT_GET);
 				lastsave = sock.i_int<int64_t>();
 				sock.o_bool(true);
@@ -958,6 +959,7 @@ void verifyMapList (std::string slave_id, std::string server_name, socketxx::io:
 				ioslaves::infofile_set(_s(map_folder,"/truesave"), "false");
 				ioslaves::infofile_set(_s(map_folder,"/lastsave_from"), slave_id);
 				__log__ << LOG_AROBASE_OK << "Retrieving done !" << std::flush;
+				sock.set_read_timeout(TIMEOUT_COMM);
 			} else
 				sock.o_char((char)ioslaves::answer_code::OK);
 		}
@@ -1657,6 +1659,8 @@ void MPost (ioslaves::answer_code e) {
 			case ioslaves::answer_code::INVALID_DATA: errstr = "Slave reports invalid data !"; break;
 			case ioslaves::answer_code::LACK_RSRC: errstr = "Lacking ressources !"; break;
 			case ioslaves::answer_code::EXTERNAL_ERROR: errstr = "Error outside the scope of ioslavesd-minecraft !"; break;
+			case ioslaves::answer_code::TIMEOUT: errstr = "Timeout !"; break;
+			case ioslaves::answer_code::NOT_AUTHORIZED: errstr = "Permission denied !"; break;
 			default: case ioslaves::answer_code::ERROR: errstr = "Unknown error !";
 		}
 		__log__ << COLOR_RED << errstr << COLOR_RESET << std::flush;
