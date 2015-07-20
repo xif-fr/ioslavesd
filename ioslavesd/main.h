@@ -23,6 +23,7 @@
 #include <socket++/base_inet.hpp>
 #include <socket++/io/simple_socket.hpp>
 #include <socket++/quickdefs.h>
+#define IOSLAVESD_DNS_SLAVE_KEY_ID_DEFAULT_NAME "-dyndns-"
 
 	/// UPnP port mapping
 #include <sys/time.h>

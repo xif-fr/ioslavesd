@@ -112,6 +112,7 @@ void ioslaves::api::euid_switch (uid_t uid, gid_t gid) {
 char hostname[64];
 short ip_refresh_dyndns_interval = -1;
 in_addr ip_refresh_dyndns_server = {0};
+std::string dyndns_slave_key_id = IOSLAVESD_DNS_SLAVE_KEY_ID_DEFAULT_NAME;
 bool shutdown_ignore_err = false;
 time_t shutdown_time = 0;
 time_t start_time = ::time(NULL);
@@ -254,6 +255,9 @@ int main (int argc, const char* argv[]) {
 					__log__(log_lvl::FATAL, "CONF", logstream << "dyndns_refresh_server_ip : invalid IP");
 					return 1;
 				}
+				try {
+					dyndns_slave_key_id = conf.lookup("dyndns_refresh_server_key_id").operator std::string();
+				} catch (libconfig::SettingNotFoundException&) {}
 			}
 			try {
 				shutdown_ignore_err = (bool)conf.lookup("shutdown_ignore_err");
@@ -724,7 +728,7 @@ int main (int argc, const char* argv[]) {
 						RAII_AT_END_L( iosl_master::$leave_exceptions = false; );
 						socketxx::simple_socket_client<socketxx::base_netsock> sock (socketxx::base_netsock::addr_info(ip_refresh_dyndns_server, 2929), timeval{1,0});
 						sock.set_read_timeout(timeval{0,800000});
-						iosl_master::slave_api_service_connect(sock, _S("_IOSL_",hostname), "xifnetdyndns");
+						iosl_master::slave_api_service_connect(sock, _S("_IOSL_",hostname), dyndns_slave_key_id, "xifnetdyndns");
 						sock.o_int<in_port_t>(ioslavesd_listening_port);
 						in_addr_t my_ip = sock.i_int<in_addr_t>();
 						static in_addr_t my_ip_last = 0;
@@ -1019,7 +1023,7 @@ ioslaves::answer_code ioslaves::dns_srv_req (std::function< ioslaves::answer_cod
 	try {
 		socketxx::simple_socket_client<socketxx::base_netsock> sock (socketxx::base_netsock::addr_info(ip_refresh_dyndns_server, 2929), dnssrvreq_timeout);
 		sock.set_read_timeout(dnssrvreq_timeout);
-		iosl_master::slave_api_service_connect(sock, _S("_IOSL_",hostname), "xifnetdyndns");
+		iosl_master::slave_api_service_connect(sock, _S("_IOSL_",hostname), dyndns_slave_key_id, "xifnetdyndns");
 		sock.o_int<in_port_t>(0);
 		sock.i_int<in_addr_t>();
 		sock.o_char((char)ioslaves::answer_code::WANT_SEND);
