@@ -1,7 +1,7 @@
 # Maintainer: Félix Faisant <xcodexif@xif.fr>
 
 pkgname=ioslstatd
-pkgver=2.10
+pkgver=3.0
 pkgrel=1
 pkgdesc='Xif Network - ioslaves master websocket status gathering deamon'
 license=('custom')
