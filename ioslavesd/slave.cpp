@@ -515,7 +515,8 @@ int main (int argc, const char* argv[]) {
 						__log__(log_lvl::LOG, "OP", logstream << "Operation : " << (start?"Start":"Stop") << " service");
 						std::string service = cli.i_str();
 						OpPermsCheck();
-						bool bydefault = op_perms.props["[default]"] == "true" or false;
+						bool bydefault = (op_perms.props.find("*default*") == op_perms.props.end()) ? (perms.by_default) 
+						                                                                            : (op_perms.props["*default*"] == "true" or false);
 						bool auth;
 						     if (op_perms.props[service] == "true")  auth = true;
 						else if (op_perms.props[service] == "false") auth = false;
@@ -619,7 +620,8 @@ int main (int argc, const char* argv[]) {
 						__log__(log_lvl::LOG, "OP", logstream << "Operation : Calling API service '" << service_name << "'");
 						if (auth)
 							OpPermsCheck();
-						bool bydefault = op_perms.props["[default]"] == "true" or false;
+						bool bydefault = (op_perms.props.find("*default*") == op_perms.props.end()) ? (perms.by_default) 
+						                                                                            : (op_perms.props["*default*"] == "true" or false);
 						bool auth;
 						     if (op_perms.props[service_name] == "true")  auth = true;
 						else if (op_perms.props[service_name] == "false") auth = false;
@@ -631,7 +633,7 @@ int main (int argc, const char* argv[]) {
 						for (auto p : op_perms.props) {
 							if (p.first.find(service_name+':') == 0) {
 								std::string prop = p.first.substr(service_name.length()+1);
-								if (prop == "[default]") 
+								if (prop == "*default*") 
 									api_perms.by_default = p.second == "true" or false;
 								else 
 									api_perms.props.insert({ prop, p.second });

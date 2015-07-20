@@ -83,6 +83,7 @@
 		AA90C531189F7461003A8C60 /* libminecraft.ioslaves.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = libminecraft.ioslaves.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA99F1B0184C65DD00BB6836 /* ioslavesd */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ioslavesd; sourceTree = BUILT_PRODUCTS_DIR; };
 		AAB552F418F44E8C00DC3ED9 /* minecraft-master */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "minecraft-master"; sourceTree = BUILT_PRODUCTS_DIR; };
+		AAC0E9AE1B5D3D76007BA3B8 /* perms-tpl */ = {isa = PBXFileReference; lastKnownFileType = folder; path = "perms-tpl"; sourceTree = "<group>"; };
 		AAC7F7A81861FEA600033009 /* ioslaves-master */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "ioslaves-master"; sourceTree = BUILT_PRODUCTS_DIR; };
 		AAD214831AE971C50062A678 /* wake-gateway.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = "wake-gateway.dylib"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -217,6 +218,7 @@
 				AA41B7651ADECB3900B369BE /* master.cpp */,
 				AAC7F7A81861FEA600033009 /* ioslaves-master */,
 				AA2333951AE06F31009433E3 /* PKGBUILD */,
+				AAC0E9AE1B5D3D76007BA3B8 /* perms-tpl */,
 				AA23087718F1CADA00AB9CD3 /* minecraft-master */,
 				AA129CED1A90E83E009A2B42 /* ioslstatd */,
 			);
