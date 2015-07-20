@@ -649,7 +649,7 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 				if (answ == ioslaves::answer_code::BAD_STATE and $granmaster) {
 					__log__ << LOG_ARROW << "Minecraft service seems to be off. Starting it..." << std::flush;
 					socketxx::io::simple_socket<socketxx::base_netsock> sock = iosl_master::slave_connect(slave, 0);
-					iosl_master::slave_command(sock, $master_id, ioslaves::op_code::SERVICE_START);
+					iosl_master::slave_command_auth(sock, $master_id, ioslaves::op_code::SERVICE_START, slave);
 					sock.o_str("minecraft");
 					answ = (ioslaves::answer_code)sock.i_char();
 					if (answ != ioslaves::answer_code::OK) {

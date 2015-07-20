@@ -114,9 +114,9 @@ void iosl_master::slave_command_auth (socketxx::io::simple_socket<socketxx::base
 }
 
 	// Connect to API service with authentication
-void iosl_master::slave_api_service_connect (socketxx::io::simple_socket<socketxx::base_netsock> sock, std::string master_id, std::string api_service) {
+void iosl_master::slave_api_service_connect (socketxx::io::simple_socket<socketxx::base_netsock> sock, std::string master_id, std::string slave_id, std::string api_service) {
 	socketxx::io::simple_socket<socketxx::base_netsock> slave_sock = sock;
-	iosl_master::slave_command(slave_sock, master_id, ioslaves::op_code::CALL_API_SERVICE);
+	iosl_master::slave_command_auth(slave_sock, master_id, ioslaves::op_code::CALL_API_SERVICE, slave_id);
 	try {
 		slave_sock.o_str(api_service);
 		ioslaves::answer_code answ = (ioslaves::answer_code)slave_sock.i_char();
@@ -130,7 +130,7 @@ void iosl_master::slave_api_service_connect (socketxx::io::simple_socket<socketx
 socketxx::base_netsock iosl_master::slave_api_service_connect (std::string slave_id, std::string master_id, std::string api_service, timeval timeout) {
 	try {
 		socketxx::io::simple_socket<socketxx::base_netsock> slave_sock = iosl_master::slave_connect(slave_id, 0, timeout);
-		iosl_master::slave_api_service_connect(slave_sock, master_id, api_service);
+		iosl_master::slave_api_service_connect(slave_sock, master_id, slave_id, api_service);
 		return slave_sock;
 	} catch (socketxx::end::client_connect_error& e) {
 		if ($leave_exceptions) throw;

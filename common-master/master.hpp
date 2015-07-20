@@ -78,7 +78,7 @@ namespace iosl_master {
 		// Opperations
 	void slave_command (socketxx::io::simple_socket<socketxx::base_netsock> slave_sock, std::string master_id, ioslaves::op_code opp);
 	void slave_command_auth (socketxx::io::simple_socket<socketxx::base_netsock> slave_sock, std::string master_id, ioslaves::op_code opp, std::string slave_id);
-	void slave_api_service_connect (socketxx::io::simple_socket<socketxx::base_netsock> slave_sock, std::string master_id, std::string api_service);
+	void slave_api_service_connect (socketxx::io::simple_socket<socketxx::base_netsock> slave_sock, std::string master_id, std::string slave_id, std::string api_service);
 	socketxx::base_netsock slave_api_service_connect (std::string slave_id, std::string master_id, std::string api_service, timeval timeout = {1,0});
 	
 		// Authentification
