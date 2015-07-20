@@ -31,6 +31,7 @@ const std::string& __get_homedir__();
 	// Network
 #include <../lib/socket++/include/config.h>
 #include <socket++/base_io.hpp>
+#include <socket++/base_inet.hpp>
 struct pipe_proc_t { fd_t in; fd_t out; fd_t err; };
 
 #ifdef XIFNET

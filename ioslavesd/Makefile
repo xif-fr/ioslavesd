@@ -8,13 +8,14 @@ endif
 
 all: ioslavesd
 
-ioslavesd: common.o log_slave.o slave.o upnp.o status.o master-impl.o
+ioslavesd: common.o log_slave.o slave.o upnp.o status.o master-impl.o keys.o
 	$(LD) -o $@ $^ $(LDFLAGS)
 
 common.o: common.cpp common.hpp 
 log_slave.o: log_slave.cpp log.h 
 slave.o: slave.cpp log.h main.h common.hpp api.h
 upnp.o: upnp.cpp main.h
+keys.o: keys.cpp main.h
 status.o: status.cpp main.h
 master-impl.o: master.hpp master-impl.cpp
 

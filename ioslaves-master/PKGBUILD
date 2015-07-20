@@ -30,5 +30,6 @@ build() {
 package() {
 	echo "ioslaves-master dir : by user"
 	install -D -m755 $srcdir/ioslaves-master $pkgdir/usr/bin/ioslaves-master
+	install -d -m755 $pkgdir/usr/share/ioslaves/master/key-perms/
 	cp $srcdir/perms-tpl/* $pkgdir/usr/share/ioslaves/master/key-perms/
 }

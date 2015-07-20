@@ -19,6 +19,11 @@
 #include <list>
 #include <vector>
 
+	// Network
+#include <socket++/base_inet.hpp>
+#include <socket++/io/simple_socket.hpp>
+#include <socket++/quickdefs.h>
+
 	/// UPnP port mapping
 #include <sys/time.h>
 inline uint64_t tm2us (timeval tv) { return tv.tv_sec*1000000+tv.tv_usec; }
@@ -99,11 +104,6 @@ struct log_entry {
 };
 extern std::vector<log_entry> log_history;
 extern const char* log_file_path;
-
-	// Network
-#include <socket++/base_inet.hpp>
-#include <socket++/io/simple_socket.hpp>
-#include <socket++/quickdefs.h>
 
 	// ioslavesd
 namespace ioslaves {
