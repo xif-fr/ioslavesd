@@ -48,6 +48,9 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		AA1045AA1B5D9A3C00E8A875 /* minecraft-master.key.tpl */ = {isa = PBXFileReference; lastKnownFileType = text; name = "minecraft-master.key.tpl"; path = "ioslaves-master-minecraft/minecraft-master.key.tpl"; sourceTree = SOURCE_ROOT; };
+		AA1045AC1B5D9A6700E8A875 /* Makefile */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.make; name = Makefile; path = "ioslaves-master-minecraft/Makefile"; sourceTree = SOURCE_ROOT; };
+		AA1045AD1B5D9A7F00E8A875 /* Makefile */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.make; path = Makefile; sourceTree = "<group>"; };
 		AA129CEB1A90E83E009A2B42 /* ioslstatd */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ioslstatd; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA182FD01AF425CC007F94BD /* PKGBUILD */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = PKGBUILD; path = "ioslavesd-wake-gateway/PKGBUILD"; sourceTree = "<group>"; };
 		AA1D3AD11ADECD9200E2C7F6 /* minecraft.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = minecraft.h; path = "common-minecraft/minecraft.h"; sourceTree = "<group>"; };
@@ -144,9 +147,9 @@
 		AA129CED1A90E83E009A2B42 /* ioslstatd */ = {
 			isa = PBXGroup;
 			children = (
-				AA41B7571ADEC7EB00B369BE /* PKGBUILD */,
 				AA41B7551ADEC7EB00B369BE /* ioslstatd.cpp */,
 				AA41B7561ADEC7EB00B369BE /* Makefile */,
+				AA41B7571ADEC7EB00B369BE /* PKGBUILD */,
 				AA129CEB1A90E83E009A2B42 /* ioslstatd */,
 			);
 			name = ioslstatd;
@@ -158,7 +161,9 @@
 			children = (
 				AA41B76A1ADECB9B00B369BE /* minecraft-master.cpp */,
 				AAB552F418F44E8C00DC3ED9 /* minecraft-master */,
+				AA1045AC1B5D9A6700E8A875 /* Makefile */,
 				AA2333971AE06F3C009433E3 /* PKGBUILD */,
+				AA1045AA1B5D9A3C00E8A875 /* minecraft-master.key.tpl */,
 			);
 			name = "minecraft-master";
 			sourceTree = "<group>";
@@ -217,6 +222,7 @@
 				AA41B75D1ADECB1700B369BE /* wol.cpp */,
 				AA41B7651ADECB3900B369BE /* master.cpp */,
 				AAC7F7A81861FEA600033009 /* ioslaves-master */,
+				AA1045AD1B5D9A7F00E8A875 /* Makefile */,
 				AA2333951AE06F31009433E3 /* PKGBUILD */,
 				AAC0E9AE1B5D3D76007BA3B8 /* perms-tpl */,
 				AA23087718F1CADA00AB9CD3 /* minecraft-master */,

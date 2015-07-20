@@ -12,10 +12,12 @@ makedepends=('xifutils')
 source=('../common/common.hpp' '../common/common.cpp' '../common/log.h'
         '../common-master/master.hpp' '../common-master/dyn_slaves.cpp' '../common-master/master-impl.cpp' '../common-master/wol.cpp'
         '../common-minecraft/minecraft.h' 'minecraft-master.cpp'
-        'Makefile')
+        'Makefile'
+        'minecraft-master.key.tpl')
 sha256sums=('SKIP' 'SKIP' 'SKIP'
             'SKIP' 'SKIP' 'SKIP' 'SKIP'
             'SKIP' 'SKIP'
+            'SKIP'
             'SKIP')
 
 build() {
@@ -25,4 +27,6 @@ build() {
 package() {
 	echo "minecraft-master dir : by user, in ioslaves-master dir"
 	install -D -m755 $srcdir/minecraft-master $pkgdir/usr/bin/minecraft-master
+	install -d -m755 $pkgdir/usr/share/ioslaves/master/key-perms/
+	cp $srcdir/*.key.tpl $pkgdir/usr/share/ioslaves/master/key-perms/
 }

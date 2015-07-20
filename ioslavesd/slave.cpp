@@ -532,11 +532,11 @@ int main (int argc, const char* argv[]) {
 						OpPermsCheck();
 						bool bydefault = (op_perms.props.find("*default*") == op_perms.props.end()) ? (perms.by_default) 
 						                                                                            : (op_perms.props["*default*"] == "true" or false);
-						bool auth;
-						     if (op_perms.props[service] == "true")  auth = true;
-						else if (op_perms.props[service] == "false") auth = false;
-						else                                         auth = bydefault;
-						if (not auth) 
+						bool allow;
+						     if (op_perms.props[service] == "true")  allow = true;
+						else if (op_perms.props[service] == "false") allow = false;
+						else                                         allow = bydefault;
+						if (not allow) 
 							throw ioslaves::req_err(ioslaves::answer_code::NOT_AUTHORIZED, "PERMS", logstream << "Permissions are not satisfied to manage service '" << service << "'");
 						ioslaves::controlService( ioslaves::getServiceByName(service), 
 						                          (bool)start, 
@@ -637,16 +637,16 @@ int main (int argc, const char* argv[]) {
 							OpPermsCheck();
 						bool bydefault = (op_perms.props.find("*default*") == op_perms.props.end()) ? (perms.by_default) 
 						                                                                            : (op_perms.props["*default*"] == "true" or false);
-						bool auth;
-						     if (op_perms.props[service_name] == "true")  auth = true;
-						else if (op_perms.props[service_name] == "false") auth = false;
-						else                                              auth = bydefault;
-						if (not auth and allowed_api_services.find(service_name) == allowed_api_services.end()) 
+						bool allow;
+						     if (op_perms.props[service_name] == "true")  allow = true;
+						else if (op_perms.props[service_name] == "false") allow = false;
+						else                                              allow = bydefault;
+						if (not allow and allowed_api_services.find(service_name) == allowed_api_services.end()) 
 							throw ioslaves::req_err(ioslaves::answer_code::NOT_AUTHORIZED, "PERMS", logstream << "Permissions are not satisfied to connect to API service '" << service_name << "'");
 						ioslaves::api::api_perm_t api_perms;
 						api_perms.by_default = perms.by_default;
 						for (auto p : op_perms.props) {
-							if (p.first.find(service_name+':') == 0) {
+							if (p.first.find(service_name+'*') == 0) {
 								std::string prop = p.first.substr(service_name.length()+1);
 								if (prop == "*default*") 
 									api_perms.by_default = p.second == "true" or false;

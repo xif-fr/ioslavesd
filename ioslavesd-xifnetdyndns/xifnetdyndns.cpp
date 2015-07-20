@@ -180,6 +180,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 	__slave_found:
 		if (perms == NULL and slave->was_auth) {
 			__log__(log_lvl::WARNING, "SECURITY", logstream << "Non-authentified client tries to spoof " << slave->slave_name << "'s IP !");
+			cli.o_char((char)ioslaves::answer_code::DENY);
 			return;
 		}
 		if (slave->last_ip != ip_addr) {
@@ -204,6 +205,16 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 	__ok:
 		cli.o_char((char)ioslaves::answer_code::OK);
 		while ((ioslaves::answer_code)cli.i_char() == ioslaves::answer_code::WANT_SEND) {
+			if (perms == NULL) {
+				__log__(log_lvl::ERROR, "PERMS", logstream << "Non-authentified slave isn't allowed to register additional entries.");
+				cli.o_char((char)ioslaves::answer_code::DENY);
+				return;
+			}
+			if ((*perms)["SRV"] == false) {
+				__log__(log_lvl::ERROR, "PERMS", logstream << "Slave isn't allowed to register SRV entries.");
+				cli.o_char((char)ioslaves::answer_code::DENY);
+				return;
+			}
 			bool add = cli.i_bool();
 			if (add) {
 				xdyndns::srv_t srv_entry;

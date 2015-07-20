@@ -8,7 +8,7 @@ allowed_ops: {
 		minecraft : "true";
 	};
 	l : {	// API services
-		minecraft : true;
+		minecraft : "true";
 	};
 };
 denied_ops: [];
