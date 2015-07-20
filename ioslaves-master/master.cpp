@@ -132,7 +132,7 @@ inline void try_parse_IDs (int argc, char* const argv[]) {
 	if (argc == optind || argv[optind][0] == '-') 
 		return;
 	$master_id = argv[optind++];
-	if (!ioslaves::validateSlaveName($master_id)) 
+	if (!ioslaves::validateMasterID($master_id)) 
 		try_help("ioslave-master: invalid master ID\n");
 	if (argc == optind || argv[optind][0] == '-') 
 		try_help("ioslave-master: excepted slave ID after master ID\n");
@@ -393,7 +393,7 @@ int main (int argc, char* const argv[]) {
 				if (optind == argc or argv[optind][0] == '-') 
 					try_help("--auth-key must take key sender master id as first argument\n");
 				$key_sl_master = argv[optind++];
-				if (not ioslaves::validateSlaveName($key_sl_master)) 
+				if (not ioslaves::validateMasterID($key_sl_master)) 
 					try_help("--auth-key: invalid master id\n");
 				if (optind == argc or argv[optind][0] == '-') 
 					try_help("--auth-key must take key footprint as second argument\n");
@@ -419,7 +419,7 @@ int main (int argc, char* const argv[]) {
 				optctx::optctx_set(optctx::slctrl_delk);
 				if ($auto_auth) $auth = true;
 				$key_sl_master = optarg;
-				if (not ioslaves::validateSlaveName($key_sl_master)) 
+				if (not ioslaves::validateMasterID($key_sl_master)) 
 					try_help("--revoke-key: invalid master ID");
 			} break;
 			case 'K': {

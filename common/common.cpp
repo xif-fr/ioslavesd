@@ -86,6 +86,15 @@ bool ioslaves::validateSlaveName (std::string str) {
 	return true;
 }
 
+bool ioslaves::validateMasterID (std::string str) {
+	if (str.empty()) return false;
+	if (::isdigit(str[0])) return false;
+	for (size_t i = 0; i < str.length(); ++i) {
+		if (not (::isalpha(str[i]) || str[i] == '-' || str[i] == '_')) return false;
+	}
+	return true;
+}
+
 /** ------------------------------------	**/
 /**             Version class		    		**/
 /** ------------------------------------	**/

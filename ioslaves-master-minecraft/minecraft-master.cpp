@@ -121,7 +121,7 @@ inline void tryParseMasterID (int argc, char* const argv[]) {
 	if (argc == optind || argv[optind][0] == '-') 
 		return;
 	$master_id = argv[optind++];
-	if (!ioslaves::validateSlaveName($master_id)) 
+	if (!ioslaves::validateMasterID($master_id)) 
 		try_help("minecraft-master: invalid master ID\n");
 }
 inline void testMasterID () {

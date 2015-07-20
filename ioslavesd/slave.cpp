@@ -378,7 +378,7 @@ int main (int argc, const char* argv[]) {
 			
 				// Authentification
 			std::string master_id = cli.i_str();
-			if (not master_id.empty() and not ioslaves::validateSlaveName(master_id)) {
+			if (not master_id.empty() and not ioslaves::validateMasterID(master_id)) {
 				__log__(log_lvl::NOTICE, NULL, logstream << cli.addr.get_ip_str() << " : Invalid master ID");
 				continue;
 			}
@@ -450,7 +450,7 @@ int main (int argc, const char* argv[]) {
 							if (r != 1) 
 								throw ioslaves::req_err(ioslaves::answer_code::INVALID_DATA, "KEY", "Invalid sender master IP");
 						}
-						if (not ioslaves::validateSlaveName(auth_master))
+						if (not ioslaves::validateMasterID(auth_master))
 							throw ioslaves::req_err(ioslaves::answer_code::INVALID_DATA, "KEY", "Invalid sender master ID");
 						if (footprint.length() != 32 or not ioslaves::validateHexa(footprint))
 							throw ioslaves::req_err(ioslaves::answer_code::INVALID_DATA, "KEY", "Invalid key footprint");

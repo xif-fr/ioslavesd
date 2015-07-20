@@ -100,6 +100,7 @@ namespace ioslaves {
 	bool validateName (std::string id_str);
 	bool validateHostname (std::string host);
 	bool validateSlaveName (std::string str);
+	bool validateMasterID (std::string master_id);
 		
 		// Exceptions
 	class req_err : public std::exception {
