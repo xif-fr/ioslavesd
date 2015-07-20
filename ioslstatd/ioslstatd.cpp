@@ -74,7 +74,7 @@ int main (int argc, char* const argv[]) {
 			
 			try {
 				socketxx::io::simple_socket<socketxx::base_netsock> slave_sock = iosl_master::slave_connect(slave, 0);
-				iosl_master::slave_command(slave_sock, master_id, ioslaves::op_code::PERM_STATUS);
+				iosl_master::slave_command_auth(slave_sock, master_id, ioslaves::op_code::PERM_STATUS, slave);
 				ioslaves::answer_code answ = (ioslaves::answer_code)slave_sock.i_char();
 				if (answ != ioslaves::answer_code::OK) 
 					throw answ;
