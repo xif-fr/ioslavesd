@@ -19,6 +19,7 @@ using namespace xlog;
 #include <vector>
 #include <list>
 #include <map>
+#include <set>
 #include <stdlib.h>
 #include <unistd.h>
 #include <time.h>
@@ -47,6 +48,7 @@ void* signals_thread (void* _data);
 
 	// Services
 std::list<ioslaves::service*> ioslaves::services_list;
+std::set<std::string> allowed_api_services;
 
 	// Network
 #include <socket++/handler/socket_server.hpp>
@@ -288,6 +290,15 @@ int main (int argc, const char* argv[]) {
 			} catch (...) {}
 			if (shutdown_time != 0) 
 				__log__(log_lvl::NOTICE, "SHUTDOWN", logstream << "Slave will try to shutdown in " << (shutdown_time-::time(NULL))/60 << " minutes");
+			try {
+				libconfig::Setting& allowed_services_c = conf.lookup("allowed_api_services");
+				allowed_services_c.assertType(libconfig::Setting::TypeArray);
+				for (int i = 0; i < allowed_services_c.getLength(); i++) {
+					allowed_api_services.insert(
+						allowed_services_c[i].operator std::string()
+					);
+				}
+			} catch (libconfig::SettingNotFoundException&) {}
 		}
 	} catch (libconfig::ParseException& e) {
 		__log__(log_lvl::FATAL, "CONF", logstream << "Parse error in configuration file at line " << e.getLine() << " : " << e.getError());
@@ -630,7 +641,7 @@ int main (int argc, const char* argv[]) {
 						     if (op_perms.props[service_name] == "true")  auth = true;
 						else if (op_perms.props[service_name] == "false") auth = false;
 						else                                              auth = bydefault;
-						if (not auth) 
+						if (not auth and allowed_api_services.find(service_name) == allowed_api_services.end()) 
 							throw ioslaves::req_err(ioslaves::answer_code::NOT_AUTHORIZED, "PERMS", logstream << "Permissions are not satisfied to connect to API service '" << service_name << "'");
 						ioslaves::api::api_perm_t api_perms;
 						api_perms.by_default = perms.by_default;
