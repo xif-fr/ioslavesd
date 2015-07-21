@@ -31,6 +31,7 @@ log_display_info log_display_infos[] = {
 	{"FATAL",   "\033[1;31;4m\a" },
 	{"ERROR",   "\033[1;31m"     },
 	{"OOPS",    "\033[31m"       },
+	{"SEVERE",  "\033[1;35m"     },
 	{"WARNING", "\033[1;33m"     },
 	{"NOTICE",  "\033[1;4m"      },
 	{"LOG",     "\033[1m"        },

@@ -1654,7 +1654,7 @@ void* minecraft::serv_thread (void* arg) {
 								loop = false;
 							} break;
 							
-							default: __log__(log_lvl::WARNING, THLOGSCLI(s), logstream << "Invalid internal op '" << (char)opp << "'"); break;
+							default: __log__(log_lvl::ERROR, THLOGSCLI(s), logstream << "Invalid internal op '" << (char)opp << "'"); break;
 						}
 					}
 					

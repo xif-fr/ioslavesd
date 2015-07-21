@@ -703,7 +703,7 @@ void IStat () {
 	std::cout << info.to_json(3) << std::endl;
 }
 
-const char* log_lvl_strs[] = { "FATAL", "ERROR", "OOPS", "WARNING", "NOTICE", "LOG", "IMP", "MAJOR", "DONE" };
+const char* log_lvl_strs[] = { "FATAL", "ERROR", "OOPS", "SEVERE", "WARNING", "NOTICE", "LOG", "IMP", "MAJOR", "DONE" };
 void ILog () {
 	std::cerr << "Getting slave's log lines from " << $log_begin << " to " << $log_end << "..." << std::endl;
 	$slave_sock->o_char((char)ioslaves::op_code::LOG_HISTORY);

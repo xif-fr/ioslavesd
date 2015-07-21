@@ -162,7 +162,7 @@ void* minecraft::mc_ftpd_auth_thread (void* arg) {
 		goto __scan;
 	__new_port:
 		if (++ftp_port == PURE_FTPD_BASE_PORT + PURE_FTPD_PORT_MAX_TRY) {
-			__log__(log_lvl::ERROR, "FTP", logstream << "Port range entierly used !");
+			__log__(log_lvl::SEVERE, "FTP", logstream << "Port range entierly used !");
 			return NULL;
 		}
 	__scan:
@@ -181,7 +181,7 @@ void* minecraft::mc_ftpd_auth_thread (void* arg) {
 	__new_range:
 		ftp_ports_pasv_beg += PURE_FTPD_PASV_RANGE_SZ;
 		if (ftp_ports_pasv_beg > PURE_FTPD_PASV_RANGE_BEG + PURE_FTPD_PORT_MAX_TRY*PURE_FTPD_PASV_RANGE_SZ) {
-			__log__(log_lvl::ERROR, "FTP", logstream << "Port range for passive mode entierly used !");
+			__log__(log_lvl::SEVERE, "FTP", logstream << "Port range for passive mode entierly used !");
 			return NULL;
 		}
 	__test_range:

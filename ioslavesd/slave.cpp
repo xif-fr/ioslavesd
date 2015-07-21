@@ -101,7 +101,7 @@ void ioslaves::api::euid_switch (uid_t uid, gid_t gid) {
 	long r = ::syscall( (set? SYS_setresuid32 : SYS_setresgid32), (int)-1, (int)(set? uid : gid), (int)-1 ) 
 			 | ::syscall( (set? SYS_setresgid32 : SYS_setresuid32), (int)-1, (int)(set? gid : uid), (int)-1 );
 	if (r != 0)
-		__log__(log_lvl::ERROR, "EUID", logstream << "Failed to set uid/gid to " << uid << "/" << gid << " : " << ::strerror(errno));
+		__log__(log_lvl::SEVERE, "EUID", logstream << "Failed to set uid/gid to " << uid << "/" << gid << " : " << ::strerror(errno));
 	errno = errsave;
 }
 #else
@@ -159,7 +159,7 @@ int main (int argc, const char* argv[]) {
 			r = ::setegid(ioslaves_user_id)
 			  | ::seteuid(ioslaves_group_id);
 			if (r != 0) {
-				__log__(log_lvl::WARNING, "SEC", logstream << "Failed to set effective uid/gid to user '" IOSLAVES_USER "' : " << ::strerror(errno));	
+				__log__(log_lvl::SEVERE, "SEC", logstream << "Failed to set effective uid/gid to user '" IOSLAVES_USER "' : " << ::strerror(errno));	
 				ioslaves_user_id = ioslaves_group_id = 0;
 			} else
 				__log__(log_lvl::MAJOR, NULL, logstream << "Starting ioslavesd as user '" IOSLAVES_USER "'...", LOG_WAIT, &l);

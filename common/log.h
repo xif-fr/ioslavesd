@@ -10,12 +10,13 @@ enum class log_lvl : unsigned char {
 	FATAL = 0,
 	ERROR = 1,
 	OOPS = 2,
-	WARNING = 3,
-	NOTICE = 4,
-	LOG = 5,
-	IMPORTANT = 6,
-	MAJOR = 7,
-	DONE = 8,
+	SEVERE = 3,
+	WARNING = 4,
+	NOTICE = 5,
+	LOG = 6,
+	IMPORTANT = 7,
+	MAJOR = 8,
+	DONE = 9,
 };
 
 std::ostream& logstream_acquire () noexcept;

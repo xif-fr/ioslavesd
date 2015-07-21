@@ -179,13 +179,13 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 		/* Registered slave : check if slave's IP has changed, and update the DNS if it's the case  */
 	__slave_found:
 		if (perms == NULL and slave->was_auth) {
-			__log__(log_lvl::WARNING, "SECURITY", logstream << "Non-authentified client tries to spoof " << slave->slave_name << "'s IP !");
+			__log__(log_lvl::SEVERE, "SECURITY", logstream << "Non-authentified client tries to spoof " << slave->slave_name << "'s IP !");
 			cli.o_char((char)ioslaves::answer_code::DENY);
 			return;
 		}
 		if (slave->last_ip != ip_addr) {
 			if (slave->was_auth == false and not (perms == NULL)) 
-				__log__(log_lvl::WARNING, "SECURITY", logstream << "Slave " << slave->slave_name << " now connects in an authenticated manner and IP is different. Precendent slave could be a spoofer !");
+				__log__(log_lvl::SEVERE, "SECURITY", logstream << "Slave " << slave->slave_name << " now connects in an authenticated manner and IP is different. Precendent slave could be a spoofer !");
 			slave->was_auth = not (perms == NULL);
 			__log__(log_lvl::IMPORTANT, NULL, logstream << "IP of slave '" << slave->slave_name << "' has changed from " << socketxx::base_netsock::addr_info::addr2str(slave->last_ip) << " to " << socketxx::base_netsock::addr_info::addr2str(ip_addr), LOG_WAIT, &l);
 			slave->last_ip = ip_addr;
