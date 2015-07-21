@@ -81,13 +81,13 @@ namespace ioslaves { namespace api {
 	typedef void (*report_log_f) (ioslaves::service*, xlog::log_lvl, const char*, std::string&, int, xlog::logl_t*); // Report a log line
 	typedef ioslaves::answer_code (*open_port_f) (in_port_t, bool, in_port_t, uint16_t, std::string); // Open port on gateway
 	typedef void (*close_port_f) (in_port_t, uint16_t, bool); // Close port on gateway
-	typedef ioslaves::answer_code (*dns_srv_create_f) (const char*, std::string, std::string, bool, in_port_t, bool); // Create SRV entry
-	typedef void (*dns_srv_del_f) (const char*, std::string, std::string, bool); // Delete SRV entry
+	typedef ioslaves::answer_code (*dns_srv_create_f) (const char*, std::string, std::string, bool, in_port_t, bool); // Create SRV entry (must be under ioslaves user for auth)
+	typedef void (*dns_srv_del_f) (const char*, std::string, std::string, bool); // Delete SRV entry (must be under ioslaves user for auth)
 	typedef void (*euid_switch_f) (uid_t, gid_t); // Switch EUIDs
 
 }}
 	
-/// Definitions for ioslave main program
+/// Definitions for ioslaves main program
 #ifdef IOSLAVESD_API_MAIN_PROG
 
 namespace ioslaves { namespace api {

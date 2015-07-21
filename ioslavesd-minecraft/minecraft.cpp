@@ -1411,6 +1411,8 @@ void* minecraft::serv_thread (void* arg) {
 		}
 		
 		{	// Add SRV entry on DNS
+			ioslaves::api::euid_switch(-1,-1);
+			RAII_AT_END_L( ioslaves::api::euid_switch(minecraft::java_user_id, minecraft::java_group_id) );
 			ioslaves::answer_code new_srv_answ = (*ioslaves::api::dns_srv_create)("minecraft", XIFNET_MC_DOM, s->s_servid, true, s->s_port, true);
 			if (new_srv_answ != ioslaves::answer_code::OK) 
 				__log__(log_lvl::ERROR, "SERV", MCLOGSCLI(s) << "Failed to create SRV entry on DNS for domain " << s->s_servid << '.' << XIFNET_MC_DOM << " : " << ioslaves::getAnswerCodeDescription(new_srv_answ));
@@ -1763,9 +1765,12 @@ void* minecraft::serv_thread (void* arg) {
 			__log__(r_pid_lvl, NULL, logstream << "(ret code " << WEXITSTATUS(status) << ")", LOG_ADD, &l);
 		}
 		
-			// Delete SRV entry on DNS
-		__log__(log_lvl::LOG, "SERV", MCLOGSCLI(s) << "Closing SRV entry...");
-		(*ioslaves::api::dns_srv_del)("minecraft", XIFNET_MC_DOM, s->s_servid, true);
+		{ // Delete SRV entry on DNS
+			ioslaves::api::euid_switch(-1,-1);
+			RAII_AT_END_L( ioslaves::api::euid_switch(minecraft::java_user_id, minecraft::java_group_id) );
+			__log__(log_lvl::LOG, "SERV", MCLOGSCLI(s) << "Closing SRV entry...");
+			(*ioslaves::api::dns_srv_del)("minecraft", XIFNET_MC_DOM, s->s_servid, true);
+		}
 		
 			// Close additional ports
 		if (s->s_oth_ports.size() != 0) 

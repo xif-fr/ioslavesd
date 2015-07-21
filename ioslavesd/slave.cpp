@@ -134,6 +134,12 @@ int main (int argc, const char* argv[]) {
 	try {
 	log_file_path = IOSLAVESD_LOG_FILE;
 	
+		// Create log file if doesn't exist
+	fd_t fd_log = ::open(log_file_path, O_WRONLY|O_CREAT|O_APPEND|O_NOFOLLOW, 0644);
+	if (fd_log == -1) 
+		throw xif::sys_error("can't initially open/create log file");
+	::close(fd_log);
+
 		// ioslaves user
 	if (::getuid() == 0) {
 		#if defined(__linux__)
@@ -395,6 +401,7 @@ int main (int argc, const char* argv[]) {
 			}
 			bool auth = cli.i_bool();
 			ioslaves::perms_t perms;
+			bool silent = false;
 			
 			if (auth and not master_id.empty()) {
 				ioslaves::key_t key;
@@ -416,7 +423,8 @@ int main (int argc, const char* argv[]) {
 				} else {
 					cli.o_char((char)ioslaves::answer_code::OK);
 					opcode = (ioslaves::op_code)cli.i_char();
-					if (ioslaves::perms_verify_op(perms, opcode).props["silent"] != "true")
+					silent = ioslaves::perms_verify_op(perms, opcode).props["silent"] == "true";
+					if (not silent)
 						__log__(log_lvl::LOG, "AUTH", logstream << "Authentification succeeded for '" << master_id << "' (" << cli.addr.get_ip_str() << ")");
 				}
 			} else {
@@ -433,6 +441,7 @@ int main (int argc, const char* argv[]) {
 				// Query
 			try {
 				switch (opcode) {
+						/** ---------------------- Authorize and send key ---------------------- **/
 					case ioslaves::op_code::KEY_AUTH: {
 						__log__(log_lvl::LOG, "OP", logstream << "Operation : Key sending authorization");
 						std::string footprint = cli.i_str();
@@ -505,12 +514,14 @@ int main (int argc, const char* argv[]) {
 							cli.o_char((char)ioslaves::answer_code::OK);
 							clikey.o_str(keyperms);
 							cli.o_str(clikey.addr.get_ip_str());
+							__log__(log_lvl::MAJOR, "KEY", logstream << "Master '" << of_master << "' with key '" << sent_footprint << "' now have the following permissions : \n" << keyperms << "\n");
 						} catch (socketxx::timeout_event&) {
 							throw ioslaves::req_err(ioslaves::answer_code::TIMEOUT, NULL, "Delay expired for key sending !");
 						} catch (socketxx::classic_error& e) {
 							throw ioslaves::req_err(ioslaves::answer_code::EXTERNAL_ERROR, NULL, "Communication error occured with master while receiving key !");
 						}
 					} break;
+						/** ---------------------- Revoke key ---------------------- **/
 					case ioslaves::op_code::KEY_DEL: {
 						std::string of_master = cli.i_str();
 						__log__(log_lvl::IMPORTANT, "OP", logstream << "Operation : Delete key of master '" << of_master << "'");
@@ -522,12 +533,13 @@ int main (int argc, const char* argv[]) {
 							else 
 								throw xif::sys_error("can't delete key");
 						}
-						__log__(log_lvl::DONE, "KEY", logstream << "Key of master '" << of_master << "' is revoked");
+						__log__(log_lvl::MAJOR, "KEY", logstream << "Key of master '" << of_master << "' is revoked");
 					} break;
+						/** ---------------------- Start/Stop service ---------------------- **/
 					case ioslaves::op_code::SERVICE_START: 
 					case ioslaves::op_code::SERVICE_STOP: {
 						bool start = opcode == ioslaves::op_code::SERVICE_START;
-						__log__(log_lvl::LOG, "OP", logstream << "Operation : " << (start?"Start":"Stop") << " service");
+						__log__(log_lvl::LOG, "OP", logstream << "Operation : " << (start?"Start":"Stop") << " service", silent& LOG_DEBUG);
 						std::string service = cli.i_str();
 						OpPermsCheck();
 						bool bydefault = (op_perms.props.find("*default*") == op_perms.props.end()) ? (perms.by_default) 
@@ -542,14 +554,15 @@ int main (int argc, const char* argv[]) {
 						                          (bool)start, 
 						                          master_id.c_str());
 					} break;
+						/** ---------------------- Open/Close port ---------------------- **/
 					case ioslaves::op_code::IGD_PORT_OPEN:
 					case ioslaves::op_code::IGD_PORT_CLOSE: {
 						std::string descr;
 						if (opcode == ioslaves::op_code::IGD_PORT_OPEN) {
-							__log__(log_lvl::LOG, "OP", "Operation : Open port on IGD");
+							__log__(log_lvl::LOG, "OP", "Operation : Open port on IGD", silent& LOG_DEBUG);
 							descr = cli.i_str();
 						} else {
-							__log__(log_lvl::LOG, "OP", "Operation : Close port on IGD");
+							__log__(log_lvl::LOG, "OP", "Operation : Close port on IGD", silent& LOG_DEBUG);
 						}
 						char type = cli.i_char();
 						ioslaves::upnpPort::proto proto;
@@ -598,19 +611,20 @@ int main (int argc, const char* argv[]) {
 							}
 						}
 					} break;
+						/** ---------------------- Status ---------------------- **/
 					case ioslaves::op_code::GET_STATUS: {
-						if (op_perms.props["silent"] != "true")
-							__log__(log_lvl::LOG, "OP", "Operation : Get status");
+						__log__(log_lvl::LOG, "OP", "Operation : Get status", silent& LOG_DEBUG);
 						xif::polyvar infos = ioslaves::getStatus(true);
 						cli.o_var(infos);
 					} break;
 					case ioslaves::op_code::PERM_STATUS: {
-						__log__(log_lvl::LOG, "OP", "Registering to the permanent status pool");
+						__log__(log_lvl::LOG, "OP", "Registering to the permanent status pool", silent& LOG_DEBUG);
 						pthread_mutex_handle_lock(status_clients_mutex);
 						status_clients.insert(status_clients.begin(), cli);
 					} break;
+						/** ---------------------- Auto-shutdown control ---------------------- **/
 					case ioslaves::op_code::SHUTDOWN_CTRL: {
-						__log__(log_lvl::LOG, "OP", "Operation : change auto-shutdown time");
+						__log__(log_lvl::LOG, "OP", "Operation : change auto-shutdown time", silent& LOG_DEBUG);
 						time_t shutdown_in = cli.i_int<uint32_t>();
 						OpPermsCheck();
 						if (shutdown_in == 0) {
@@ -621,6 +635,7 @@ int main (int argc, const char* argv[]) {
 							shutdown_time = ::time(NULL) + shutdown_in;
 						}
 					} break;
+						/** ---------------------- Shutdown/Reboot ---------------------- **/
 					case ioslaves::op_code::SLAVE_SHUTDOWN:
 					case ioslaves::op_code::SLAVE_REBOOT: {
 						bool does_reboot = (opcode == ioslaves::op_code::SLAVE_REBOOT);
@@ -630,9 +645,10 @@ int main (int argc, const char* argv[]) {
 						cli.o_char((char)ioslaves::answer_code::OK);
 						throw socketxx::stop_event(0);
 					} break;
+						/** ---------------------- API Service connection ---------------------- **/
 					case ioslaves::op_code::CALL_API_SERVICE: {
 						std::string service_name = cli.i_str();
-						__log__(log_lvl::LOG, "OP", logstream << "Operation : Calling API service '" << service_name << "'");
+						__log__(log_lvl::LOG, "OP", logstream << "Operation : Calling API service '" << service_name << "'", silent& LOG_DEBUG);
 						if (auth)
 							OpPermsCheck();
 						bool bydefault = (op_perms.props.find("*default*") == op_perms.props.end()) ? (perms.by_default) 
@@ -674,6 +690,7 @@ int main (int argc, const char* argv[]) {
 						}
 						continue;
 					}
+						/** ---------------------- Log ---------------------- **/
 					case ioslaves::op_code::LOG_HISTORY: {
 						__log__(log_lvl::LOG, "OP", logstream << "Operation : Get log history", LOG_WAIT, &l);
 						time_t log_begin = cli.i_int<int64_t>();

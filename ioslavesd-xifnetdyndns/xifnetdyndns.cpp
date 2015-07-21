@@ -186,6 +186,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 		if (slave->last_ip != ip_addr) {
 			if (slave->was_auth == false and not (perms == NULL)) 
 				__log__(log_lvl::WARNING, "SECURITY", logstream << "Slave " << slave->slave_name << " now connects in an authenticated manner and IP is different. Precendent slave could be a spoofer !");
+			slave->was_auth = not (perms == NULL);
 			__log__(log_lvl::IMPORTANT, NULL, logstream << "IP of slave '" << slave->slave_name << "' has changed from " << socketxx::base_netsock::addr_info::addr2str(slave->last_ip) << " to " << socketxx::base_netsock::addr_info::addr2str(ip_addr), LOG_WAIT, &l);
 			slave->last_ip = ip_addr;
 			slave->ip_changes.push_back(xdyndns::slave_info_t::ip_change_t({time(NULL),ip_addr}));

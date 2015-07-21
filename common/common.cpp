@@ -170,6 +170,7 @@ std::string ioslaves::md5 (std::string to_hash) {
 std::string ioslaves::generate_random (size_t sz) {
 	fd_t fd = ::open("/dev/urandom", O_RDONLY);
 	if (fd == INVALID_HANDLE) throw xif::sys_error("open(/dev/urandom) failed");
+	RAII_AT_END_L( ::close(fd) );
 	char buf[sz];
 	if (::read(fd, buf, sz) != (ssize_t)sz) throw xif::sys_error("read(/dev/urandom) failed");
 	return bin_to_hex((unsigned char*)buf, sz);
