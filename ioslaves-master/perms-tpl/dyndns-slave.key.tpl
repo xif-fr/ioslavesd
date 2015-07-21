@@ -3,6 +3,7 @@
 allow_by_default: false;
 allowed_ops: {
 	l : {	// API services
+		silent : "true";
 		xifnetdyndns : "true"; // Allow access to xifnetdyndns service
 		xifnetdyndns*SRV : "true"; // Allow SRV entries adding
 	};

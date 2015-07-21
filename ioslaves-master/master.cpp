@@ -133,9 +133,9 @@ inline void try_parse_IDs (int argc, char* const argv[]) {
 		return;
 	$master_id = argv[optind++];
 	if (!ioslaves::validateMasterID($master_id)) 
-		try_help("ioslave-master: invalid master ID\n");
+		try_help("ioslaves-master: invalid master ID\n");
 	if (argc == optind || argv[optind][0] == '-') 
-		try_help("ioslave-master: excepted slave ID after master ID\n");
+		try_help("ioslaves-master: excepted slave ID after master ID\n");
 	std::string slave_addr = argv[optind++];
 	size_t pos = 0;
 	if ((pos = slave_addr.find_first_of('@')) != std::string::npos) {
@@ -146,7 +146,7 @@ inline void try_parse_IDs (int argc, char* const argv[]) {
 		try {
 			$connect_addr = socketxx::base_netsock::addr_info ( IOSLAVES_MASTER_DEFAULT_PORT, slave_addr );
 		} catch (socketxx::bad_addr_error& e) {
-			try_help("ioslave-master: invalid slave address\n");
+			try_help("ioslaves-master: invalid slave address\n");
 		} catch (socketxx::dns_resolve_error& e) {
 			std::cerr << COLOR_RED << "Can't resolve slave hostname '" << e.failed_hostname << "' !" << COLOR_RESET << std::endl;
 			::exit(EXIT_FAILURE_CONN);
@@ -154,13 +154,13 @@ inline void try_parse_IDs (int argc, char* const argv[]) {
 		$addr_defined = true;
 	} else {
 		if (!ioslaves::validateSlaveName(slave_addr)) 
-			try_help("ioslave-master: invalid slave ID\n");
+			try_help("ioslaves-master: invalid slave ID\n");
 		$slave_id = slave_addr;
 	}
 }
 inline void test_for_IDs () {
 	if ($master_id.empty())
-		try_help("ioslave-master: master and slave IDs requiered\n");
+		try_help("ioslaves-master: master and slave IDs requiered\n");
 }
 
 int main (int argc, char* const argv[]) {
