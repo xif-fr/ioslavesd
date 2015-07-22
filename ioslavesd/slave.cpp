@@ -751,15 +751,27 @@ int main (int argc, const char* argv[]) {
 				static time_t dyndns_last = 0;
 				if (dyndns_last+ip_refresh_dyndns_interval < ::time(NULL)) {
 					dyndns_last = ::time(NULL);
+					static in_addr_t my_ip_last = 0;
+					std::string key_path = _S( IOSLAVES_MASTER_KEYS_DIR,'/',dyndns_slave_key_id,".key" );
+					r = ::access(key_path.c_str(), R_OK);
+					if (r == -1 and my_ip_last == 0) 
+						__log__(log_lvl::WARNING, "DynDNS", logstream << "No key " << key_path << " available for DynDNS slave : " << ::strerror(errno));
 					try {
 						iosl_master::$leave_exceptions = true;
 						RAII_AT_END_L( iosl_master::$leave_exceptions = false; );
 						socketxx::simple_socket_client<socketxx::base_netsock> sock (socketxx::base_netsock::addr_info(ip_refresh_dyndns_server, 2929), timeval{1,0});
 						sock.set_read_timeout(timeval{0,800000});
-						iosl_master::slave_api_service_connect(sock, _S("_IOSL_",hostname), dyndns_slave_key_id, "xifnetdyndns");
+						if (r == 0)
+							iosl_master::slave_api_service_connect(sock, _S("_IOSL_",hostname), dyndns_slave_key_id, "xifnetdyndns");
+						else {
+							iosl_master::slave_command(sock, _S("_IOSL_",hostname), ioslaves::op_code::CALL_API_SERVICE);
+							sock.o_str("xifnetdyndns");
+							ioslaves::answer_code answ = (ioslaves::answer_code)sock.i_char();
+							if (answ != ioslaves::answer_code::OK) 
+								throw answ;
+						}
 						sock.o_int<in_port_t>(ioslavesd_listening_port);
 						in_addr_t my_ip = sock.i_int<in_addr_t>();
-						static in_addr_t my_ip_last = 0;
 						if (my_ip_last == 0) 
 							__log__(log_lvl::MAJOR, "DynDNS", logstream << "Public IP is " << socketxx::base_netsock::addr_info::addr2str(my_ip));
 						else if (my_ip_last != my_ip) 
