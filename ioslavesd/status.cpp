@@ -12,6 +12,7 @@
 #include "main.h"
 using namespace xlog;
 #include <xifutils/cxx.hpp>
+#include <sys/dir.h>
 
 	// Topp linux system monitor library
 #ifndef IOSLAVESD_NO_TOPP
@@ -256,6 +257,24 @@ xif::polyvar ioslaves::getStatus (bool full) {
 	info["system"] = ioslaves::system_stat;
 	
 	info["shtdwntm"] = ::shutdown_time == 0 ? xif::polyvar() : xif::polyvar(::shutdown_time);
+	
+	info["keys"] = xif::polyvar::vec();
+	DIR* dir = ::opendir(IOSLAVESD_KEYS_DIR);
+	if (dir != NULL) {
+		dirent* dp, *dentr = (dirent*) ::malloc((size_t)offsetof(struct dirent, d_name) + std::max(sizeof(dirent::d_name), (size_t)::fpathconf(dirfd(dir),_PC_NAME_MAX)) +1);
+		RAII_AT_END({ ::closedir(dir); ::free(dentr); });
+		int rr;
+		while ((rr = ::readdir_r(dir, dentr, &dp)) != -1 and dp != NULL) {
+			std::string fnam = dp->d_name;
+			if (fnam.length() > 4 and fnam.substr(fnam.length()-4) == ".key") {
+				std::string master = fnam.substr(0, fnam.length()-4);
+				if (ioslaves::validateMasterID(master)) 
+					info["keys"].v().push_back(master);
+			}
+		}
+		if (rr == -1)
+			throw xif::sys_error("slaves dir : readdir_r");
+	}
 	
 	return info;
 }
