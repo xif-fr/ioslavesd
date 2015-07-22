@@ -227,6 +227,7 @@ xif::polyvar ioslaves::getStatus (bool full) {
 	std::map<std::string,xif::polyvar> info;
 	
 	info["me"] = hostname;
+	info["ver"] = IOSLAVESD_VERSION;
 	
 	info["port"] = ioslavesd_listening_port;
 	

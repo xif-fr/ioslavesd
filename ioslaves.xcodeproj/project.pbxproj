@@ -681,6 +681,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				GCC_PREPROCESSOR_DEFINITIONS = (
+					"IOSLAVESD_VERSION=\\\"dev-osx\\\"",
 					IOSLAVESD_NO_TOPP,
 					"IOSLAVES_DIR=\"\\\"/var/ioslaves\\\"\"",
 					IOSLAVED_FORCE_CREDS,
@@ -700,6 +701,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				GCC_PREPROCESSOR_DEFINITIONS = (
+					"IOSLAVESD_VERSION=\\\"dev-osx\\\"",
 					IOSLAVESD_NO_TOPP,
 					"IOSLAVES_DIR=\"\\\"/var/ioslaves\\\"\"",
 					"$(inherited)",
