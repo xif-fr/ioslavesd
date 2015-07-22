@@ -48,7 +48,7 @@ void xlog::logstream_impl::log (log_lvl lvl, const char* part, std::string msg, 
 	_log_wait_flag = false;
 	switch (lvl) {
 		case log_lvl::LOG: case log_lvl::NOTICE: case log_lvl::IMPORTANT: case log_lvl::MAJOR: break;
-		case log_lvl::FATAL: case log_lvl::ERROR: case log_lvl::OOPS: std::clog << COLOR_RED << "Error : " << COLOR_RESET; break;
+		case log_lvl::FATAL: case log_lvl::ERROR: case log_lvl::OOPS: case log_lvl::SEVERE: std::clog << COLOR_RED << "Error : " << COLOR_RESET; break;
 		case log_lvl::WARNING: std::clog << COLOR_YELLOW << "Warning : " << COLOR_RESET; break;
 		case log_lvl::DONE: std::clog << COLOR_GREEN << "Done ! " << COLOR_RESET; break;
 	}
@@ -136,27 +136,9 @@ inline void try_parse_IDs (int argc, char* const argv[]) {
 		try_help("ioslaves-master: invalid master ID\n");
 	if (argc == optind || argv[optind][0] == '-') 
 		try_help("ioslaves-master: excepted slave ID after master ID\n");
-	std::string slave_addr = argv[optind++];
-	size_t pos = 0;
-	if ((pos = slave_addr.find_first_of('@')) != std::string::npos) {
-		$slave_id = slave_addr.substr(0,pos);
-		slave_addr = slave_addr.substr(pos+1);
-	}
-	if (slave_addr.find_first_of('.') != std::string::npos) {
-		try {
-			$connect_addr = socketxx::base_netsock::addr_info ( IOSLAVES_MASTER_DEFAULT_PORT, slave_addr );
-		} catch (socketxx::bad_addr_error& e) {
-			try_help("ioslaves-master: invalid slave address\n");
-		} catch (socketxx::dns_resolve_error& e) {
-			std::cerr << COLOR_RED << "Can't resolve slave hostname '" << e.failed_hostname << "' !" << COLOR_RESET << std::endl;
-			::exit(EXIT_FAILURE_CONN);
-		}
-		$addr_defined = true;
-	} else {
-		if (!ioslaves::validateSlaveName(slave_addr)) 
-			try_help("ioslaves-master: invalid slave ID\n");
-		$slave_id = slave_addr;
-	}
+	$slave_id = argv[optind++];
+	if (!ioslaves::validateSlaveName($slave_id)) 
+		try_help("ioslaves-master: invalid slave ID\n");
 }
 inline void test_for_IDs () {
 	if ($master_id.empty())
@@ -168,7 +150,7 @@ int main (int argc, char* const argv[]) {
 	
 	struct option long_options[] = {
 		{"help", no_argument, NULL, 'h'},
-		{"verbose", no_argument, NULL, 'v'},
+		{"addr", required_argument, NULL, 'd'},
 		{"no-interactive", no_argument, NULL, 'i'},
 		{"control", no_argument, NULL, 'C'},
 			{"auth", required_argument, NULL, 'f'},
@@ -205,16 +187,16 @@ int main (int argc, char* const argv[]) {
 	try_parse_IDs(argc, argv);
 	
 	int opt, opt_charind = 0;
-	while ((opt = ::getopt_long(argc, argv, "-hiCf:S:soa:P:X:RDGL::kr:KO::J", long_options, &opt_charind)) != -1) {
+	while ((opt = ::getopt_long(argc, argv, "-hid:Cf:S:soa:P:X:RDGL::kr:KO::J", long_options, &opt_charind)) != -1) {
 		switch (opt) {
 			case 'h':
-				::puts("ioslaves-master | ioslaves control programm for network masters\n"
-						 "Usage: ioslaves-master MASTER-ID SLAVE-ID/ADDR --ACTION [--COMMAND [OPTIONS] ...]\n"
+				::puts("ioslaves-master | ioslaves control program for network masters\n"
+						 "Usage: ioslaves-master MASTER-ID SLAVE-ID [--addr=ADDR] --ACTION [--COMMAND [OPTIONS] ...]\n"
 						 "\n"
 						 "General options :\n"
-						 "      MASTER-ID             The master ID, used for authentication.\n"
-						 "      SLAVE-ID/ADDR         If the slave ID is used, IP and port are automatically retrieved.\n"
-						 "                            Else, the ADDR can be an IP or an hostname, with optionally :PORT\n"
+						 "      MASTER-ID             The master ID, used for authentication and logging.\n"
+						 "      SLAVE-ID              If only the slave ID is used, IP and port are automatically retrieved.\n"
+						 "  -d, --addr=(HOST|IP)[:PORT] Explicit address : can be an IP or an hostname, with optional :PORT\n"
 						 "  -i, --no-interactive      Disable prompting. Log in HTML.\n"
 						 "\n"
 						 "Actions :\n"
@@ -268,6 +250,17 @@ int main (int argc, char* const argv[]) {
 				optctx::interactive = false;
 				try_parse_IDs(argc, argv);
 				break;
+			case 'd': {
+				try {
+					$connect_addr = socketxx::base_netsock::addr_info ( IOSLAVES_MASTER_DEFAULT_PORT, optarg );
+				} catch (socketxx::bad_addr_error& e) {
+					try_help("ioslaves-master: invalid slave address\n");
+				} catch (socketxx::dns_resolve_error& e) {
+					std::cerr << COLOR_RED << "Can't resolve slave hostname '" << e.failed_hostname << "' !" << COLOR_RESET << std::endl;
+					::exit(EXIT_FAILURE_CONN);
+				}
+				$addr_defined = true;
+			} break;
 			case 'C':
 				optctx::optctx_set(optctx::slctrl);
 				test_for_IDs();
@@ -425,8 +418,6 @@ int main (int argc, char* const argv[]) {
 			case 'K': {
 				optctx::optctx_set(optctx::keygen);
 				test_for_IDs();
-				if ($slave_id.empty()) 
-					try_help("--keygen: must use a slave ID\n");
 			} break;
 			case 'O': {
 				optctx::optctx_set(optctx::powerup);
@@ -479,12 +470,6 @@ int main (int argc, char* const argv[]) {
 	}
 	optctx::optctx_end();
 	
-	if ($auth and $slave_id.empty()) {
-		std::cerr << COLOR_RED << "Authentification needed : must use a slave ID !" << COLOR_RESET << std::endl;
-		EXIT_FAILURE = EXIT_FAILURE_AUTH;
-		return EXIT_FAILURE;
-	}
-	
 	/// Execute
 	try {
 		optctx::optctx_exec();
@@ -511,7 +496,7 @@ socketxx::simple_socket_client<socketxx::base_netsock>* $slave_sock = NULL;
 void IPreSlaveCo () {
 		// Hostname or IP
 	try {
-		if (not $slave_id.empty() and not $addr_defined) {
+		if (not $addr_defined) {
 			in_port_t $connect_port = IOSLAVES_MASTER_DEFAULT_PORT;
 			try { // Retriving port number with SRV records
 				std::cerr << "Retriving port number from SRV record _ioslavesd._tcp." << $slave_id << '.' << XIFNET_SLAVES_DOM << "..." << std::endl;
@@ -532,9 +517,8 @@ void IPreSlaveCo () {
 		EXIT_FAILURE = EXIT_FAILURE_CONN; throw EXCEPT_ERROR_IGNORE;
 	}
 		// Connecting
-	std::string slave_name = ($slave_id.empty()) ? "slave" : _S('`',$slave_id,'`');
 	try {
-		std::cerr << "Connecting to " << slave_name << " at " << $connect_addr.get_ip_str() << ":" << $connect_addr.get_port() << "..." << std::endl;
+		std::cerr << "Connecting to " << $slave_id << " at " << $connect_addr.get_ip_str() << ":" << $connect_addr.get_port() << "..." << std::endl;
 		$slave_sock = new socketxx::simple_socket_client<socketxx::base_netsock> ($connect_addr, $connect_timeout);
 		$slave_sock->set_read_timeout($comm_timeout);
 	} catch (socketxx::error& e) {
@@ -554,7 +538,7 @@ void IPreSlaveCo () {
 		}
 		$slave_sock->set_read_timeout($op_timeout);
 	} catch (socketxx::error& e) {
-		std::cerr << COLOR_RED << "Failed to communicate with " << slave_name << " : " << COLOR_RESET << e.what() << std::endl;
+		std::cerr << COLOR_RED << "Failed to communicate with " << $slave_id << " : " << COLOR_RESET << e.what() << std::endl;
 		EXIT_FAILURE = EXIT_FAILURE_COMM;
 		delete $slave_sock;
 		throw EXCEPT_ERROR_IGNORE;
@@ -739,10 +723,6 @@ void ILog () {
 void IPowerup () {
 	try {
 	if ($poweron_type == iosl_master::on_type::_AUTO) {
-		if ($slave_id.empty()) {
-			std::cerr << COLOR_RED << "Power up : slave ID must be defined" << COLOR_RESET << std::endl;
-			throw EXCEPT_ERROR_IGNORE;
-		}
 		bool up = iosl_master::slave_test($slave_id);
 		if (up) {
 			std::cerr << COLOR_YELLOW << "Slave '" << $slave_id << "' is already up !" << std::endl;
@@ -785,10 +765,6 @@ void IPowerup () {
 			std::cout << "Broadcasting magic packet for " << $on_mac << " on local network..." << std::endl;
 			ioslaves::wol::magic_send($on_mac.c_str(), false);
 		} else if ($poweron_type == iosl_master::on_type::GATEWAY) {
-			if ($slave_id.empty()) {
-				std::cerr << COLOR_RED << "Power up : slave ID must be defined" << COLOR_RESET << std::endl;
-				throw EXCEPT_ERROR_IGNORE;	
-			}
 			std::cout << "Relaying start request of slave '" << $slave_id << "' via gateway '" << $on_gateway << "'..." << std::endl;
 			socketxx::io::simple_socket<socketxx::base_netsock> sock = iosl_master::slave_api_service_connect($on_gateway, $master_id, "wake-gateway");
 			sock.o_str($slave_id);
@@ -929,10 +905,6 @@ void ISlKeyDel () {
 
 void IioslFile2JSON () {
 	int r;
-	if ($slave_id.empty()) {
-		std::cerr << COLOR_RED << "Slave ID must be defined" << COLOR_RESET << std::endl;
-		throw EXCEPT_ERROR_IGNORE;
-	}
 	std::string fname = _S( IOSLAVES_MASTER_SLAVES_DIR,"/",$slave_id,".conf" );
 	r = ::access(fname.c_str(), F_OK);
 	if (r == -1) 
