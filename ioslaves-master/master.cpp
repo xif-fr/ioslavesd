@@ -550,7 +550,7 @@ void IPreSlaveCo () {
 		$slave_sock->o_bool($auth);
 		if ($auth) {
 			std::cerr << "Authentification..." << std::endl;
-			iosl_master::authenticate(*$slave_sock, $slave_id);
+			iosl_master::authenticate(*$slave_sock, _S($master_id,'.',$slave_id));
 		}
 		$slave_sock->set_read_timeout($op_timeout);
 	} catch (socketxx::error& e) {
@@ -824,7 +824,7 @@ void IKeygen () {
 		r = ::mkdir(IOSLAVES_MASTER_KEYS_DIR, 0700);
 		if (r == -1) throw xif::sys_error("can't create keys dir");
 	}
-	std::string key_path = _S( IOSLAVES_MASTER_KEYS_DIR,"/",$slave_id,".key" );
+	std::string key_path = _S( IOSLAVES_MASTER_KEYS_DIR,"/",$master_id,'.',$slave_id,".key" );
 	if (optctx::interactive) {
 		r = ::access(key_path.c_str(), F_OK);
 		if (r == 0) {

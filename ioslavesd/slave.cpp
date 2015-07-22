@@ -762,14 +762,13 @@ int main (int argc, const char* argv[]) {
 						socketxx::simple_socket_client<socketxx::base_netsock> sock (socketxx::base_netsock::addr_info(ip_refresh_dyndns_server, 2929), timeval{1,0});
 						sock.set_read_timeout(timeval{0,800000});
 						if (r == 0)
-							iosl_master::slave_api_service_connect(sock, _S("_IOSL_",hostname), dyndns_slave_key_id, "xifnetdyndns");
-						else {
+							iosl_master::slave_command_auth(sock, _S("_IOSL_",hostname), ioslaves::op_code::CALL_API_SERVICE, dyndns_slave_key_id);
+						else 
 							iosl_master::slave_command(sock, _S("_IOSL_",hostname), ioslaves::op_code::CALL_API_SERVICE);
-							sock.o_str("xifnetdyndns");
-							ioslaves::answer_code answ = (ioslaves::answer_code)sock.i_char();
-							if (answ != ioslaves::answer_code::OK) 
-								throw answ;
-						}
+						sock.o_str("xifnetdyndns");
+						ioslaves::answer_code answ = (ioslaves::answer_code)sock.i_char();
+						if (answ != ioslaves::answer_code::OK) 
+							throw answ;
 						sock.o_int<in_port_t>(ioslavesd_listening_port);
 						in_addr_t my_ip = sock.i_int<in_addr_t>();
 						if (my_ip_last == 0) 
@@ -777,7 +776,6 @@ int main (int argc, const char* argv[]) {
 						else if (my_ip_last != my_ip) 
 							__log__(log_lvl::MAJOR, "DynDNS", logstream << "Public IP changed from " << socketxx::base_netsock::addr_info::addr2str(my_ip_last) << " to " << socketxx::base_netsock::addr_info::addr2str(my_ip));
 						my_ip_last = my_ip;
-						ioslaves::answer_code answ;
 						if ((answ = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) {
 							__log__(log_lvl::ERROR, "DynDNS", logstream << "Refresh IP failed : " << ioslaves::getAnswerCodeDescription(answ));
 							continue;
@@ -789,7 +787,7 @@ int main (int argc, const char* argv[]) {
 					} catch (master_err& e) {
 						__log__(log_lvl::ERROR, "DynDNS", logstream << "Master error while connecting to DynDNS : " << e.what());
 					} catch (ioslaves::answer_code answ) {
-						__log__(log_lvl::ERROR, "DynDNS", logstream << "Failed to refresh DynDNS : " << ioslaves::getAnswerCodeDescription(answ));
+						__log__(log_lvl::ERROR, "DynDNS", logstream << "DynDNS service error : " << ioslaves::getAnswerCodeDescription(answ));
 					}
 				}
 			}
@@ -1063,7 +1061,11 @@ ioslaves::answer_code ioslaves::dns_srv_req (std::function< ioslaves::answer_cod
 	try {
 		socketxx::simple_socket_client<socketxx::base_netsock> sock (socketxx::base_netsock::addr_info(ip_refresh_dyndns_server, 2929), dnssrvreq_timeout);
 		sock.set_read_timeout(dnssrvreq_timeout);
-		iosl_master::slave_api_service_connect(sock, _S("_IOSL_",hostname), dyndns_slave_key_id, "xifnetdyndns");
+		iosl_master::slave_command_auth(sock, _S("_IOSL_",hostname), ioslaves::op_code::CALL_API_SERVICE, dyndns_slave_key_id);
+		sock.o_str("xifnetdyndns");
+		ioslaves::answer_code answ = (ioslaves::answer_code)sock.i_char();
+		if (answ != ioslaves::answer_code::OK) 
+			throw answ;
 		sock.o_int<in_port_t>(0);
 		sock.i_int<in_addr_t>();
 		sock.o_char((char)ioslaves::answer_code::WANT_SEND);
@@ -1147,7 +1149,7 @@ void ioslaves::loadService (std::string name, FILE* service_file) {
 		s->s_type = service::strToType( service_conf.lookup("type").operator std::string() );
 		s->s_name = name;
 		s->s_command = service_conf.lookup("command").operator std::string();
-		std::string port_descr = _S( s->s_name," ioslaves service on ",hostname );
+		std::string port_descr = _S( s->s_name," service on ",hostname );
 		if (service_conf.exists("port")) {
 			ioslaves::upnpPort p;
 			p.p_range_sz = 1;

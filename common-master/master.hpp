@@ -68,21 +68,22 @@ namespace iosl_master {
 	bool slave_test (std::string slave_id);
 		// Start slave
 	enum class on_type { _AUTO, WoL, WoW, GATEWAY, PSU };
-	time_t slave_start (std::string slave_id, std::string master_id);
+	time_t slave_start (std::string slave_id, std::string master_id); // Automatically choose a start method with slave files and try to start slave
 
 		// Connection
 	class ldns_error : public std::runtime_error { public: ldns_error (ldns_status r) noexcept : std::runtime_error(_S("ldns error : ",ldns_error_str[r].name)) {} };
 	in_port_t slave_get_port_dns (std::string slave_id);
-	socketxx::base_netsock slave_connect (std::string slave_id, in_port_t default_port = IOSLAVES_MASTER_DEFAULT_PORT, timeval timeout = {1,0});
-	
-		// Opperations
-	void slave_command (socketxx::io::simple_socket<socketxx::base_netsock> slave_sock, std::string master_id, ioslaves::op_code opp);
-	void slave_command_auth (socketxx::io::simple_socket<socketxx::base_netsock> slave_sock, std::string master_id, ioslaves::op_code opp, std::string slave_id);
-	void slave_api_service_connect (socketxx::io::simple_socket<socketxx::base_netsock> slave_sock, std::string master_id, std::string slave_id, std::string api_service);
-	socketxx::base_netsock slave_api_service_connect (std::string slave_id, std::string master_id, std::string api_service, timeval timeout = {1,0});
+	socketxx::base_netsock slave_connect (std::string slave_id, in_port_t default_port = IOSLAVES_MASTER_DEFAULT_PORT, timeval timeout = {1,0}); // Establish a raw connection to slave
 	
 		// Authentification
-	void authenticate (socketxx::io::simple_socket<socketxx::base_netsock> slave_sock, std::string slave_id);
+	void authenticate (socketxx::io::simple_socket<socketxx::base_netsock> slave_sock, std::string key_id); // Authenticate with key_id.key
+	
+		// Opperations
+	void slave_command (socketxx::io::simple_socket<socketxx::base_netsock> slave_sock, std::string master_id, ioslaves::op_code opp); // Apply operation
+	void slave_command_auth (socketxx::io::simple_socket<socketxx::base_netsock> slave_sock, std::string master_id, ioslaves::op_code opp, std::string key_id); // Authenticate the apply operation
+	
+		// All-in-one
+	socketxx::base_netsock slave_api_service_connect (std::string slave_id, std::string master_id, std::string api_service, timeval timeout = {1,0}); // Connect to slave, authenticate with master_id.slave_id.key, then connect to API service
 }
 
 	/// Wake on Lan/Wan sender

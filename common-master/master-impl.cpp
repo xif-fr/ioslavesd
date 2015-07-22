@@ -75,11 +75,11 @@ void iosl_master::slave_command (socketxx::io::simple_socket<socketxx::base_nets
 }
 
 	// Authentification
-void iosl_master::authenticate (socketxx::io::simple_socket<socketxx::base_netsock> slave_sock, std::string slave_id) {
-	std::string key_path = _S( IOSLAVES_MASTER_KEYS_DIR,"/",slave_id,".key" );
+void iosl_master::authenticate (socketxx::io::simple_socket<socketxx::base_netsock> slave_sock, std::string key_id) {
+	std::string key_path = _S( IOSLAVES_MASTER_KEYS_DIR,"/",key_id,".key" );
 	int r = ::access(key_path.c_str(), F_OK);
 	if (r == -1) 
-		throw master_err(_S( "No key for slave '",slave_id,"'" ), EXIT_FAILURE_ERR);
+		throw master_err(_S( "No key for '",key_id,"'" ), EXIT_FAILURE_ERR);
 	std::string key;
 	try {
 		std::ifstream key_f; key_f.exceptions(std::ifstream::failbit|std::ifstream::badbit);
@@ -92,20 +92,19 @@ void iosl_master::authenticate (socketxx::io::simple_socket<socketxx::base_netso
 	std::string challenge = slave_sock.i_str();
 	std::string answer = ioslaves::hash(challenge+key);
 	slave_sock.o_str(answer);
-	ioslaves::answer_code anws = 
-	(ioslaves::answer_code)slave_sock.i_char();
-	if (anws != ioslaves::answer_code::OK) 
-		throw master_err("Authentification failed !", EXIT_FAILURE_AUTH);
+	ioslaves::answer_code o = (ioslaves::answer_code)slave_sock.i_char();
+	if (o != ioslaves::answer_code::OK) 
+		throw master_err(_S( "Authentification failed : ",ioslaves::getAnswerCodeDescription(o) ), EXIT_FAILURE_AUTH);
 }
 
 	// Apply operation with authentification
-void iosl_master::slave_command_auth (socketxx::io::simple_socket<socketxx::base_netsock> sock, std::string master_id, ioslaves::op_code opp, std::string slave_id) {
+void iosl_master::slave_command_auth (socketxx::io::simple_socket<socketxx::base_netsock> sock, std::string master_id, ioslaves::op_code opp, std::string key_id) {
 	socketxx::io::simple_socket<socketxx::base_netsock> slave_sock = sock;
 	try {
 		slave_sock.o_bool(true);
 		slave_sock.o_str(master_id);
 		slave_sock.o_bool(true); // auth
-		iosl_master::authenticate(slave_sock, slave_id);
+		iosl_master::authenticate(slave_sock, key_id);
 		slave_sock.o_char((char)opp);
 	} catch (socketxx::error& e) {
 		if ($leave_exceptions) throw;
@@ -113,24 +112,15 @@ void iosl_master::slave_command_auth (socketxx::io::simple_socket<socketxx::base
 	}
 }
 
-	// Connect to API service with authentication
-void iosl_master::slave_api_service_connect (socketxx::io::simple_socket<socketxx::base_netsock> sock, std::string master_id, std::string slave_id, std::string api_service) {
-	socketxx::io::simple_socket<socketxx::base_netsock> slave_sock = sock;
-	iosl_master::slave_command_auth(slave_sock, master_id, ioslaves::op_code::CALL_API_SERVICE, slave_id);
+	// All-in-one function that returns ready-to-use connection to an API service
+socketxx::base_netsock iosl_master::slave_api_service_connect (std::string slave_id, std::string master_id, std::string api_service, timeval timeout) {
 	try {
+		socketxx::io::simple_socket<socketxx::base_netsock> slave_sock = iosl_master::slave_connect(slave_id, 0, timeout);
+		iosl_master::slave_command_auth(slave_sock, master_id, ioslaves::op_code::CALL_API_SERVICE, _S(master_id,'.',slave_id));
 		slave_sock.o_str(api_service);
 		ioslaves::answer_code answ = (ioslaves::answer_code)slave_sock.i_char();
 		if (answ != ioslaves::answer_code::OK) 
 			throw answ;
-	} catch (socketxx::error& e) {
-		if ($leave_exceptions) throw;
-		throw master_err(_S( "Failed to start communication with API service : ",e.what() ), EXIT_FAILURE_COMM);
-	}
-}
-socketxx::base_netsock iosl_master::slave_api_service_connect (std::string slave_id, std::string master_id, std::string api_service, timeval timeout) {
-	try {
-		socketxx::io::simple_socket<socketxx::base_netsock> slave_sock = iosl_master::slave_connect(slave_id, 0, timeout);
-		iosl_master::slave_api_service_connect(slave_sock, master_id, slave_id, api_service);
 		return slave_sock;
 	} catch (socketxx::end::client_connect_error& e) {
 		if ($leave_exceptions) throw;
@@ -141,9 +131,12 @@ socketxx::base_netsock iosl_master::slave_api_service_connect (std::string slave
 	} catch (iosl_master::ldns_error& e) {
 		if ($leave_exceptions) throw;
 		throw master_err(_S( "Can't retrive port number : ",e.what() ), EXIT_FAILURE_CONN);
+	} catch (ioslaves::answer_code o) {
+		if ($leave_exceptions) throw;
+		throw master_err(_S( "Failed to connect to API service : ",ioslaves::getAnswerCodeDescription(o) ), EXIT_FAILURE_IOSL);
 	} catch (socketxx::error& e) {
 		if ($leave_exceptions) throw;
-		throw master_err(_S( "Failed to connect to slave : ",e.what() ), EXIT_FAILURE_CONN);
+		throw master_err(_S( "Communication error while connecting to slave or API service : ",e.what() ), EXIT_FAILURE_COMM);
 	}
 }
 
