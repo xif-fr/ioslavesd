@@ -3,7 +3,7 @@
  *                   ioslavesd minecraft
  *   pure-ftpd external auth method for minecraft service
  * *********************************************************
- * Copyright © Félix Faisant 2013-2014. All rights reserved
+ * Copyright © Félix Faisant 2015. All rights reserved
  * This software is under the GNU General Public License
  \**********************************************************/
 

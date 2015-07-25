@@ -3,7 +3,7 @@
  *                      ioslaves-master
  *            Ioslaves Control Program for Masters
  * *********************************************************
- * Copyright © Félix Faisant 2013-2014. All rights reserved
+ * Copyright © Félix Faisant 2013-2015. All rights reserved
  * This software is under the GNU General Public License
  \**********************************************************/
 
@@ -825,7 +825,7 @@ void IKeygen () {
 		std::cout << LOG_ARROW << "Ready to send ?" << COLOR_RESET << " (Enter/Ctrl-C)" << std::flush;
 		std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 		socketxx::io::simple_socket<socketxx::base_netsock> slsock = 
-			iosl_master::slave_connect ($slave_id, IOSLAVES_MASTER_DEFAULT_PORT, timeval({1,0}));
+			iosl_master::slave_connect($slave_id, 0, timeval({1,0}));
 		slsock.o_bool(false);
 		slsock.o_str($master_id);
 		slsock.o_str(key);

@@ -3,7 +3,7 @@
  *                   ioslaves API header
  *            Control interface for XifNet services
  * *********************************************************
- * Copyright © Félix Faisant 2013-2014. All rights reserved
+ * Copyright © Félix Faisant 2013-2015. All rights reserved
  * This software is under the GNU General Public License
  \**********************************************************/
 

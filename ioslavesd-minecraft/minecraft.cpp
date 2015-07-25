@@ -3,7 +3,7 @@
  *             ioslaves API service : Minecraft
  *        Control sub-program for Minecraft servers
  * *********************************************************
- * Copyright © Félix Faisant 2013-2014. All rights reserved
+ * Copyright © Félix Faisant 2013-2015. All rights reserved
  * This software is under the GNU General Public License
  \**********************************************************/
 
