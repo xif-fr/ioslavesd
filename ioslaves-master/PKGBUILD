@@ -23,7 +23,7 @@ sha256sums=('SKIP' 'SKIP' 'SKIP'
             'SKIP')
 
 build() {
-	export CXXFLAGS="${CXXFLAGS} -DXIFNET -DIOSLAVES_MASTER_DIR=\"__get_homedir__()+\\\"/ioslaves-master\\\"\" "
+	export CXXFLAGS="${CXXFLAGS} -DXIFNET -DIOSLAVES_MASTER_DIR=\"__get_homedir__()+\\\"/ioslaves-master\\\"\" -DIOSL_MASTER_KEYSTORE_EXT_METHODS "
 	make 
 }
 

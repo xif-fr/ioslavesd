@@ -41,6 +41,9 @@
 #define IOSLAVES_MASTER_KEYS_DIR _s(IOSLAVES_MASTER_DIR,"/keys")
 #define IOSLAVES_MASTER_SLAVES_DIR _s(IOSLAVES_MASTER_DIR,"/slaves")
 #define IOSLAVES_MASTER_KEYS_MODELS_DIR "/usr/share/ioslaves/master/key-perms/"
+#ifndef IOSLAVES_MASTER_KEYSTORE_EXT_METHODS
+	#define IOSLAVES_MASTER_KEYSTORE_EXT_METHODS "/usr/lib/ioslaves-master/keystore"
+#endif
 
 	// Network
 #include <socket++/io/simple_socket.hpp>

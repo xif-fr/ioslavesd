@@ -25,6 +25,13 @@
 	// Crypto
 #include <openssl/md5.h>
 
+	// Key storage plugins
+#ifdef IOSL_MASTER_KEYSTORE_EXT_METHODS
+#include "keystore.hpp"
+#include <dlfcn.h>
+typedef void* dl_t;
+#endif
+
 	// Config
 #define private public
 #include <libconfig.h++>
@@ -822,11 +829,45 @@ void IKeygen () {
 			std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 		}
 	}
+#ifdef IOSL_MASTER_KEYSTORE_EXT_METHODS
+	dl_t pl_handle = NULL;
+	iosl_master::keystore_api::key_store_f key_store_func = NULL;
+		// Load key store method plugin
+	if ($key_storage_method != "raw") {
+		int r;
+		std::string keystore_plugin_path = _S(IOSLAVES_MASTER_KEYSTORE_EXT_METHODS,'/',$key_storage_method,".ioslmcext");
+		r = ::access(keystore_plugin_path.c_str(), R_OK);
+		if (r == -1) {
+			std::cerr << LOG_ARROW_ERR << "Key storage plugin '" << $key_storage_method << "' is not found" << std::endl;
+			EXIT_FAILURE = EXIT_FAILURE_EXTERR;
+			throw EXCEPT_ERROR_IGNORE;
+		}
+		pl_handle = ::dlopen(keystore_plugin_path.c_str(), RTLD_NOW|RTLD_LOCAL);
+		if (pl_handle == NULL) {
+			std::cerr << LOG_ARROW_ERR << "Can't load key storage plugin '" << keystore_plugin_path << "' : " << ::dlerror();
+			EXIT_FAILURE = EXIT_FAILURE_SYSERR;
+			throw EXCEPT_ERROR_IGNORE;
+		}
+		__extension__ key_store_func = (iosl_master::keystore_api::key_store_f) ::dlsym(pl_handle, "key_store");
+		if (key_store_func == NULL) {
+			std::cerr << "Can't load key_store_func function of storage plugin '" << $key_storage_method << "' : " << ::dlerror();
+			::dlclose(pl_handle);
+			EXIT_FAILURE = EXIT_FAILURE_SYSERR;
+			throw EXCEPT_ERROR_IGNORE;
+		}
+		std::cerr << LOG_ARROW_OK << "Key storage plugin '" << $key_storage_method << "' loaded";
+	}
+	RAII_AT_END_N(dl_close, {
+		if (pl_handle != NULL) 
+			::dlclose(pl_handle);
+	});
+#else
 	if ($key_storage_method != "raw") {
 		std::cerr << LOG_ARROW_ERR << "Other store method than 'raw' are impossible because key storage plugins support is disabled." << std::endl;
 		EXIT_FAILURE = EXIT_FAILURE_EXTERR;
 		throw EXCEPT_ERROR_IGNORE;
 	}
+#endif
 	{ // Execute storage method and write to key file
 		fd_t f;
 		f = ::open(key_path.c_str(), O_WRONLY|O_CREAT|O_TRUNC|O_NOFOLLOW, 0600);
@@ -840,6 +881,13 @@ void IKeygen () {
 		libconfig::Config key_c;
 		key_c.getRoot().add("method", libconfig::Setting::TypeString) = $key_storage_method;
 		libconfig::Setting& data_c = key_c.getRoot().add("data", libconfig::Setting::TypeGroup);
+#ifdef IOSL_MASTER_KEYSTORE_EXT_METHODS
+		if (pl_handle != NULL) {
+			(*key_store_func)($master_id+'.'+$slave_id,
+			                  key,
+			                  data_c);
+		} else
+#endif
 		{ // Raw key storage
 			std::string key_hex = ioslaves::bin_to_hex(key.bin, KEY_LEN);
 			data_c.add("key", libconfig::Setting::TypeString) = key_hex;

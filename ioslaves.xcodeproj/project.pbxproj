@@ -45,6 +45,8 @@
 		AA8397961AE97B22007FDF06 /* api.h in Headers */ = {isa = PBXBuildFile; fileRef = AA41B7351ADEC2FE00B369BE /* api.h */; };
 		AA8397981AE97B3D007FDF06 /* common.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B72B1ADEC2E200B369BE /* common.cpp */; };
 		AAD214891AE974E30062A678 /* wol.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B75D1ADECB1700B369BE /* wol.cpp */; };
+		AADFEA671B63F53D00163432 /* keystore.hpp in Headers */ = {isa = PBXBuildFile; fileRef = AADFEA661B63F53D00163432 /* keystore.hpp */; };
+		AAF5EBB81B63F03100E445C3 /* arduino.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AAF5EBAE1B63EF9100E445C3 /* arduino.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -89,6 +91,13 @@
 		AAC0E9AE1B5D3D76007BA3B8 /* perms-tpl */ = {isa = PBXFileReference; lastKnownFileType = folder; path = "perms-tpl"; sourceTree = "<group>"; };
 		AAC7F7A81861FEA600033009 /* ioslaves-master */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "ioslaves-master"; sourceTree = BUILT_PRODUCTS_DIR; };
 		AAD214831AE971C50062A678 /* wake-gateway.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = "wake-gateway.dylib"; sourceTree = BUILT_PRODUCTS_DIR; };
+		AADFEA661B63F53D00163432 /* keystore.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = keystore.hpp; path = "common-master/keystore.hpp"; sourceTree = SOURCE_ROOT; };
+		AADFEA701B64FCDE00163432 /* Makefile */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.make; name = Makefile; path = "ioslavesd-wake-gateway/Makefile"; sourceTree = "<group>"; };
+		AADFEA721B64FCE900163432 /* Makefile */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.make; name = Makefile; path = "ioslavesd-xifnetdyndns/Makefile"; sourceTree = "<group>"; };
+		AADFEA731B64FCF300163432 /* Makefile */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.make; name = Makefile; path = "ioslavesd-minecraft/Makefile"; sourceTree = "<group>"; };
+		AAF5EBAE1B63EF9100E445C3 /* arduino.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = arduino.cpp; path = keystore/arduino.cpp; sourceTree = "<group>"; };
+		AAF5EBB41B63F02400E445C3 /* libarduino.ioslmcext */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = libarduino.ioslmcext; sourceTree = BUILT_PRODUCTS_DIR; };
+		AAF5EBB91B63F1F000E445C3 /* iosl_master_keystore.ino */ = {isa = PBXFileReference; lastKnownFileType = text; name = iosl_master_keystore.ino; path = keystore/iosl_master_keystore/iosl_master_keystore.ino; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -141,6 +150,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AAF5EBB11B63F02400E445C3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -173,6 +189,7 @@
 			children = (
 				AA41B73E1ADEC32B00B369BE /* xifnetdyndns.cpp */,
 				AA7EEC49193C9221002AD7E4 /* libxifnetdyndns.dylib */,
+				AADFEA721B64FCE900163432 /* Makefile */,
 				AA2333981AE06F4A009433E3 /* PKGBUILD */,
 			);
 			name = XifNetDynDns;
@@ -208,6 +225,7 @@
 				AA1D3AD41ADECDAF00E2C7F6 /* minecraft.cpp */,
 				AA1D3AD21ADECDAF00E2C7F6 /* ftp-auth-mc.cpp */,
 				AA90C531189F7461003A8C60 /* libminecraft.ioslaves.dylib */,
+				AADFEA731B64FCF300163432 /* Makefile */,
 				AA2333991AE06F65009433E3 /* PKGBUILD */,
 			);
 			name = Minecraft;
@@ -218,8 +236,10 @@
 			children = (
 				AA41B75C1ADECB1700B369BE /* master.hpp */,
 				AA41B75A1ADECB1600B369BE /* dyn_slaves.cpp */,
+				AADFEA661B63F53D00163432 /* keystore.hpp */,
 				AA41B75B1ADECB1700B369BE /* master-impl.cpp */,
 				AA41B75D1ADECB1700B369BE /* wol.cpp */,
+				AAF5EBAC1B63EF3100E445C3 /* Keysore methods */,
 				AA41B7651ADECB3900B369BE /* master.cpp */,
 				AAC7F7A81861FEA600033009 /* ioslaves-master */,
 				AA1045AD1B5D9A7F00E8A875 /* Makefile */,
@@ -252,9 +272,20 @@
 			children = (
 				AA2F82191AED6CE100DFBBDF /* wake-gateway.cpp */,
 				AAD214831AE971C50062A678 /* wake-gateway.dylib */,
+				AADFEA701B64FCDE00163432 /* Makefile */,
 				AA182FD01AF425CC007F94BD /* PKGBUILD */,
 			);
 			name = "Wake Gateway";
+			sourceTree = "<group>";
+		};
+		AAF5EBAC1B63EF3100E445C3 /* Keysore methods */ = {
+			isa = PBXGroup;
+			children = (
+				AAF5EBAE1B63EF9100E445C3 /* arduino.cpp */,
+				AAF5EBB41B63F02400E445C3 /* libarduino.ioslmcext */,
+				AAF5EBB91B63F1F000E445C3 /* iosl_master_keystore.ino */,
+			);
+			name = "Keysore methods";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -286,6 +317,14 @@
 			files = (
 				AA8397961AE97B22007FDF06 /* api.h in Headers */,
 				AA6B99FF1AED9F1700146475 /* log.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AAF5EBB21B63F02400E445C3 /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AADFEA671B63F53D00163432 /* keystore.hpp in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -407,6 +446,23 @@
 			productReference = AAD214831AE971C50062A678 /* wake-gateway.dylib */;
 			productType = "com.apple.product-type.library.dynamic";
 		};
+		AAF5EBB31B63F02400E445C3 /* arduino.keystore */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AAF5EBB51B63F02400E445C3 /* Build configuration list for PBXNativeTarget "arduino.keystore" */;
+			buildPhases = (
+				AAF5EBB01B63F02400E445C3 /* Sources */,
+				AAF5EBB11B63F02400E445C3 /* Frameworks */,
+				AAF5EBB21B63F02400E445C3 /* Headers */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = arduino.keystore;
+			productName = arduino.keystore;
+			productReference = AAF5EBB41B63F02400E445C3 /* libarduino.ioslmcext */;
+			productType = "com.apple.product-type.library.dynamic";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -434,6 +490,7 @@
 				AA7EEC48193C9221002AD7E4 /* xifnetdyndns */,
 				AA129CEA1A90E83E009A2B42 /* ioslstatd */,
 				AAD214821AE971C50062A678 /* wake-gateway */,
+				AAF5EBB31B63F02400E445C3 /* arduino.keystore */,
 			);
 		};
 /* End PBXProject section */
@@ -518,6 +575,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AAF5EBB01B63F02400E445C3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AAF5EBB81B63F03100E445C3 /* arduino.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
@@ -537,22 +602,6 @@
 			};
 			name = Debug;
 		};
-		AA129CF31A90E83E009A2B42 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				HEADER_SEARCH_PATHS = (
-					"$(inherited)",
-					/usr/local/include/nopoll,
-				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-lnopoll",
-					"-lldns",
-				);
-				PRODUCT_NAME = "$(TARGET_NAME)";
-			};
-			name = Release;
-		};
 		AA7EEC4B193C9221002AD7E4 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -560,14 +609,6 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
-		};
-		AA7EEC4C193C9221002AD7E4 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				EXECUTABLE_PREFIX = lib;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-			};
-			name = Release;
 		};
 		AA90C533189F7461003A8C60 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -584,22 +625,6 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
-		};
-		AA90C534189F7461003A8C60 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				EXECUTABLE_PREFIX = lib;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"MINECRAFT_SRV_DIR=\"\\\"/var/ioslaves/minecraft\\\"\"",
-					"$(inherited)",
-				);
-				OTHER_LDFLAGS = (
-					"-lconfig++",
-					"$(inherited)",
-				);
-				PRODUCT_NAME = "$(TARGET_NAME)";
-			};
-			name = Release;
 		};
 		AA99F1B8184C65DD00BB6836 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -642,41 +667,6 @@
 			};
 			name = Debug;
 		};
-		AA99F1B9184C65DD00BB6836 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				ARCHS = "$(NATIVE_ARCH_ACTUAL)";
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
-				CLANG_CXX_LIBRARY = "libstdc++";
-				CLANG_WARN_IMPLICIT_SIGN_CONVERSION = NO;
-				CLANG_WARN_SUSPICIOUS_IMPLICIT_CONVERSION = NO;
-				COPY_PHASE_STRIP = YES;
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				GCC_C_LANGUAGE_STANDARD = gnu99;
-				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
-				GCC_OPTIMIZATION_LEVEL = s;
-				GCC_PREPROCESSOR_DEFINITIONS = XIFNET;
-				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_MISSING_PROTOTYPES = YES;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES;
-				GCC_WARN_NON_VIRTUAL_DESTRUCTOR = YES;
-				GCC_WARN_PEDANTIC = NO;
-				GCC_WARN_SHADOW = NO;
-				GCC_WARN_SIGN_COMPARE = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				HEADER_SEARCH_PATHS = ../Libs;
-				OTHER_LDFLAGS = (
-					"-lsocketxx",
-					"-lssl",
-					"-lcrypto",
-				);
-				SDKROOT = "";
-				WARNING_CFLAGS = "";
-			};
-			name = Release;
-		};
 		AA99F1BB184C65DD00BB6836 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -697,25 +687,6 @@
 			};
 			name = Debug;
 		};
-		AA99F1BC184C65DD00BB6836 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"IOSLAVESD_VERSION=\\\"dev-osx\\\"",
-					IOSLAVESD_NO_TOPP,
-					"IOSLAVES_DIR=\"\\\"/var/ioslaves\\\"\"",
-					"$(inherited)",
-				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-lminiupnpc",
-					"-lconfig++",
-					"-lldns",
-				);
-				PRODUCT_NAME = "$(TARGET_NAME)";
-			};
-			name = Release;
-		};
 		AAB552FC18F44E8C00DC3ED9 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -733,26 +704,13 @@
 			};
 			name = Debug;
 		};
-		AAB552FD18F44E8C00DC3ED9 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				HEADER_SEARCH_PATHS = (
-					"$(inherited)",
-					/usr/local/include/nopoll,
-				);
-				OTHER_LDFLAGS = (
-					"-lconfig++",
-					"-lldns",
-					"$(inherited)",
-					"-lnopoll",
-				);
-				PRODUCT_NAME = "$(TARGET_NAME)";
-			};
-			name = Release;
-		};
 		AAC7F7AF1861FEA600033009 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					IOSL_MASTER_KEYSTORE_EXT_METHODS,
+					"$(inherited)",
+				);
 				OTHER_LDFLAGS = (
 					"-lldns",
 					"-lconfig++",
@@ -761,18 +719,6 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
-		};
-		AAC7F7B01861FEA600033009 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				OTHER_LDFLAGS = (
-					"-lldns",
-					"-lconfig++",
-					"$(inherited)",
-				);
-				PRODUCT_NAME = "$(TARGET_NAME)";
-			};
-			name = Release;
 		};
 		AAD214851AE971C50062A678 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -786,17 +732,19 @@
 			};
 			name = Debug;
 		};
-		AAD214861AE971C50062A678 /* Release */ = {
+		AAF5EBB61B63F02400E445C3 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				OTHER_LDFLAGS = (
-					"-lldns",
-					"-lconfig++",
+				EXECUTABLE_EXTENSION = "";
+				EXECUTABLE_PREFIX = lib;
+				EXECUTABLE_SUFFIX = "";
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
 					"$(inherited)",
 				);
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = arduino.ioslmcext;
 			};
-			name = Release;
+			name = Debug;
 		};
 /* End XCBuildConfiguration section */
 
@@ -805,73 +753,73 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				AA129CF21A90E83E009A2B42 /* Debug */,
-				AA129CF31A90E83E009A2B42 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = Debug;
 		};
 		AA7EEC4A193C9221002AD7E4 /* Build configuration list for PBXNativeTarget "xifnetdyndns" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				AA7EEC4B193C9221002AD7E4 /* Debug */,
-				AA7EEC4C193C9221002AD7E4 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = Debug;
 		};
 		AA90C532189F7461003A8C60 /* Build configuration list for PBXNativeTarget "minecraft.ioslaves" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				AA90C533189F7461003A8C60 /* Debug */,
-				AA90C534189F7461003A8C60 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = Debug;
 		};
 		AA99F1AA184C65DD00BB6836 /* Build configuration list for PBXProject "ioslaves" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				AA99F1B8184C65DD00BB6836 /* Debug */,
-				AA99F1B9184C65DD00BB6836 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = Debug;
 		};
 		AA99F1BA184C65DD00BB6836 /* Build configuration list for PBXNativeTarget "ioslavesd" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				AA99F1BB184C65DD00BB6836 /* Debug */,
-				AA99F1BC184C65DD00BB6836 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = Debug;
 		};
 		AAB552FB18F44E8C00DC3ED9 /* Build configuration list for PBXNativeTarget "minecraft-master" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				AAB552FC18F44E8C00DC3ED9 /* Debug */,
-				AAB552FD18F44E8C00DC3ED9 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = Debug;
 		};
 		AAC7F7B11861FEA600033009 /* Build configuration list for PBXNativeTarget "ioslaves-master" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				AAC7F7AF1861FEA600033009 /* Debug */,
-				AAC7F7B01861FEA600033009 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = Debug;
 		};
 		AAD214841AE971C50062A678 /* Build configuration list for PBXNativeTarget "wake-gateway" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				AAD214851AE971C50062A678 /* Debug */,
-				AAD214861AE971C50062A678 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = Debug;
+		};
+		AAF5EBB51B63F02400E445C3 /* Build configuration list for PBXNativeTarget "arduino.keystore" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AAF5EBB61B63F02400E445C3 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
 	};

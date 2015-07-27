@@ -14,6 +14,13 @@ using namespace xlog;
 #include "master.hpp"
 bool iosl_master::$leave_exceptions = false;
 
+	// Key storage plugins
+#ifdef IOSL_MASTER_KEYSTORE_EXT_METHODS
+#include "keystore.hpp"
+#include <dlfcn.h>
+typedef void* dl_t;
+#endif
+
 	// Crypto
 #include <openssl/whrlpool.h>
 #include <openssl/md5.h>
@@ -111,7 +118,31 @@ void iosl_master::authenticate (socketxx::io::simple_socket<socketxx::base_netso
 			ioslaves::hex_to_bin(key_str, buf+CHALLENGE_LEN);
 			::WHIRLPOOL(buf, CHALLENGE_LEN+KEY_LEN, answer.bin);
 		} else {
+	#ifdef IOSL_MASTER_KEYSTORE_EXT_METHODS
+			int r;
+			if (not ioslaves::validateName(store_method)) 
+				throw master_err(EXIT_FAILURE_AUTH, logstream << "Storage method '" << store_method << "' is invalid");
+			std::string keystore_plugin_path = _S(IOSLAVES_MASTER_KEYSTORE_EXT_METHODS,'/',store_method,".ioslmcext");
+			r = ::access(keystore_plugin_path.c_str(), R_OK);
+			if (r == -1) 
+				throw master_err(EXIT_FAILURE_AUTH, logstream << "Key storage plugin '" << store_method << "' is not found");
+			dl_t dl_handle = ::dlopen(keystore_plugin_path.c_str(), RTLD_NOW|RTLD_LOCAL);
+			RAII_AT_END({
+				::dlclose(dl_handle);
+			});
+			if (dl_handle == NULL) 
+				throw master_err(EXIT_FAILURE_SYSERR, logstream << "Can't load key storage plugin '" << keystore_plugin_path << "' : " << ::dlerror());
+			__log__(log_lvl::DONE, "AUTH", logstream << "Key storage plugin '" << store_method << "' loaded");
+		__extension__ iosl_master::keystore_api::key_answer_challenge_f answer_challenge_func = 
+				(iosl_master::keystore_api::key_answer_challenge_f) ::dlsym(dl_handle, "ioslapi_start");
+			if (answer_challenge_func == NULL) 
+				throw master_err(EXIT_FAILURE_SYSERR, logstream << "Can't load key_answer_challenge function of plugin : " << ::dlerror());
+			answer = (*answer_challenge_func)(key_id,
+			                                  challenge,
+			                                  data_c);
+	#else
 			throw master_err(EXIT_FAILURE_AUTH, logstream << "Key storage method '" << store_method << "' is unknown and external storage methods are not enabled");
+	#endif
 		}
 	} catch (libconfig::SettingException& e) {
 		throw master_err(EXIT_FAILURE_EXTERR, logstream << "Missing/bad field @" << e.getPath() << " in key file for '" << key_id << "'");
