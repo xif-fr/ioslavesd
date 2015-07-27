@@ -18,7 +18,7 @@ std::string ioslaves::getAnswerCodeDescription (ioslaves::answer_code o) {
 		case ioslaves::answer_code::INTERNAL_ERROR: return "slave internal/system error";
 		case ioslaves::answer_code::SECURITY_ERROR: return "security error";
 		case ioslaves::answer_code::NOT_AUTHORIZED: return "permission denied";
-		case ioslaves::answer_code::BAD_CHALLENGE_ANSWER: return "invalid authentification";
+		case ioslaves::answer_code::BAD_CHALLENGE_ANSWER: return "bad answer to challenge";
 		case ioslaves::answer_code::NOT_FOUND: return "not found";
 		case ioslaves::answer_code::BAD_STATE: return "bad state";
 		case ioslaves::answer_code::BAD_TYPE: return "bad type";
@@ -144,21 +144,22 @@ std::string ioslaves::version::strdigits (bool all) const {
 /**                Crypto     	   			**/
 /** ------------------------------------	**/
 
-	// Authentification
 #include <openssl/whrlpool.h>
 #include <openssl/md5.h>
 
-inline std::string bin_to_hex (const unsigned char* d, size_t sz) {
+std::string ioslaves::bin_to_hex (const unsigned char* d, size_t sz) {
 	std::string hex;
 	for (size_t i = 0; i < sz; i++) 
 		hex += ::ixtoap<unsigned char>(d[i], 2, IX_HEX);
 	return hex;
 }
 
-std::string ioslaves::hash (std::string to_hash) {
-	unsigned char hashed[WHIRLPOOL_DIGEST_LENGTH];
-	WHIRLPOOL((const unsigned char*)to_hash.c_str(), to_hash.length(), hashed);
-	return bin_to_hex(hashed, sizeof(hashed));
+void ioslaves::hex_to_bin (std::string hex, unsigned char* d) {
+	if (hex.length()%2 != 0) 
+		throw std::runtime_error("hex_to_bin: odd hex string length");
+	for (size_t i = 0; i < hex.length()/2; i++) {
+		d[i] = ::atoix<uint8_t>(hex.substr(2*i, 2), IX_HEX);
+	}
 }
 
 std::string ioslaves::md5 (std::string to_hash) {
@@ -167,13 +168,13 @@ std::string ioslaves::md5 (std::string to_hash) {
 	return bin_to_hex(hashed, sizeof(hashed));
 }
 
-std::string ioslaves::generate_random (size_t sz) {
+unsigned char* ioslaves::generate_random (size_t sz) {
 	fd_t fd = ::open("/dev/urandom", O_RDONLY);
 	if (fd == INVALID_HANDLE) throw xif::sys_error("open(/dev/urandom) failed");
 	RAII_AT_END_L( ::close(fd) );
-	char buf[sz];
+	unsigned char* buf = new unsigned char[sz];
 	if (::read(fd, buf, sz) != (ssize_t)sz) throw xif::sys_error("read(/dev/urandom) failed");
-	return bin_to_hex((unsigned char*)buf, sz);
+	return buf;
 }
 
 /** ------------------------------------	**/

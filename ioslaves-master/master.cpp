@@ -22,6 +22,9 @@
 #include <fstream>
 #include <algorithm>
 
+	// Crypto
+#include <openssl/md5.h>
+
 	// Config
 #define private public
 #include <libconfig.h++>
@@ -48,9 +51,9 @@ void xlog::logstream_impl::log (log_lvl lvl, const char* part, std::string msg, 
 	_log_wait_flag = false;
 	switch (lvl) {
 		case log_lvl::LOG: case log_lvl::NOTICE: case log_lvl::IMPORTANT: case log_lvl::MAJOR: break;
-		case log_lvl::FATAL: case log_lvl::ERROR: case log_lvl::OOPS: case log_lvl::SEVERE: std::clog << COLOR_RED << "Error : " << COLOR_RESET; break;
+		case log_lvl::FATAL: case log_lvl::ERROR: case log_lvl::OOPS: case log_lvl::SEVERE: std::clog << LOG_ARROW_ERR << COLOR_RED << "Error : " << COLOR_RESET; break;
 		case log_lvl::WARNING: std::clog << COLOR_YELLOW << "Warning : " << COLOR_RESET; break;
-		case log_lvl::DONE: std::clog << COLOR_GREEN << "Done ! " << COLOR_RESET; break;
+		case log_lvl::DONE: std::clog << LOG_ARROW_OK; break;
 	}
 	std::clog << msg;
 	if (m & LOG_WAIT) { _log_wait_flag = true; std::clog << ' '; } 
@@ -91,6 +94,7 @@ std::string $key_sl_auth_footprint;
 std::string $key_sl_auth_ip;
 const char* $key_sl_auth_perms_file_path = NULL;
 std::string $key_sl_master;
+std::string $key_storage_method = "raw";
 
 // ioslaves' core functionnality functions
 	void IPreSlaveCo ();
@@ -167,7 +171,7 @@ int main (int argc, char* const argv[]) {
 			{"log", optional_argument, NULL, 'L'},
 			{"auth-key", no_argument, NULL, 'k'},
 			{"revoke-key", required_argument, NULL, 'r'},
-		{"keygen", no_argument, NULL, 'K'},
+		{"keygen", required_argument, NULL, 'K'},
 		{"on", optional_argument, NULL, 'O'},
 		{"to-json", no_argument, NULL, 'J'},
 		{NULL, 0, NULL, 0}
@@ -187,7 +191,7 @@ int main (int argc, char* const argv[]) {
 	try_parse_IDs(argc, argv);
 	
 	int opt, opt_charind = 0;
-	while ((opt = ::getopt_long(argc, argv, "-hid:Cf:S:soa:P:X:RDGL::kr:KO::J", long_options, &opt_charind)) != -1) {
+	while ((opt = ::getopt_long(argc, argv, "-hid:Cf:S:soa:P:X:RDGL::kr:K:O::J", long_options, &opt_charind)) != -1) {
 		switch (opt) {
 			case 'h':
 				::puts("ioslaves-master | ioslaves control program for network masters\n"
@@ -229,8 +233,10 @@ int main (int argc, char* const argv[]) {
 						 "                                     integrity guaranty. Master IP verification is optional. Models of\n"
 						 "                                     perms files can be found in " IOSLAVES_MASTER_KEYS_MODELS_DIR "\n"
 						 "        -r, --revoke-key=MASTER     Delete key of given master.\n"
-						 "  -K, --keygen             Generate (and replace if exists) a key for the slave. The key can be copied\n"
+						 "  -K, --keygen METHOD      Generate (and replace if exists) a key for the slave. The key can be copied\n"
 						 "                            on the slave manually or automatically with the authorization of a master.\n"
+						 "                            If the storage METHOD is 'raw', the key is stored in clear in the key file.\n"
+						 "                            Else, a key storage plugin will be loaded as METHOD.ioslmcext to store the key.\n"
 						 "  -O, --on [METHOD ARG[s]] Power on slave using several methods :\n"
 						 "                            MAGIC_PKT: wake up the slave using a magic packet containing the\n"
 						 "                                        MAC address of its compatible NIC (UDP packet on port 9).\n"
@@ -257,7 +263,7 @@ int main (int argc, char* const argv[]) {
 					try_help("ioslaves-master: invalid slave address\n");
 				} catch (socketxx::dns_resolve_error& e) {
 					std::cerr << COLOR_RED << "Can't resolve slave hostname '" << e.failed_hostname << "' !" << COLOR_RESET << std::endl;
-					::exit(EXIT_FAILURE_CONN);
+					return EXIT_FAILURE_CONN;
 				}
 				$addr_defined = true;
 			} break;
@@ -413,10 +419,13 @@ int main (int argc, char* const argv[]) {
 				if ($auto_auth) $auth = true;
 				$key_sl_master = optarg;
 				if (not ioslaves::validateMasterID($key_sl_master)) 
-					try_help("--revoke-key: invalid master ID");
+					try_help("--revoke-key: invalid master ID\n");
 			} break;
 			case 'K': {
 				optctx::optctx_set(optctx::keygen);
+				$key_storage_method = optarg;
+				if (not ioslaves::validateName($key_storage_method)) 
+					try_help("--keygen METHOD : invalid method name\n");
 				test_for_IDs();
 			} break;
 			case 'O': {
@@ -436,7 +445,7 @@ int main (int argc, char* const argv[]) {
 							try_help("--on=MAGIC_PKT : second arg must be a valid IP addr or hostname\n");
 						} catch (socketxx::dns_resolve_error& e) {
 							std::cerr << COLOR_RED << "Can't resolve slave hostname '" << e.failed_hostname << "' !" << COLOR_RESET << std::endl;
-							::exit(EXIT_FAILURE_CONN);
+							return EXIT_FAILURE_CONN;
 						}
 					}
 				} 
@@ -477,8 +486,11 @@ int main (int argc, char* const argv[]) {
 		if ($ignore_net_errors) return EXIT_SUCCESS;
 		std::cerr << COLOR_RED << "network error : " << COLOR_RESET << se.what() << std::endl;
 		return EXIT_FAILURE_COMM;
-	} catch (std::runtime_error& re) {
-		std::cerr << COLOR_RED << "ioslaves-master error : " << COLOR_RESET << re.what() << std::endl;
+	} catch (master_err& e) {
+		std::cerr << COLOR_RED << "master error : " << COLOR_RESET << e.what() << std::endl;
+		return e.ret;
+	} catch (std::exception& e) {
+		std::cerr << "Exception of type '" << typeid(e).name() << "' catched : " << COLOR_RED << e.what() << COLOR_RESET << std::endl;
 		return EXIT_FAILURE;
 	} catch (ioslaves::answer_code) {
 		return EXIT_FAILURE;
@@ -734,7 +746,7 @@ void IPowerup () {
 			delay = iosl_master::slave_start($slave_id, $master_id);
 		} catch (std::exception& e) {
 			std::cerr << COLOR_RED << "Power up error" << COLOR_RESET << " : " << e.what() << std::endl;
-			EXIT_FAILURE = EXIT_FAILURE_IOSL;
+			EXIT_FAILURE = EXIT_FAILURE_EXTERR;
 			throw EXCEPT_ERROR_IGNORE;
 		}
 		if (optctx::interactive) {
@@ -751,7 +763,7 @@ void IPowerup () {
 			if (up) std::cout << COLOR_GREEN << "Up !" << COLOR_RESET << std::endl;
 			else {
 				std::cout << COLOR_RED << "Seems to be still down :(" << COLOR_RESET << std::endl;
-				EXIT_FAILURE = EXIT_FAILURE_IOSL;
+				EXIT_FAILURE = EXIT_FAILURE_EXTERR;
 				throw EXCEPT_ERROR_IGNORE;
 			}
 		} else {
@@ -783,7 +795,7 @@ void IPowerup () {
 	}
 	} catch (std::exception& e) {
 		std::cerr << COLOR_RED << "Power up error" << COLOR_RESET << " : " << e.what() << std::endl;
-		EXIT_FAILURE = EXIT_FAILURE_IOSL;
+		EXIT_FAILURE = EXIT_FAILURE_EXTERR;
 		throw EXCEPT_ERROR_IGNORE;
 	}
 }
@@ -792,8 +804,10 @@ void IPowerup () {
 
 void IKeygen () {
 	std::cerr << LOG_ARROW << "Generating key for slave '" << $slave_id << "'..." << std::endl;
-	std::string key;
-	key += ioslaves::generate_random(IOSLAVES_KEY_SIZE/2);
+	unsigned char* keybuf = ioslaves::generate_random(KEY_LEN);
+	RAII_AT_END({ delete[] keybuf; });
+	ioslaves::key_t key;
+	::memcpy(key.bin, keybuf, KEY_LEN);
 	int r;
 	r = ::access(IOSLAVES_MASTER_KEYS_DIR, F_OK);
 	if (r == -1) {
@@ -808,16 +822,35 @@ void IKeygen () {
 			std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 		}
 	}
-	fd_t f;
-	f = ::open(key_path.c_str(), O_WRONLY|O_CREAT|O_TRUNC|O_NOFOLLOW, 0600);
-	if (f == -1)
-		throw xif::sys_error("can't open key file for writing new key");
-	ssize_t rs = ::write(f, key.c_str(), key.size());
-	if (rs != (ssize_t)key.size())
-		throw xif::sys_error("failed to write into key file");
-	::close(f);
-	if (optctx::interactive) std::cerr << LOG_ARROW_OK << "Key footprint of '" << key_path << "' : " << std::flush;
-	std::cout << ioslaves::md5(key) << std::endl;
+	if ($key_storage_method != "raw") {
+		std::cerr << LOG_ARROW_ERR << "Other store method than 'raw' are impossible because key storage plugins support is disabled." << std::endl;
+		EXIT_FAILURE = EXIT_FAILURE_EXTERR;
+		throw EXCEPT_ERROR_IGNORE;
+	}
+	{ // Execute storage method and write to key file
+		fd_t f;
+		f = ::open(key_path.c_str(), O_WRONLY|O_CREAT|O_TRUNC|O_NOFOLLOW, 0600);
+		if (f == -1)
+			throw xif::sys_error("can't open key file for writing new key");
+		FILE* ff = ::fdopen(f, "w");
+		RAII_AT_END_N(file, {
+			::fclose(ff);
+			::close(f);
+		});
+		libconfig::Config key_c;
+		key_c.getRoot().add("method", libconfig::Setting::TypeString) = $key_storage_method;
+		libconfig::Setting& data_c = key_c.getRoot().add("data", libconfig::Setting::TypeGroup);
+		{ // Raw key storage
+			std::string key_hex = ioslaves::bin_to_hex(key.bin, KEY_LEN);
+			data_c.add("key", libconfig::Setting::TypeString) = key_hex;
+		}
+		key_c.write(ff);
+	}
+	if (optctx::interactive) std::cout << LOG_ARROW_OK << "Key footprint of '" << key_path << "' : " << std::flush;
+	unsigned char hash[MD5_DIGEST_LENGTH];
+	::MD5(key.bin, KEY_LEN, hash);
+	std::string footprint = ioslaves::bin_to_hex(hash, MD5_DIGEST_LENGTH);
+	std::cerr << footprint << std::endl;
 	if (optctx::interactive) {
 		std::cout << "The key can be sent to the slave automatically with the authorization of an authorized master." << std::endl;
 		std::cout << "For that, the key footprint must be sent to the master via an channel that guarantees integrity." << std::endl;
@@ -828,8 +861,8 @@ void IKeygen () {
 			iosl_master::slave_connect($slave_id, 0, timeval({1,0}));
 		slsock.o_bool(false);
 		slsock.o_str($master_id);
-		slsock.o_str(key);
 		#warning TO DO : Must be encrypted
+		slsock.o_buf(key.bin, KEY_LEN);
 		ioslaves::answer_code o;
 		o = (ioslaves::answer_code)slsock.i_char();
 		if (o != ioslaves::answer_code::OK)
@@ -853,6 +886,7 @@ void ISlKeyAuth () {
 		                         std::istreambuf_iterator<char>());
 	} catch (std::ifstream::failure& e) {
 		std::cerr << LOG_ARROW_ERR << "Failed to read key permissions settings file : " << e.what() << std::endl;
+		EXIT_FAILURE = EXIT_FAILURE_SYSERR;
 		throw EXCEPT_ERROR_IGNORE;
 	}
 	libconfig::Config perms_c;
@@ -863,9 +897,11 @@ void ISlKeyAuth () {
 		perms_c.lookup("denied_ops").assertType(libconfig::Setting::TypeArray);
 	} catch (libconfig::ParseException& e) {
 		std::cerr << LOG_ARROW_ERR << "Parse error in permissions settings file at line " << e.getLine() << " : " << e.getError() << std::endl;
+		EXIT_FAILURE = EXIT_FAILURE_EXTERR;
 		throw EXCEPT_ERROR_IGNORE;
 	} catch (libconfig::SettingException& e) {
 		std::cerr << LOG_ARROW_ERR << "Missing/bad setting @" << e.getPath() << " in permissions settings file" << std::endl;
+		EXIT_FAILURE = EXIT_FAILURE_EXTERR;
 		throw EXCEPT_ERROR_IGNORE;
 	}
 	$slave_sock->o_str(perms_str);

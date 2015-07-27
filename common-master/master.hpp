@@ -7,6 +7,9 @@
  * This software is under the GNU General Public License
  \**********************************************************/
 
+#ifndef IOSLAVES_MASTER_HPP
+#define IOSLAVES_MASTER_HPP
+
 	// Common
 #define XIF_LOG_DEFAULT_LOGSTREAM
 #include "log.h"
@@ -50,14 +53,17 @@
 
 	// Master errors
 class master_err : public std::runtime_error { 
-	public: int ret; bool down;
-	master_err (std::string descr, int retcode, bool down = false) : std::runtime_error(descr), ret(retcode), down(down) {} 
+	public: int ret;
+	master_err (std::string descr, int retcode) : std::runtime_error(descr), ret(retcode) {}
+	master_err (int retcode, std::ostream& s) : std::runtime_error(xlog::logstream_retrieve()), ret(retcode) {}
 };
-#define EXIT_FAILURE_CONN 20
-#define EXIT_FAILURE_AUTH 21
-#define EXIT_FAILURE_COMM 22
-#define EXIT_FAILURE_IOSL 23
-#define EXIT_FAILURE_ERR  24
+#define EXIT_FAILURE_CONN   29001  // Connection failure with slave
+#define EXIT_FAILURE_DOWN   29001  // Slave seems to be down
+#define EXIT_FAILURE_AUTH   29002  // Authentification failure
+#define EXIT_FAILURE_COMM   29003  // Communication failure with slave
+#define EXIT_FAILURE_IOSL   29004  // Distant ioslaves error
+#define EXIT_FAILURE_SYSERR 29005  // Local system error
+#define EXIT_FAILURE_EXTERR 29006  // External/logic error, Invalid data
 
 	/// Public connect API
 
@@ -134,3 +140,5 @@ namespace iosl_dyn_slaves {
 														std::function<points_t(const iosl_dyn_slaves::slave_info&)> additional_filter = NULL);
 	
 }
+
+#endif

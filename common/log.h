@@ -20,7 +20,7 @@ enum class log_lvl : unsigned char {
 };
 
 std::ostream& logstream_acquire () noexcept;
-#define logstream logstream_acquire()
+#define logstream xlog::logstream_acquire()
 std::string logstream_retrieve () noexcept;
 
 typedef size_t logl_t;

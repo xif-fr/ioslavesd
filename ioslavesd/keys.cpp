@@ -36,9 +36,10 @@ std::pair<ioslaves::key_t, ioslaves::perms_t> ioslaves::load_master_key (std::st
 	ioslaves::perms_t perms;
 	try {
 		key_c.read(key_f);
-		key = key_c.lookup("key").operator std::string();
-		if (key.length() != IOSLAVES_KEY_SIZE or not ioslaves::validateHexa(key)) 
+		std::string key_str = key_c.lookup("key").operator std::string();
+		if (key_str.length() != 2*KEY_LEN or not ioslaves::validateHexa(key_str)) 
 			throw ioslaves::req_err(answer_code::INVALID_DATA, logstream << "Master '" << master << "' : invalid key");
+		ioslaves::hex_to_bin(key_str, key.bin);
 		const libconfig::Setting& perms_c = key_c.lookup("perms");
 		perms_c.assertType(libconfig::Setting::TypeGroup);
 		perms.by_default = (bool)perms_c["allow_by_default"];
@@ -80,8 +81,9 @@ void ioslaves::key_save (std::string master, ioslaves::key_t key, std::string pe
 	r = ::access(key_path.c_str(), F_OK);
 	if (r != -1) 
 		__log__(log_lvl::WARNING, "KEY", logstream << "Key " << key_path << " already exists !");
+	std::string key_str = ioslaves::bin_to_hex(key.bin, KEY_LEN);
 	std::string key_file = _S(
-		"key: \"", key, "\";\n",
+		"key: \"", key_str, "\";\n",
 		"perms: {\n", perms_conf, "\n};\n"
 	);
 	fd_t key_f = ::open(key_path.c_str(), O_WRONLY|O_CREAT|O_TRUNC|O_NOFOLLOW, 0600);

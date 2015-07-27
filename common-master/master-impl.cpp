@@ -9,11 +9,19 @@
 
 	// Common
 #include "common.hpp"
+#include "log.h"
+using namespace xlog;
 #include "master.hpp"
 bool iosl_master::$leave_exceptions = false;
 
+	// Crypto
+#include <openssl/whrlpool.h>
+#include <openssl/md5.h>
+
 	// Files
-#include <fstream>
+#define private public
+#include <libconfig.h++>
+#undef private
 
 	// Network
 #include <socket++/handler/socket_client.hpp>
@@ -70,31 +78,54 @@ void iosl_master::slave_command (socketxx::io::simple_socket<socketxx::base_nets
 		slave_sock.o_char((char)opp);
 	} catch (socketxx::error& e) {
 		if ($leave_exceptions) throw;
-		throw master_err(_S( "Failed to communicate with slave : ",e.what() ), EXIT_FAILURE_COMM);
+		throw master_err(EXIT_FAILURE_COMM, logstream << "Failed to communicate with slave : " << e.what());
 	}
 }
 
 	// Authentification
 void iosl_master::authenticate (socketxx::io::simple_socket<socketxx::base_netsock> slave_sock, std::string key_id) {
 	std::string key_path = _S( IOSLAVES_MASTER_KEYS_DIR,"/",key_id,".key" );
-	int r = ::access(key_path.c_str(), F_OK);
-	if (r == -1) 
-		throw master_err(_S( "No key for '",key_id,"'" ), EXIT_FAILURE_ERR);
-	std::string key;
-	try {
-		std::ifstream key_f; key_f.exceptions(std::ifstream::failbit|std::ifstream::badbit);
-		key_f.open(key_path);
-		key = std::string (std::istreambuf_iterator<char>(key_f),
-								 std::istreambuf_iterator<char>());
-	} catch (std::ifstream::failure& e) {
-		throw master_err(_S( "Failed to read key file : ",e.what() ), EXIT_FAILURE_ERR);
+	FILE* key_f = ::fopen(key_path.c_str(), "r");
+	if (key_f == NULL) {
+		if (errno == ENOENT) 
+			throw master_err(EXIT_FAILURE_AUTH, logstream << "No key for '" << key_id << "'");
+		else 
+			throw master_err(EXIT_FAILURE_SYSERR, logstream << "Failed to open key file '" << key_path << "' : " << ::strerror(errno));
 	}
-	std::string challenge = slave_sock.i_str();
-	std::string answer = ioslaves::hash(challenge+key);
-	slave_sock.o_str(answer);
+	RAII_AT_END_L( ::fclose(key_f) );
+	ioslaves::challenge_t challenge;
+	slave_sock.i_buf(challenge.bin, CHALLENGE_LEN);
+	ioslaves::hash_t answer;
+	try {
+		libconfig::Config key_c;
+		key_c.read(key_f);
+		std::string store_method = key_c.lookup("method");
+		libconfig::Setting& data_c = key_c.lookup("data");
+		data_c.assertType(libconfig::Setting::TypeGroup);
+		if (store_method == "raw") {
+			std::string key_str = data_c["key"].operator std::string();
+			if (key_str.length() != 2*KEY_LEN or not ioslaves::validateHexa(key_str)) 
+				throw master_err("Raw key storage : invalid key", EXIT_FAILURE_EXTERR);
+			unsigned char buf [CHALLENGE_LEN+KEY_LEN];
+			::memcpy(buf, challenge.bin, CHALLENGE_LEN);
+			ioslaves::hex_to_bin(key_str, buf+CHALLENGE_LEN);
+			::WHIRLPOOL(buf, CHALLENGE_LEN+KEY_LEN, answer.bin);
+		} else {
+			throw master_err(EXIT_FAILURE_AUTH, logstream << "Key storage method '" << store_method << "' is unknown and external storage methods are not enabled");
+		}
+	} catch (libconfig::SettingException& e) {
+		throw master_err(EXIT_FAILURE_EXTERR, logstream << "Missing/bad field @" << e.getPath() << " in key file for '" << key_id << "'");
+	} catch (libconfig::ConfigException& e) {
+		throw master_err(EXIT_FAILURE_EXTERR, logstream << "Malformed key file for '" << key_id << "' : " << e.what());
+	} catch (master_err& e) {
+		throw master_err(e.ret, logstream << "Failure in key file '" << key_id << "' : " << e.what());
+	}
+	slave_sock.o_buf(answer.bin, HASH_LEN);
 	ioslaves::answer_code o = (ioslaves::answer_code)slave_sock.i_char();
-	if (o != ioslaves::answer_code::OK) 
-		throw master_err(_S( "Authentification failed : ",ioslaves::getAnswerCodeDescription(o) ), EXIT_FAILURE_AUTH);
+	if (o == ioslaves::answer_code::OK) 
+		__log__(log_lvl::DONE, "AUTH", logstream << "Authentification with key '" << key_id << "' succeded !");
+	else
+		throw master_err(EXIT_FAILURE_AUTH, logstream << "Authentification failed : " << ioslaves::getAnswerCodeDescription(o));
 }
 
 	// Apply operation with authentification
@@ -108,7 +139,7 @@ void iosl_master::slave_command_auth (socketxx::io::simple_socket<socketxx::base
 		slave_sock.o_char((char)opp);
 	} catch (socketxx::error& e) {
 		if ($leave_exceptions) throw;
-		throw master_err(_S( "Failed to communicate with slave while authenticating : ",e.what() ), EXIT_FAILURE_COMM);
+		throw master_err(EXIT_FAILURE_COMM, logstream << "Failed to communicate with slave while authenticating : " << e.what());
 	}
 }
 
@@ -124,19 +155,19 @@ socketxx::base_netsock iosl_master::slave_api_service_connect (std::string slave
 		return slave_sock;
 	} catch (socketxx::end::client_connect_error& e) {
 		if ($leave_exceptions) throw;
-		throw master_err(_S( "Can't connect to slave : ",e.what() ), EXIT_FAILURE_CONN, true);
+		throw master_err(EXIT_FAILURE_DOWN, logstream << "Can't connect to slave : " << e.what());
 	} catch (socketxx::dns_resolve_error& e) {
 		if ($leave_exceptions) throw;
-		throw master_err(_S( "Can't resolve hostname '",e.failed_hostname,"' !" ), EXIT_FAILURE_CONN);
+		throw master_err(EXIT_FAILURE_CONN, logstream << "Can't resolve hostname '" << e.failed_hostname << "' !");
 	} catch (iosl_master::ldns_error& e) {
 		if ($leave_exceptions) throw;
-		throw master_err(_S( "Can't retrive port number : ",e.what() ), EXIT_FAILURE_CONN);
+		throw master_err(EXIT_FAILURE_DOWN, logstream << "Can't retrive port number : " << e.what());
 	} catch (ioslaves::answer_code o) {
 		if ($leave_exceptions) throw;
-		throw master_err(_S( "Failed to connect to API service : ",ioslaves::getAnswerCodeDescription(o) ), EXIT_FAILURE_IOSL);
+		throw master_err(EXIT_FAILURE_IOSL, logstream << "Failed to connect to API service : " << ioslaves::getAnswerCodeDescription(o));
 	} catch (socketxx::error& e) {
 		if ($leave_exceptions) throw;
-		throw master_err(_S( "Communication error while connecting to slave or API service : ",e.what() ), EXIT_FAILURE_COMM);
+		throw master_err(EXIT_FAILURE_COMM, logstream << "Communication error while connecting to slave or API service : " << e.what());
 	}
 }
 

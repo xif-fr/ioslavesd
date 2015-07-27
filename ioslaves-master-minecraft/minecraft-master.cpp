@@ -168,9 +168,9 @@ void xlog::logstream_impl::log (log_lvl lvl, const char* part, std::string msg, 
 	_log_wait_flag = false;
 	switch (lvl) {
 		case log_lvl::LOG: case log_lvl::NOTICE: case log_lvl::IMPORTANT: case log_lvl::MAJOR: break;
-		case log_lvl::FATAL: case log_lvl::ERROR: case log_lvl::OOPS: ::__log__ << COLOR_RED << "Error : " << COLOR_RESET; break;
-		case log_lvl::WARNING: ::__log__ << COLOR_YELLOW << "Warning : " << COLOR_RESET; break;
-		case log_lvl::DONE: return; ::__log__ << COLOR_GREEN << "Done ! " << COLOR_RESET; break;
+		case log_lvl::FATAL: case log_lvl::ERROR: case log_lvl::OOPS: case log_lvl::SEVERE: std::clog << LOG_ARROW_ERR << COLOR_RED << "Error : " << COLOR_RESET; break;
+		case log_lvl::WARNING: std::clog << COLOR_YELLOW << "Warning : " << COLOR_RESET; break;
+		case log_lvl::DONE: std::clog << LOG_ARROW_OK; break;
 	}
 	::__log__ << msg;
 	if (m & LOG_WAIT) { _log_wait_flag = true; ::__log__ << ' '; } 
@@ -534,7 +534,7 @@ int main (int argc, char* const argv[]) {
 		for (uint counter = 0; ; counter++) {
 			if (counter == 2) {
 				__log__ << NICE_WARNING << "Websocket lock file was locked for 2 seconds." << std::flush;
-				EXIT_FAILURE = EXIT_FAILURE_COMM;
+				EXIT_FAILURE = EXIT_FAILURE_EXTERR;
 				return EXIT_FAILURE;
 			}
 			fd_t f = ::open(lockpath.c_str(), O_CREAT|O_RDONLY|O_EXCL|O_NOFOLLOW, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
@@ -553,10 +553,10 @@ int main (int argc, char* const argv[]) {
 		});
 		wsctx = nopoll_ctx_new();
 		if (wsctx == NULL) {
-			std::cerr << LOG_AROBASE_ERR << "Failed to create websocket context" << std::endl; EXIT_FAILURE = EXIT_FAILURE_COMM; return EXIT_FAILURE; }
+			std::cerr << LOG_AROBASE_ERR << "Failed to create websocket context" << std::endl; EXIT_FAILURE = EXIT_FAILURE_SYSERR; return EXIT_FAILURE; }
 		noPollConn* listener = nopoll_listener_new(wsctx, "0.0.0.0", ::ixtoa($websocket_port).c_str());
 		if (not nopoll_conn_is_ok(listener)) {
-			std::cerr << LOG_AROBASE_ERR << "Failed to create listening websocket" << std::endl; EXIT_FAILURE = EXIT_FAILURE_COMM; return EXIT_FAILURE; }
+			std::cerr << LOG_AROBASE_ERR << "Failed to create listening websocket" << std::endl; EXIT_FAILURE = EXIT_FAILURE_SYSERR; return EXIT_FAILURE; }
 		struct _noPoll_callbacks {
 			static nopoll_bool onConnReady (noPollCtx* wsctx, noPollConn* conn, void* data) {
 				if ($websocket_conn != NULL) return false;
@@ -581,7 +581,7 @@ int main (int argc, char* const argv[]) {
 		nopoll_conn_close(listener);
 		if ($websocket_conn == NULL) {
 			std::cerr << LOG_AROBASE_ERR << "Can't get websocket client..." << std::endl;
-			EXIT_FAILURE = EXIT_FAILURE_COMM;
+			EXIT_FAILURE = EXIT_FAILURE_EXTERR;
 			return EXIT_FAILURE;
 		}
 	}
@@ -664,13 +664,13 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 			}
 		} catch (master_err& e) {
 			__log__ << LOG_ARROW_ERR << "ioslaves-master error : " << e.what() << std::flush;
-			if (e.down and not secondtry and autostart and $granmaster) {
+			if (e.ret == EXIT_FAILURE_DOWN and not secondtry and autostart and $granmaster) {
 				time_t time_up = 0;
 				try {
 					time_up = iosl_master::slave_start($slave_id, $master_id);
 				} catch (std::exception& e) {
 					__log__ << LOG_AROBASE_ERR << "Power up error : " << e.what() << std::flush;
-					EXIT_FAILURE = EXIT_FAILURE_CONN;
+					EXIT_FAILURE = EXIT_FAILURE_EXTERR;
 					throw EXCEPT_ERROR_IGNORE;
 				}
 				__log__ << LOG_AROBASE_ERR << "Please wait " << time_up << "s for slave starting..." << std::flush;
@@ -1383,7 +1383,7 @@ _try_start:
 				if (r == -1) {
 					sock->o_bool(false);
 					__log__ << LOG_ARROW_ERR << "Minecraft jar '" << jar_name << "' not found for sending to slave" << std::flush;
-					EXIT_FAILURE = EXIT_FAILURE_IOSL;
+					EXIT_FAILURE = EXIT_FAILURE_EXTERR;
 					throw EXCEPT_ERROR_IGNORE;
 				}
 				sock->o_bool(true);
@@ -1398,7 +1398,7 @@ _try_start:
 				if (r == -1) {
 					sock->o_bool(false);
 					__log__ << LOG_AROBASE_ERR << "Can't send bigfile '" << bigfile_name << "' to slave : " << ::strerror(errno) << std::flush;
-					EXIT_FAILURE = EXIT_FAILURE_IOSL;
+					EXIT_FAILURE = EXIT_FAILURE_SYSERR;
 					throw EXCEPT_ERROR_IGNORE;
 				}
 				sock->o_bool(true);
@@ -1413,7 +1413,7 @@ _try_start:
 					sock->o_bool(r == 0);
 					if (r == -1) {
 						__log__ << LOG_ARROW_ERR << "Temporary map '" << $start_map << "' doesn't exist here" << std::flush;
-						EXIT_FAILURE = EXIT_FAILURE_IOSL;
+						EXIT_FAILURE = EXIT_FAILURE_EXTERR;
 						throw EXCEPT_ERROR_IGNORE;
 					}
 					sock->o_file(tempmap_path.c_str());

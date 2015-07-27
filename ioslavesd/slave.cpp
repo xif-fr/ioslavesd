@@ -27,6 +27,10 @@ using namespace xlog;
 #include <xifutils/cxx.hpp>
 #include <xifutils/intstr.hpp>
 
+	// Crypto
+#include <openssl/whrlpool.h>
+#include <openssl/md5.h>
+
 	// Files
 #include <sys/file.h>
 #include <sys/dir.h>
@@ -380,6 +384,7 @@ int main (int argc, const char* argv[]) {
 	
 		// Main event loop
 	for (;;) {
+	_abort_connect:
 		try {
 			// Waiting for new client
 			socketxx::simple_socket_server<socketxx::base_netsock,void>::client cli = serv.wait_new_client_stoppable(serv_stop_pipe[0], true);
@@ -412,21 +417,28 @@ int main (int argc, const char* argv[]) {
 					cli.o_char((char)e.answ_code);
 					continue;
 				}
-				std::string challenge = ioslaves::generate_random(256);
-				cli.o_str(challenge);
-				std::string expected_answer = ioslaves::hash(challenge+key);
-				std::string master_answer = cli.i_str();
-				if (master_answer != expected_answer) {
-					cli.o_char((char)ioslaves::answer_code::BAD_CHALLENGE_ANSWER);
-					__log__(log_lvl::NOTICE, "AUTH", logstream << "Authentification failed for " << cli.addr.get_ip_str() << " as '" << master_id << "' ! Bad answer to challenge [" << challenge.substr(0,6) << "...]");
-					continue;
-				} else {
-					cli.o_char((char)ioslaves::answer_code::OK);
-					opcode = (ioslaves::op_code)cli.i_char();
-					silent = ioslaves::perms_verify_op(perms, opcode).props["silent"] == "true";
-					if (not silent)
-						__log__(log_lvl::LOG, "AUTH", logstream << "Authentification succeeded for '" << master_id << "' (" << cli.addr.get_ip_str() << ")");
+				unsigned char* challenge = ioslaves::generate_random(CHALLENGE_LEN);
+				RAII_AT_END({ delete[] challenge; });
+				cli.o_buf(challenge, CHALLENGE_LEN);
+				unsigned char buf [CHALLENGE_LEN+KEY_LEN];
+				::memcpy(buf, challenge, CHALLENGE_LEN);
+				::memcpy(buf+CHALLENGE_LEN, key.bin, KEY_LEN);
+				ioslaves::hash_t expected_answer;
+				::WHIRLPOOL(buf, CHALLENGE_LEN+KEY_LEN, expected_answer.bin);
+				ioslaves::hash_t master_answer;
+				cli.i_buf(master_answer.bin, HASH_LEN);
+				for (size_t i = 0; i < HASH_LEN; i++) {
+					if (expected_answer.bin[i] != master_answer.bin[i]) {
+						cli.o_char((char)ioslaves::answer_code::BAD_CHALLENGE_ANSWER);
+						__log__(log_lvl::NOTICE, "AUTH", logstream << "Authentification failed for " << cli.addr.get_ip_str() << " as '" << master_id << "' ! Bad answer to challenge.");
+						goto _abort_connect;
+					}
 				}
+				cli.o_char((char)ioslaves::answer_code::OK);
+				opcode = (ioslaves::op_code)cli.i_char();
+				silent = ioslaves::perms_verify_op(perms, opcode).props["silent"] == "true";
+				if (not silent)
+					__log__(log_lvl::LOG, "AUTH", logstream << "Authentification succeeded for '" << master_id << "' (" << cli.addr.get_ip_str() << ")");
 			} else {
 				__log__(log_lvl::LOG, "AUTH", logstream << "Connection of " << cli.addr.get_ip_str() << " as " << (master_id.empty() ? "anonymous" : _S("'",master_id,"' (not verified, no auth)")));
 				perms.by_default = false;
@@ -500,11 +512,14 @@ int main (int argc, const char* argv[]) {
 								clikey.o_char((char)ioslaves::answer_code::DENY);
 								throw ioslaves::req_err(ioslaves::answer_code::DENY, NULL, logstream << "Sender master '" << of_master << "' (" << clikey.addr.get_ip_str() << ") is not authorized master '" << auth_master << "'" << (auth_ip_str.empty()?"":_S( '(',auth_ip_str,')' )));
 							}
-							ioslaves::key_t key = clikey.i_str();
-							std::string sent_footprint = ioslaves::md5(key);
-							if (sent_footprint != footprint) {
+							ioslaves::key_t key;
+							clikey.i_buf(key.bin, KEY_LEN);
+							unsigned char hash[MD5_DIGEST_LENGTH];
+							::MD5(key.bin, KEY_LEN, hash);
+							std::string slave_footprint = ioslaves::bin_to_hex(hash, MD5_DIGEST_LENGTH);
+							if (slave_footprint != footprint) {
 								clikey.o_char((char)ioslaves::answer_code::DENY);
-								throw ioslaves::req_err(ioslaves::answer_code::DENY, NULL, logstream << "Sent key's footprint (" << sent_footprint << ") does not corresponds to the authorized footprint (" << footprint << ")");
+								throw ioslaves::req_err(ioslaves::answer_code::DENY, NULL, logstream << "Sent key's footprint (" << slave_footprint << ") does not corresponds to the authorized footprint (" << footprint << ")");
 							}
 							__log__(log_lvl::IMPORTANT, "KEY", logstream << "Key with footprint " << footprint << " is accepted for master " << of_master << " (" << clikey.addr.get_ip_str() << ")");
 							ioslaves::key_save(of_master, 
@@ -514,7 +529,7 @@ int main (int argc, const char* argv[]) {
 							cli.o_char((char)ioslaves::answer_code::OK);
 							clikey.o_str(keyperms);
 							cli.o_str(clikey.addr.get_ip_str());
-							__log__(log_lvl::MAJOR, "KEY", logstream << "Master '" << of_master << "' with key '" << sent_footprint << "' now have the following permissions : \n" << keyperms << "\n");
+							__log__(log_lvl::MAJOR, "KEY", logstream << "Master '" << of_master << "' with key '" << slave_footprint << "' now have the following permissions : \n" << keyperms << "\n");
 						} catch (socketxx::timeout_event&) {
 							throw ioslaves::req_err(ioslaves::answer_code::TIMEOUT, NULL, "Delay expired for key sending !");
 						} catch (socketxx::classic_error& e) {
@@ -1371,7 +1386,7 @@ void ioslaves::controlService (ioslaves::service* s, bool start, const char* con
 		case ioslaves::service::type::IOSLPLUGIN: {
 			if (start) {
 				std::string iosldl_path = _S( IOSLAVESD_API_DL_DIR,'/',s->s_command,".iosldl" );
-				dl_t dl_handle = ::dlopen(iosldl_path.c_str(), RTLD_NOW);
+				dl_t dl_handle = ::dlopen(iosldl_path.c_str(), RTLD_NOW|RTLD_LOCAL);
 				if (dl_handle == NULL) {
 					throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "API", logstream << "Couldn't load ioslaves dynamic API service with dlopen() : " << ::dlerror());
 				}

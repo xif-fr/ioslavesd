@@ -38,11 +38,6 @@ struct pipe_proc_t { fd_t in; fd_t out; fd_t err; };
 	#define XIFNET_SLAVES_DOM "net.xif.fr"
 #endif
 
-	// Keys
-#define IOSLAVES_KEY_SIZE 512
-#define IOSLAVES_CHALLENGE_SIZE 128
-#define IOSLAVES_KEY_SEND_DELAY 4
-
 namespace ioslaves {
 	
 		// ioslaves operations
@@ -62,11 +57,19 @@ namespace ioslaves {
 		KEY_DEL = 'd',
 	};
 	
-		// Authentification - Crypto
-	std::string generate_random (size_t sz);
-	#define HASH_HEX_DIGEST_LENGHT 128
-	std::string hash (std::string to_hash);
+		// Authentification - Keys - Crypto
+	#define HASH_LEN 64
+	#define MD5_HEX_LEN 32
+	#define KEY_LEN 256
+	#define CHALLENGE_LEN 256
+	#define IOSLAVES_KEY_SEND_DELAY 4
+	std::string bin_to_hex (const unsigned char* d, size_t sz);
+	void hex_to_bin (std::string, unsigned char* d);
+	unsigned char* generate_random (size_t sz);
 	std::string md5 (std::string to_hash);
+	struct key_t { unsigned char bin [KEY_LEN]; };
+	struct challenge_t { unsigned char bin [CHALLENGE_LEN]; };
+	struct hash_t { unsigned char bin [HASH_LEN]; };
 	
 		// Universal answer code (0 is reserved)
 	enum class answer_code : char { 

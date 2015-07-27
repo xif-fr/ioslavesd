@@ -142,7 +142,6 @@ namespace ioslaves {
 		};
 		std::map<ioslaves::op_code, op_perm_t> ops;
 	};
-	typedef std::string key_t;
 	std::pair<key_t, perms_t> load_master_key (std::string master);
 	void key_save (std::string master, key_t key, std::string perms_conf);
 	perms_t::op_perm_t perms_verify_op (const perms_t&, ioslaves::op_code);
