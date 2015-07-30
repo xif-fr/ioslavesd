@@ -13,6 +13,7 @@
 using namespace xlog;
 #include "master.hpp"
 bool iosl_master::$leave_exceptions = false;
+bool iosl_master::$leave_answcode = false;
 
 	// Key storage plugins
 #ifdef IOSL_MASTER_KEYSTORE_EXT_METHODS
@@ -155,8 +156,10 @@ void iosl_master::authenticate (socketxx::io::simple_socket<socketxx::base_netso
 	ioslaves::answer_code o = (ioslaves::answer_code)slave_sock.i_char();
 	if (o == ioslaves::answer_code::OK) 
 		__log__(log_lvl::DONE, "AUTH", logstream << "Authentification with key '" << key_id << "' succeded !");
-	else
+	else {
+		if ($leave_answcode) throw o;
 		throw master_err(EXIT_FAILURE_AUTH, logstream << "Authentification failed : " << ioslaves::getAnswerCodeDescription(o));
+	}
 }
 
 	// Apply operation with authentification
@@ -194,7 +197,7 @@ socketxx::base_netsock iosl_master::slave_api_service_connect (std::string slave
 		if ($leave_exceptions) throw;
 		throw master_err(EXIT_FAILURE_DOWN, logstream << "Can't retrive port number : " << e.what());
 	} catch (ioslaves::answer_code o) {
-		if ($leave_exceptions) throw;
+		if ($leave_answcode) throw;
 		throw master_err(EXIT_FAILURE_IOSL, logstream << "Failed to connect to API service : " << ioslaves::getAnswerCodeDescription(o));
 	} catch (socketxx::error& e) {
 		if ($leave_exceptions) throw;

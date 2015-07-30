@@ -643,6 +643,7 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 	std::function<socketxx::io::simple_socket<socketxx::base_socket>(void)> get_sock = [&]() -> socketxx::io::simple_socket<socketxx::base_socket> {
 		try {
 			try {
+				iosl_master::$leave_answcode = true; RAII_AT_END_L( iosl_master::$leave_answcode = false );
 				__log__ << LOG_ARROW << "Connecting to '" << slave << "'..." << std::flush;
 				return iosl_master::slave_api_service_connect(slave, $master_id, "minecraft", TIMEOUT_CONNECT);
 			} catch (ioslaves::answer_code answ) {

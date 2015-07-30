@@ -72,6 +72,7 @@ class master_err : public std::runtime_error {
 
 namespace iosl_master { 
 	extern bool $leave_exceptions;
+	extern bool $leave_answcode;
 	
 		// Test if a slave is up
 	bool slave_test (std::string slave_id);
