@@ -22,10 +22,12 @@ using namespace xlog;
 #include <set>
 #include <stdlib.h>
 #include <unistd.h>
-#include <time.h>
 #include <typeinfo>
 #include <xifutils/cxx.hpp>
 #include <xifutils/intstr.hpp>
+
+	// Time
+#define IOSL_SHUTDOWN_CHK_INTERVAL 2*60
 
 	// Crypto
 #include <openssl/whrlpool.h>
@@ -120,12 +122,13 @@ short ip_refresh_dyndns_interval = -1;
 in_addr ip_refresh_dyndns_server = {0};
 std::string dyndns_slave_key_id = IOSLAVESD_DNS_SLAVE_KEY_ID_DEFAULT_NAME;
 bool shutdown_ignore_err = false;
-time_t shutdown_time = 0;
-time_t start_time = ::time(NULL);
+time_t shutdown_iosl_time = 0;
+time_t start_iosl_time = 0;
+enum { QUIT_NORMAL, QUIT_SHUTDOWN, QUIT_REBOOT } quit_type = QUIT_NORMAL;
 	// API vars
 ioslaves::api::common_vars_t ioslaves::api::api_vars = {
 	.system_stat = &ioslaves::system_stat,
-	.shutdown_time = &shutdown_time,
+	.shutdown_iosl_time = &shutdown_iosl_time,
 };
 
 	/// Main
@@ -133,6 +136,7 @@ int main (int argc, const char* argv[]) {
 	int r;
 	ssize_t rs;
 	logl_t l;
+	start_iosl_time = ::iosl_time();
 	
 		// Global exception handler
 	try {
@@ -287,19 +291,21 @@ int main (int argc, const char* argv[]) {
 				if (r == NULL) 
 					__log__(log_lvl::ERROR, "CONF", logstream << "shutdown_at : bad format (should be %H:%M)");
 				else {
+					time_t shutdown_time = 0;
 					struct tm time2 = time;
 					shutdown_time = ::mktime(&time2);
 					if (shutdown_time <= ::time(NULL))
 						time.tm_mday += 1;
 					shutdown_time = ::mktime(&time);
+					shutdown_iosl_time = start_iosl_time + (shutdown_time - ::time(NULL));
 				}
 			} catch (...) {}
 			try {
 				time_t shutdown_in = (int)conf.lookup("shutdown_in_minutes");
-				shutdown_time = ::time(NULL) + shutdown_in*60;
+				shutdown_iosl_time = ::iosl_time() + shutdown_in*60;
 			} catch (...) {}
-			if (shutdown_time != 0) 
-				__log__(log_lvl::NOTICE, "SHUTDOWN", logstream << "Slave will try to shutdown in " << (shutdown_time-::time(NULL))/60 << " minutes");
+			if (shutdown_iosl_time != 0) 
+				__log__(log_lvl::NOTICE, "SHUTDOWN", logstream << "Slave will try to shutdown in " << (shutdown_iosl_time-::iosl_time())/60 << " minutes");
 			try {
 				libconfig::Setting& allowed_services_c = conf.lookup("allowed_api_services");
 				allowed_services_c.assertType(libconfig::Setting::TypeArray);
@@ -644,10 +650,10 @@ int main (int argc, const char* argv[]) {
 						OpPermsCheck();
 						if (shutdown_in == 0) {
 							__log__(log_lvl::IMPORTANT, "SHUTDOWN", "Automatic shutdown disabled");
-							shutdown_time = 0;
+							shutdown_iosl_time = 0;
 						} else {
 							__log__(log_lvl::IMPORTANT, "SHUTDOWN", logstream << "Automatic shutdown set in " << shutdown_in/60 << "min");
-							shutdown_time = ::time(NULL) + shutdown_in;
+							shutdown_iosl_time = ::iosl_time() + shutdown_in;
 						}
 					} break;
 						/** ---------------------- Shutdown/Reboot ---------------------- **/
@@ -656,7 +662,7 @@ int main (int argc, const char* argv[]) {
 						bool does_reboot = (opcode == ioslaves::op_code::SLAVE_REBOOT);
 						__log__(log_lvl::MAJOR, "OP", logstream << "Operation : " << (does_reboot ? "Rebooting" : "Shutting down") << " server NOW !");
 						OpPermsCheck();
-						shutdown_time = does_reboot ? (time_t)-2 : (time_t)-1;
+						quit_type = does_reboot ? QUIT_REBOOT : QUIT_SHUTDOWN;
 						cli.o_char((char)ioslaves::answer_code::OK);
 						throw socketxx::stop_event(0);
 					} break;
@@ -808,12 +814,11 @@ int main (int argc, const char* argv[]) {
 			}
 			
 				// Auto shutdown
-			#define IOSL_SHUTDOWN_CHK_INTERVAL 2*60
-			if (shutdown_time != 0) {
-				static time_t last_shutdown_chk = ::time(NULL);
-				if (last_shutdown_chk + IOSL_SHUTDOWN_CHK_INTERVAL < ::time(NULL)) {
-					last_shutdown_chk = ::time(NULL);
-					if (::time(NULL) > shutdown_time) {
+			if (shutdown_iosl_time != 0) {
+				static time_t last_shutdown_chk = ::iosl_time();
+				if (last_shutdown_chk + IOSL_SHUTDOWN_CHK_INTERVAL < ::iosl_time()) {
+					last_shutdown_chk = ::iosl_time();
+					if (::iosl_time() > shutdown_iosl_time) {
 						__log__(log_lvl::IMPORTANT, "SHUTDOWN", logstream << "Slave will now try to shut down !");
 						for (ioslaves::service* s : ioslaves::services_list) {
 							if (s->ss_shutdown_inhibit and s->ss_status_running) {
@@ -839,11 +844,11 @@ int main (int argc, const char* argv[]) {
 							}
 						}
 						__log__(log_lvl::MAJOR, "SHUTDOWN", logstream << "Shutting down slave NOW !");
-						shutdown_time = (time_t)-1;
+						quit_type = QUIT_SHUTDOWN;
 						break;
 					__inhibit:;
-					} else if (::time(NULL)+3600 > shutdown_time) 
-						__log__(log_lvl::NOTICE, "SHUTDOWN", logstream << "Slave will try to shut down in " << (shutdown_time-::time(NULL))/60 << " minutes");
+					} else if (::iosl_time()+3600 > shutdown_iosl_time) 
+						__log__(log_lvl::NOTICE, "SHUTDOWN", logstream << "Slave will try to shut down in " << (shutdown_iosl_time-::iosl_time())/60 << " minutes");
 				}
 			}
 			
@@ -876,10 +881,10 @@ int main (int argc, const char* argv[]) {
 		return EXIT_FAILURE;
 	}
 	
-	if (shutdown_time == (time_t)-1 or shutdown_time == (time_t)-2) {
+	if (quit_type != QUIT_NORMAL) {
 		*signal_catch_sigchild_p = false;
 		ioslaves::api::euid_switch(0,0);
-		r = ::system( _s("shutdown -",((shutdown_time==(time_t)-2)?'r':'h')," now") ); 
+		r = ::system( _s("shutdown -",(quit_type==QUIT_REBOOT?'r':'h')," now") ); 
 	}
 	
 	__log__(log_lvl::MAJOR, NULL, "-=# Exiting... #=-");
@@ -891,7 +896,6 @@ void* status_thread (void*) {
 	
 		// Block signals
 	thread_block_signals();
-	start_time = ::time(NULL);
 	
 	try {
 		
@@ -1378,7 +1382,7 @@ void ioslaves::controlService (ioslaves::service* s, bool start, const char* con
 			if (r == -1) throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "SERVICE", logstream << "system() failed to exec `systemctl` : " << ::strerror(errno));
 			if (r != 0) throw ioslaves::req_err(ioslaves::answer_code::EXTERNAL_ERROR, "SERVICE", logstream << "`" << systemctl_string << "` command failed !");
 			s->ss_status_running = start;
-			s->ss_last_status_change = ::time(NULL);
+			s->ss_last_status_change = ::iosl_time();
 			__log__(log_lvl::DONE, "SERVICE", logstream << "Successfully " << (start?"started":"stopped") << " service '" << s->s_name << "' with systemctl");
 		} break;
 		
@@ -1426,7 +1430,7 @@ void ioslaves::controlService (ioslaves::service* s, bool start, const char* con
 				s->spec.plugin.handle = NULL;
 			}
 			s->ss_status_running = start;
-			s->ss_last_status_change = ::time(NULL);
+			s->ss_last_status_change = ::iosl_time();
 			__log__(log_lvl::DONE, "API", logstream << "Successfully " << (start?"loaded":"unloaded") << " API service '" << s->s_name << "'");
 		} break;
 		
@@ -1529,12 +1533,12 @@ void ioslaves::controlService (ioslaves::service* s, bool start, const char* con
 					goto __daemon_end;
 				__daemon_dead:
 					s->ss_status_running = false;
-					s->ss_last_status_change = ::time(NULL);
+					s->ss_last_status_change = ::iosl_time();
 					throw ioslaves::req_err(ioslaves::answer_code::BAD_STATE, "DAEMON", logstream << "Process of service `" << s->s_name << "` is probably already dead : " << daemon_dead_why);
 				}
 			__daemon_end:
 				s->ss_status_running = start;
-				s->ss_last_status_change = ::time(NULL);
+				s->ss_last_status_change = ::iosl_time();
 				__log__(log_lvl::DONE, "DAEMON", logstream << "Successfully " << (start?"started":"stopped") << " service '" << s->s_name << "' as daemon");
 			} catch (xif::sys_error& syserr) {
 				throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "DAEMON", syserr.what());

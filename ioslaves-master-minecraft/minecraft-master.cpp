@@ -46,8 +46,8 @@ int _exit_failure_code = 29;
 	// Timeouts
 #define TIMEOUT_CONNECT timeval{2,500000}
 #define TIMEOUT_COMM timeval{10,000000}
-#define TIMEOUT_ZIP_DELAY timeval{15,500000}
-#define TIMEOUT_JAVA_ALIVE timeval{40,500000}
+#define TIMEOUT_ZIP_DELAY timeval{30,000000}
+#define TIMEOUT_JAVA_ALIVE timeval{40,000000}
 #define TIMEOUT_WEBSOCKET (useconds_t)2500000
 
 	// minecraft-master's option variables
@@ -953,9 +953,15 @@ void verifyMapList (std::string slave_id, std::string server_name, socketxx::io:
 				if (save_f == -1)
 					throw xif::sys_error("can't open map save file");
 				RAII_AT_END_L( ::close(save_f) );
+				try {
 				                              retreivingProgressionShow(0,0);
 				sock.i_file(save_f, std::bind(retreivingProgressionShow, std::placeholders::_1,std::placeholders::_2));
 				                              retreivingProgressionShow(1,0);
+				} catch (socketxx::error&) {
+					::close(save_f);
+					::unlink(savepath.c_str());
+					throw;
+				}
 				ioslaves::infofile_set(_s(map_folder,"/lastsave"), ::ixtoa(lastsave));
 				ioslaves::infofile_set(_s(map_folder,"/truesave"), "false");
 				ioslaves::infofile_set(_s(map_folder,"/lastsave_from"), slave_id);
@@ -1271,7 +1277,7 @@ _try_start:
 				t << "</table>";
 				__log__ << t.str() << std::flush;
 			}
-			if (slaves.size() == 0 or slaves.front().sl_total_points == INT32_MIN) {
+			if (slaves.size() == 0 or slaves.front().sl_total_points == INT32_MIN or slaves.front().sl_total_points < 0) {
 				__log__ << LOG_ARROW_ERR << "Sorry, no slave available... " << std::flush;
 				throw EXCEPT_ERROR_IGNORE;
 			}

@@ -8,10 +8,8 @@
  \**********************************************************/
 
 	// Common
-#include "common.hpp"
-#include "log.h"
-using namespace xlog;
 #include "master.hpp"
+using namespace xlog;
 bool iosl_master::$leave_exceptions = false;
 bool iosl_master::$leave_answcode = false;
 

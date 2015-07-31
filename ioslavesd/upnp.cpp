@@ -15,6 +15,10 @@ using namespace xlog;
 #include <xifutils/intstr.hpp>
 #include <fcntl.h>
 
+	// Time
+inline uint64_t tm2us (timeval tv) { return tv.tv_sec*1000000+tv.tv_usec; }
+inline uint64_t tmdiff (timeval tv1, timeval tv2) { return (tv1.tv_sec-tv2.tv_sec)*1000000 + (tv1.tv_usec-tv2.tv_usec); }
+
 	// Vars
 bool enable_upnp = true;
 time_t ports_reopen_interval = 0;
@@ -78,7 +82,7 @@ void ioslaves::upnpInit () {
 				r = UPNP_GetIGDFromUrl(url_str, &upnp_device_url, &upnp_device_data, upnp_lanIP, (size_t)16);
 				if (r == 1) {
 					__log__(log_lvl::LOG, "UPnP", logstream << "Got IGD URL in cache", LOG_DEBUG);
-					last_init = ::time(NULL);
+					last_init = ::iosl_time();
 					::close(f);
 					return;
 				}
@@ -113,14 +117,14 @@ void ioslaves::upnpInit () {
 			::lseek(f, (off_t)0, SEEK_SET);
 			rs = ::write(f, upnp_device_url.rootdescURL, ::strlen(upnp_device_url.rootdescURL));
 		}
-		last_init = ::time(NULL);
+		last_init = ::iosl_time();
 	} catch (ioslaves::upnpError& upnperr) {
 		__log__(log_lvl::ERROR, "UPnP", logstream << "UPnP init : " << upnperr.what());
 		throw;
 	}
 }
 inline void upnpRefreshInit () {
-	if ((::time(NULL)-last_init) > 120) 
+	if ((::iosl_time()-last_init) > 120) 
 		ioslaves::upnpInit();
 }
 
@@ -276,11 +280,11 @@ void ioslaves::upnpReopen () {
 	if (unreachable != 0) {
 		try {
 			upnpInit();
-			__log__(log_lvl::IMPORTANT, "UPnP", logstream << "Retook contact with UPnP IGD, after " << time(NULL)-unreachable << "s !");
+			__log__(log_lvl::IMPORTANT, "UPnP", logstream << "Retook contact with UPnP IGD, after " << ::time(NULL)-unreachable << "s !");
 			unreachable = 0;
 		} catch (...) {
 			if (::time(NULL)%10 == 0)
-				__log__(log_lvl::FATAL, "UPnP", logstream << "IGD is unreachable for " << time(NULL)-unreachable << "s !");
+				__log__(log_lvl::FATAL, "UPnP", logstream << "IGD is unreachable for " << ::time(NULL)-unreachable << "s !");
 			return;
 		}
 	}
@@ -294,7 +298,7 @@ void ioslaves::upnpReopen () {
 			timeval before; ::gettimeofday(&before, NULL);
 			time_t diff = tmdiff(before, port._lastopen)/1000000;
 			if (port._is_verifiable) {
-				if ((ports_reopen_interval and diff > ports_reopen_interval-10) or (ports_check_interval and time(NULL)%ports_check_interval == 0)) {
+				if ((ports_reopen_interval and diff > ports_reopen_interval-10) or (ports_check_interval and ::time(NULL)%ports_check_interval == 0)) {
 					if (not upnp_port_check(port.p_ext_port, port.p_proto)) {
 						__log__(log_lvl::LOG, "UPnP", logstream << "Reopening just closed port '" << port.p_descr << "' after " << diff << "s...", LOG_WAIT, &l);
 						reopening = true;

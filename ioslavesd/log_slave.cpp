@@ -42,6 +42,8 @@ log_display_info log_display_infos[] = {
 };
 
 void xlog::logstream_impl::log (log_lvl lvl, const char* part, std::string msg, int m, logl_t* lid) noexcept {
+	timeval now;
+	::gettimeofday(&now, NULL);
 	#if !DEBUG
 	if (m & LOG_DEBUG) 
 		return;
@@ -56,9 +58,9 @@ void xlog::logstream_impl::log (log_lvl lvl, const char* part, std::string msg, 
 			log_entry& le = log_history.at(*lid);
 			std::string timestr = " ";
 			time_t diff;
-			if ((diff = ::time(NULL)-le.le_time) > LOG_DIFF_TIME_SHOW_SEC)
+			if ((diff = now.tv_sec-le.le_time) > LOG_DIFF_TIME_SHOW_SEC)
 				timestr = _S( " [+",::ixtoa(diff),"s] " );
-			le.le_time = ::time(NULL);
+			le.le_time = now.tv_sec;
 			le.le_msg += _S( " […]",timestr,msg );
 			bool same_line = (log_history.size()-1 == *lid);
 			if (same_line && waiting_log) {
@@ -76,10 +78,9 @@ void xlog::logstream_impl::log (log_lvl lvl, const char* part, std::string msg, 
 			tty_output = txt_output = "\n";
 			waiting_log = false;
 		}
-		time_t now = ::time(NULL);
 		if (not (m & LOG_NO_HISTORY)) {
 			log_entry new_le;
-			new_le.le_time = now;
+			new_le.le_time = now.tv_sec;
 			new_le.le_msg = msg;
 			new_le.le_part = part;
 			new_le.le_lvl = lvl;
@@ -87,6 +88,7 @@ void xlog::logstream_impl::log (log_lvl lvl, const char* part, std::string msg, 
 			if (lid != NULL) *lid = (logl_t)log_history.size()-1;
 		}
 		tm gmt_time;
+		time_t now = ::time(NULL);
 		::gmtime_r(&now, &gmt_time);
 		char time_str[STRFTIME_BUF_SIZE];
 		::strftime(time_str, STRFTIME_BUF_SIZE, "%F %TZ ", &gmt_time);

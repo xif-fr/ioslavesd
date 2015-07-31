@@ -40,7 +40,7 @@ namespace xdyndns {
 	struct slave_info_t {
 		std::string slave_name;
 		in_addr_t last_ip;
-		struct ip_change_t { time_t when; in_addr_t new_ip; };
+		struct ip_change_t { timeval when; in_addr_t new_ip; };
 		std::vector<slave_info_t::ip_change_t> ip_changes;
 		bool was_auth;
 	};
@@ -117,6 +117,8 @@ extern "C" xif::polyvar* ioslapi_status_info () {
 
 extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const char* master_id, ioslaves::api::api_perm_t* perms, in_addr_t ip_addr) {
 	logl_t l;
+	timeval now;
+	::gettimeofday(&now, NULL);
 	
 	std::string slave_name = master_id;
 	if (slave_name.length() < 9 or slave_name.find("_IOSL_") != 0) 
@@ -150,7 +152,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 				__log__(log_lvl::WARNING, NULL, logstream << "Slave is not authentified !");
 			xdyndns::slave_info_t new_slave;
 			new_slave.slave_name = slave_name;
-			new_slave.ip_changes.push_back(xdyndns::slave_info_t::ip_change_t({time(NULL),ip_addr}));
+			new_slave.ip_changes.push_back(xdyndns::slave_info_t::ip_change_t({now,ip_addr}));
 			new_slave.last_ip = ip_addr;
 			new_slave.was_auth = not (perms == NULL);
 			slave_it = xdyndns::slaves.insert(xdyndns::slaves.begin(), new_slave);
@@ -189,7 +191,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 			slave->was_auth = not (perms == NULL);
 			__log__(log_lvl::IMPORTANT, NULL, logstream << "IP of slave '" << slave->slave_name << "' has changed from " << socketxx::base_netsock::addr_info::addr2str(slave->last_ip) << " to " << socketxx::base_netsock::addr_info::addr2str(ip_addr), LOG_WAIT, &l);
 			slave->last_ip = ip_addr;
-			slave->ip_changes.push_back(xdyndns::slave_info_t::ip_change_t({time(NULL),ip_addr}));
+			slave->ip_changes.push_back(xdyndns::slave_info_t::ip_change_t({now,ip_addr}));
 			try {
 				xdyndns::a_record_t rec = {.hostname = slave_name, ip_addr};
 				xdyndns::NSD_zone_parser(XIFNETDYNDNS_DYNIP_SLAVES_DOMAIN, &xdyndns::srv_entries, &rec);

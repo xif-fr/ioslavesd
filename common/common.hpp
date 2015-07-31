@@ -21,9 +21,10 @@
 #include "log.h"
 
 	// Time
-#include <sys/time.h>
 #include <time.h>
+#include <sys/time.h>
 #define IOSLAVES_MASTER_MAX_UTC_DIFF_TIME 3
+time_t iosl_time ();
 
 	// Files
 const std::string& __get_homedir__();

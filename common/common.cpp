@@ -38,6 +38,21 @@ std::string ioslaves::getAnswerCodeDescription (ioslaves::answer_code o) {
 	return "unknown error";
 }
 
+time_t iosl_time () {
+	#ifdef __MACH__
+		struct timeval tv;
+		::gettimeofday(&tv, NULL);
+		return tv.tv_sec;
+	#else
+		#ifndef CLOCK_BOOTTIME
+			#define CLOCK_BOOTTIME CLOCK_MONOTONIC
+		#endif
+		timespec ts;
+		::clock_gettime(CLOCK_BOOTTIME, &ts);
+		return ts.tv_sec;
+	#endif
+}
+
 /** ------------------------------------	**/
 /**           Strings validation				**/
 /** ------------------------------------	**/

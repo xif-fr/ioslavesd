@@ -78,7 +78,7 @@ namespace minecraft {
 		pid_t s_java_pid = -1;
 		unsigned short s_megs_ram = 0;
 		uint8_t s_viewdist;
-		time_t s_start_time = 0;
+		time_t s_start_iosl_time = 0;
 		time_t s_delay_noplayers = 0;
 	};
 	
@@ -422,7 +422,8 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 					if (cli.i_bool()) {
 						cli.o_bool(s->s_is_perm_map);
 						cli.o_str(s->s_map);
-						cli.o_int<uint64_t>(s->s_start_time);
+						time_t start_time = ::time(NULL) - (::iosl_time() - s->s_start_iosl_time);
+						cli.o_int<uint64_t>(start_time);
 						socketxx::io::simple_socket<socketxx::base_fd> s_comm(socketxx::base_fd(s->s_sock_comm, SOCKETXX_MANUAL_FD));
 						s_comm.o_char((char)minecraft::internal_serv_op_code::GET_PLAYER_LIST);
 						::pthread_mutex_unlock(&minecraft::servs_mutex);
@@ -923,8 +924,8 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 		s->s_viewdist = cli.i_int<uint8_t>();
 		if (s->s_viewdist > minecraft::max_viewdist) s->s_viewdist = minecraft::max_viewdist;
 		time_t s_running_time = cli.i_int<uint32_t>();
-		time_t time_rest = *ioslaves::api::common_vars->shutdown_time - ::time(NULL);
-		if (not minecraft::ignore_shutdown_time and *ioslaves::api::common_vars->shutdown_time != 0 and time_rest < s_running_time) 
+		time_t time_rest = *ioslaves::api::common_vars->shutdown_iosl_time - ::iosl_time();
+		if (not minecraft::ignore_shutdown_time and *ioslaves::api::common_vars->shutdown_iosl_time != 0 and time_rest < s_running_time) 
 			throw ioslaves::req_err(ioslaves::answer_code::LACK_RSRC, "SERV", MCLOGSCLI(s) << "Server wants ~" << s_running_time/60 << "min, but slave would shutdown in " << time_rest/60 << "min. " << "Refusing start request.");
 		s->s_map = cli.i_str();
 		if (!ioslaves::validateName(s->s_map)) 
@@ -1403,7 +1404,7 @@ void* minecraft::serv_thread (void* arg) {
 		
 			// Java is now launched
 		WriteEarlyState('j');
-		s->s_start_time = ::time(NULL);
+		s->s_start_iosl_time = ::iosl_time();
 		
 			// Registering as opened server
 		{ pthread_mutex_handle_lock(minecraft::servs_mutex);
@@ -1487,10 +1488,10 @@ void* minecraft::serv_thread (void* arg) {
 								uint16_t n_players = parse_list_players(msg, req);
 								if (n_players == 0) {
 									if (first_0 == 0) {
-										first_0 = ::time(NULL);
+										first_0 = ::iosl_time();
 									} else {
-										if (::time(NULL) - first_0 > s->s_delay_noplayers) {
-											__log__(log_lvl::IMPORTANT, THLOGSCLI(s), logstream << "There were no players for " << (::time(NULL)-first_0) << "s. Closing server...");
+										if (::iosl_time()- first_0 > s->s_delay_noplayers) {
+											__log__(log_lvl::IMPORTANT, THLOGSCLI(s), logstream << "There were no players for " << (::iosl_time()-first_0) << "s. Closing server...");
 											stopInfo.why = minecraft::whyStopped::DESIRED_INTERNAL;
 											MC_write_command(s, java_pipes, "stop");
 										}
@@ -1739,7 +1740,7 @@ void* minecraft::serv_thread (void* arg) {
 			lastsaveTimeFile(_S( MINECRAFT_SRV_DIR,"/mc_",s->s_servid,'/',s->s_map ), true);
 		}
 		if (stopInfo.doneDone) {
-			time_t run_time = (::time(NULL) - s->s_start_time) / 60;
+			time_t run_time = (::iosl_time() - s->s_start_iosl_time) / 60;
 			if (run_time < 60)
 				__log__(log_lvl::LOG, THLOGSCLI(s), logstream << "Run time : " << run_time/60 << "h " << run_time%60 << 'm');
 			else

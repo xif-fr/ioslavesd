@@ -26,9 +26,6 @@
 #define IOSLAVESD_DNS_SLAVE_KEY_ID_DEFAULT_NAME "-dyndns-"
 
 	/// UPnP port mapping
-#include <sys/time.h>
-inline uint64_t tm2us (timeval tv) { return tv.tv_sec*1000000+tv.tv_usec; }
-inline uint64_t tmdiff (timeval tv1, timeval tv2) { return (tv1.tv_sec-tv2.tv_sec)*1000000 + (tv1.tv_usec-tv2.tv_usec); }
 namespace ioslaves {
 	class upnpError : public std::runtime_error {
 	public: 
@@ -90,8 +87,8 @@ typedef void* dl_t;
 extern in_port_t ioslavesd_listening_port;
 extern char hostname[64];
 extern bool shutdown_ignore_err;
-extern time_t start_time;
-extern time_t shutdown_time;
+extern time_t start_iosl_time;
+extern time_t shutdown_iosl_time;
 extern uid_t ioslaves_user_id;
 extern gid_t ioslaves_group_id;
 

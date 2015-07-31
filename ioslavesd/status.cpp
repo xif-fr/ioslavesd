@@ -195,7 +195,7 @@ void ioslaves::statusFrame () {
 }
 
 void ioslaves::statusEnd () {
-	time_t iosl_uptime = ::time(NULL) - start_time;
+	time_t iosl_uptime = ::iosl_time() - start_iosl_time;
 	__log__(log_lvl::LOG, NULL, logstream << "ioslavesd was running for " << iosl_uptime/60 << " minutes");
 	#ifndef IOSLAVESD_NO_TOPP
 	std::tuple<time_t,time_t,time_t> uptimes = ioslaves::statusLinuxCalculateUptimes();
@@ -207,7 +207,7 @@ void ioslaves::statusEnd () {
 
 #ifndef IOSLAVESD_NO_TOPP
 std::tuple<time_t,time_t,time_t> ioslaves::statusLinuxCalculateUptimes () { 
-	time_t iosl_uptime = ::time(NULL) - start_time;
+	time_t iosl_uptime = ::iosl_time() - start_iosl_time;
 	topparsing::FieldsFile F_uptime("/proc/uptime", ' ', 2);
 	time_t uptime = (time_t)::atof(F_uptime.stri(0).c_str());
 	time_t idletime = (time_t)( ::atof(F_uptime.stri(1).c_str()) / system_stat["cpu#"].i() );
@@ -257,7 +257,13 @@ xif::polyvar ioslaves::getStatus (bool full) {
 	
 	info["system"] = ioslaves::system_stat;
 	
-	info["shtdwntm"] = ::shutdown_time == 0 ? xif::polyvar() : xif::polyvar(::shutdown_time);
+	if (shutdown_iosl_time != 0) {
+		timeval now;
+		::gettimeofday(&now, NULL);
+		time_t shutdown_time = now.tv_sec + (::shutdown_iosl_time - iosl_time());
+		info["shtdwntm"] = xif::polyvar(shutdown_time);
+	} else 
+		info["shtdwntm"] = xif::polyvar();
 	
 	info["keys"] = xif::polyvar::vec();
 	DIR* dir = ::opendir(IOSLAVESD_KEYS_DIR);

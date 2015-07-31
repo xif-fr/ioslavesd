@@ -53,7 +53,7 @@ namespace ioslaves { namespace api {
 	
 	struct common_vars_t {
 		const xif::polyvar::map* system_stat;
-		const time_t* shutdown_time;
+		const time_t* shutdown_iosl_time;
 	};
 	
 	extern common_vars_t* common_vars;
