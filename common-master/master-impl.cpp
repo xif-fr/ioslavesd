@@ -12,6 +12,7 @@
 using namespace xlog;
 bool iosl_master::$leave_exceptions = false;
 bool iosl_master::$leave_answcode = false;
+bool iosl_master::$silent = false;
 
 	// Key storage plugins
 #ifdef IOSL_MASTER_KEYSTORE_EXT_METHODS
@@ -131,7 +132,8 @@ void iosl_master::authenticate (socketxx::io::simple_socket<socketxx::base_netso
 			});
 			if (dl_handle == NULL) 
 				throw master_err(EXIT_FAILURE_SYSERR, logstream << "Can't load key storage plugin '" << keystore_plugin_path << "' : " << ::dlerror());
-			__log__(log_lvl::DONE, "AUTH", logstream << "Key storage plugin '" << store_method << "' loaded");
+			if (not iosl_master::$silent)
+				__log__(log_lvl::DONE, "AUTH", logstream << "Key storage plugin '" << store_method << "' loaded");
 		__extension__ iosl_master::keystore_api::key_answer_challenge_f answer_challenge_func = 
 				(iosl_master::keystore_api::key_answer_challenge_f) ::dlsym(dl_handle, "ioslapi_start");
 			if (answer_challenge_func == NULL) 
@@ -152,9 +154,10 @@ void iosl_master::authenticate (socketxx::io::simple_socket<socketxx::base_netso
 	}
 	slave_sock.o_buf(answer.bin, HASH_LEN);
 	ioslaves::answer_code o = (ioslaves::answer_code)slave_sock.i_char();
-	if (o == ioslaves::answer_code::OK) 
-		__log__(log_lvl::DONE, "AUTH", logstream << "Authentification with key '" << key_id << "' succeded !");
-	else {
+	if (o == ioslaves::answer_code::OK) {
+		if (not iosl_master::$silent)
+			__log__(log_lvl::DONE, "AUTH", logstream << "Authentification with key '" << key_id << "' succeded !");
+	} else {
 		if ($leave_answcode) throw o;
 		throw master_err(EXIT_FAILURE_AUTH, logstream << "Authentification failed : " << ioslaves::getAnswerCodeDescription(o));
 	}

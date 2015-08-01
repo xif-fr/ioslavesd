@@ -773,13 +773,16 @@ int main (int argc, const char* argv[]) {
 				if (dyndns_last+ip_refresh_dyndns_interval < ::time(NULL)) {
 					dyndns_last = ::time(NULL);
 					static in_addr_t my_ip_last = 0;
-					std::string key_path = _S( IOSLAVES_MASTER_KEYS_DIR,'/',dyndns_slave_key_id,".key" );
-					r = ::access(key_path.c_str(), R_OK);
-					if (r == -1 and my_ip_last == 0) 
-						__log__(log_lvl::WARNING, "DynDNS", logstream << "No key " << key_path << " available for DynDNS slave : " << ::strerror(errno));
+					if (my_ip_last == 0) {
+						std::string key_path = _S( IOSLAVES_MASTER_KEYS_DIR,'/',dyndns_slave_key_id,".key" );
+						r = ::access(key_path.c_str(), R_OK);
+						if (r == -1) 
+							__log__(log_lvl::WARNING, "DynDNS", logstream << "No key " << key_path << " available for DynDNS slave : " << ::strerror(errno));
+					} else 
+						iosl_master::$silent = true;
 					try {
 						iosl_master::$leave_exceptions = true;
-						RAII_AT_END_L( iosl_master::$leave_exceptions = false; );
+						RAII_AT_END({ iosl_master::$leave_exceptions = false; iosl_master::$silent = false; });
 						socketxx::simple_socket_client<socketxx::base_netsock> sock (socketxx::base_netsock::addr_info(ip_refresh_dyndns_server, 2929), timeval{1,0});
 						sock.set_read_timeout(timeval{0,800000});
 						if (r == 0)
