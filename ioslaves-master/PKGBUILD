@@ -1,7 +1,7 @@
 # Maintainer: Félix Faisant <xcodexif@xif.fr>
 
 pkgname=ioslaves-master
-pkgver=3.2
+pkgver=3.2.1
 pkgrel=1
 pkgdesc='Xif Network - ioslaves master program for controlling slaves'
 license=('custom')
