@@ -60,13 +60,13 @@ class master_err : public std::runtime_error {
 	master_err (std::string descr, int retcode) : std::runtime_error(descr), ret(retcode) {}
 	master_err (int retcode, std::ostream& s) : std::runtime_error(xlog::logstream_retrieve()), ret(retcode) {}
 };
-#define EXIT_FAILURE_CONN   29001  // Connection failure with slave
-#define EXIT_FAILURE_DOWN   29001  // Slave seems to be down
-#define EXIT_FAILURE_AUTH   29002  // Authentification failure
-#define EXIT_FAILURE_COMM   29003  // Communication failure with slave
-#define EXIT_FAILURE_IOSL   29004  // Distant ioslaves error
-#define EXIT_FAILURE_SYSERR 29005  // Local system error
-#define EXIT_FAILURE_EXTERR 29006  // External/logic error, Invalid data
+#define EXIT_FAILURE_CONN   91  // Connection failure with slave
+#define EXIT_FAILURE_DOWN   91  // Slave seems to be down
+#define EXIT_FAILURE_AUTH   92  // Authentification failure
+#define EXIT_FAILURE_COMM   93  // Communication failure with slave
+#define EXIT_FAILURE_IOSL   94  // Distant ioslaves error
+#define EXIT_FAILURE_SYSERR 95  // Local system error
+#define EXIT_FAILURE_EXTERR 96  // External/logic error, Invalid data
 
 	/// Public connect API
 
