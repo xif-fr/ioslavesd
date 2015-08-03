@@ -44,6 +44,7 @@
 		AA8397941AE97AF9007FDF06 /* master-impl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B75B1ADECB1700B369BE /* master-impl.cpp */; };
 		AA8397961AE97B22007FDF06 /* api.h in Headers */ = {isa = PBXBuildFile; fileRef = AA41B7351ADEC2FE00B369BE /* api.h */; };
 		AA8397981AE97B3D007FDF06 /* common.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B72B1ADEC2E200B369BE /* common.cpp */; };
+		AAB9CA511B6D97F30026AF8C /* arduino_comm.h in Headers */ = {isa = PBXBuildFile; fileRef = AAB9CA501B6D97F30026AF8C /* arduino_comm.h */; };
 		AAD214891AE974E30062A678 /* wol.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B75D1ADECB1700B369BE /* wol.cpp */; };
 		AADFEA671B63F53D00163432 /* keystore.hpp in Headers */ = {isa = PBXBuildFile; fileRef = AADFEA661B63F53D00163432 /* keystore.hpp */; };
 		AAF5EBB81B63F03100E445C3 /* arduino.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AAF5EBAE1B63EF9100E445C3 /* arduino.cpp */; };
@@ -88,6 +89,7 @@
 		AA90C531189F7461003A8C60 /* libminecraft.ioslaves.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = libminecraft.ioslaves.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA99F1B0184C65DD00BB6836 /* ioslavesd */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ioslavesd; sourceTree = BUILT_PRODUCTS_DIR; };
 		AAB552F418F44E8C00DC3ED9 /* minecraft-master */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "minecraft-master"; sourceTree = BUILT_PRODUCTS_DIR; };
+		AAB9CA501B6D97F30026AF8C /* arduino_comm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = arduino_comm.h; path = keystore/arduino_comm.h; sourceTree = "<group>"; };
 		AAC0E9AE1B5D3D76007BA3B8 /* perms-tpl */ = {isa = PBXFileReference; lastKnownFileType = folder; path = "perms-tpl"; sourceTree = "<group>"; };
 		AAC7F7A81861FEA600033009 /* ioslaves-master */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "ioslaves-master"; sourceTree = BUILT_PRODUCTS_DIR; };
 		AAD214831AE971C50062A678 /* wake-gateway.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = "wake-gateway.dylib"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -281,9 +283,10 @@
 		AAF5EBAC1B63EF3100E445C3 /* Keysore methods */ = {
 			isa = PBXGroup;
 			children = (
+				AAB9CA501B6D97F30026AF8C /* arduino_comm.h */,
+				AAF5EBB91B63F1F000E445C3 /* iosl_master_keystore.ino */,
 				AAF5EBAE1B63EF9100E445C3 /* arduino.cpp */,
 				AAF5EBB41B63F02400E445C3 /* libarduino.ioslmcext */,
-				AAF5EBB91B63F1F000E445C3 /* iosl_master_keystore.ino */,
 			);
 			name = "Keysore methods";
 			sourceTree = "<group>";
@@ -325,6 +328,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				AADFEA671B63F53D00163432 /* keystore.hpp in Headers */,
+				AAB9CA511B6D97F30026AF8C /* arduino_comm.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
