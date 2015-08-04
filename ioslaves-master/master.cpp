@@ -21,6 +21,7 @@
 #include <iostream>
 #include <fstream>
 #include <algorithm>
+#include <typeinfo>
 
 	// Crypto
 #include <openssl/md5.h>
@@ -846,18 +847,29 @@ void IKeygen () {
 		}
 		pl_handle = ::dlopen(keystore_plugin_path.c_str(), RTLD_NOW|RTLD_LOCAL);
 		if (pl_handle == NULL) {
-			std::cerr << LOG_ARROW_ERR << "Can't load key storage plugin '" << keystore_plugin_path << "' : " << ::dlerror();
+			std::cerr << LOG_ARROW_ERR << "Can't load key storage plugin '" << keystore_plugin_path << "' : " << ::dlerror() << std::endl;
 			EXIT_FAILURE = EXIT_FAILURE_SYSERR;
 			throw EXCEPT_ERROR_IGNORE;
 		}
-		__extension__ key_store_func = (iosl_master::keystore_api::key_store_f) ::dlsym(pl_handle, "key_store");
-		if (key_store_func == NULL) {
-			std::cerr << "Can't load key_store_func function of storage plugin '" << $key_storage_method << "' : " << ::dlerror();
+		iosl_master::keystore_api::callbacks* callbacks = (iosl_master::keystore_api::callbacks*) ::dlsym(pl_handle, "api_callbacks");
+		if (callbacks == NULL) {
+			std::cerr << "Can't load api_callbacks structure of storage plugin '" << $key_storage_method << "' : " << ::dlerror() << std::endl;
 			::dlclose(pl_handle);
 			EXIT_FAILURE = EXIT_FAILURE_SYSERR;
 			throw EXCEPT_ERROR_IGNORE;
 		}
-		std::cerr << LOG_ARROW_OK << "Key storage plugin '" << $key_storage_method << "' loaded";
+		callbacks->logstream_acquire = &xlog::logstream_acquire;
+		callbacks->logstream_retrieve = &xlog::logstream_retrieve;
+		callbacks->log_ostream = &xlog::__log__;
+		callbacks->log_string = &xlog::__log__;
+		__extension__ key_store_func = (iosl_master::keystore_api::key_store_f) ::dlsym(pl_handle, "key_store");
+		if (key_store_func == NULL) {
+			std::cerr << "Can't load key_store_func function of storage plugin '" << $key_storage_method << "' : " << ::dlerror() << std::endl;
+			::dlclose(pl_handle);
+			EXIT_FAILURE = EXIT_FAILURE_SYSERR;
+			throw EXCEPT_ERROR_IGNORE;
+		}
+		std::cerr << LOG_ARROW_OK << "Key storage plugin '" << $key_storage_method << "' loaded" << std::endl;
 	}
 	RAII_AT_END_N(dl_close, {
 		if (pl_handle != NULL) 
@@ -885,9 +897,16 @@ void IKeygen () {
 		libconfig::Setting& data_c = key_c.getRoot().add("data", libconfig::Setting::TypeGroup);
 #ifdef IOSL_MASTER_KEYSTORE_EXT_METHODS
 		if (pl_handle != NULL) {
+			try {
 			(*key_store_func)($master_id+'.'+$slave_id,
 			                  key,
 			                  data_c);
+			} catch (std::runtime_error& e) {
+				std::cerr << LOG_ARROW_ERR << "Error occured in keystore plugin '" << $key_storage_method << "' while storing new key : " << e.what() << std::endl;
+				::dlclose(pl_handle);
+				EXIT_FAILURE = EXIT_FAILURE_SYSERR;
+				throw EXCEPT_ERROR_IGNORE;
+			}
 		} else
 #endif
 		{ // Raw key storage
