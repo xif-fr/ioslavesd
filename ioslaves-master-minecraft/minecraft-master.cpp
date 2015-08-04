@@ -160,6 +160,8 @@ public:
 } _cwlog_buf;
 std::ostream __log__ (&_cwlog_buf);
 
+#define XIF_LOG_DEFAULT_LOGSTREAM_IMPL
+#include "log_defimpl.h"
 pthread_mutex_t xlog::logstream_impl::mutex = PTHREAD_MUTEX_INITIALIZER;
 std::ostringstream xlog::logstream_impl::stream;
 bool _log_wait_flag = false;

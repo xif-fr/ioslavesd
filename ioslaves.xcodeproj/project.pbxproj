@@ -11,6 +11,7 @@
 		AA1D3AD71ADECDAF00E2C7F6 /* ftp-auth-mc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA1D3AD21ADECDAF00E2C7F6 /* ftp-auth-mc.cpp */; };
 		AA1D3AD91ADECDAF00E2C7F6 /* minecraft.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA1D3AD41ADECDAF00E2C7F6 /* minecraft.cpp */; };
 		AA2F821A1AED6CE100DFBBDF /* wake-gateway.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA2F82191AED6CE100DFBBDF /* wake-gateway.cpp */; };
+		AA3944011B703E1900E43364 /* common.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B72B1ADEC2E200B369BE /* common.cpp */; };
 		AA41B72D1ADEC2E200B369BE /* common.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B72B1ADEC2E200B369BE /* common.cpp */; };
 		AA41B72E1ADEC2E200B369BE /* common.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B72B1ADEC2E200B369BE /* common.cpp */; };
 		AA41B72F1ADEC2E200B369BE /* common.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B72B1ADEC2E200B369BE /* common.cpp */; };
@@ -65,6 +66,7 @@
 		AA2333991AE06F65009433E3 /* PKGBUILD */ = {isa = PBXFileReference; lastKnownFileType = text; name = PKGBUILD; path = "ioslavesd-minecraft/PKGBUILD"; sourceTree = "<group>"; };
 		AA23339A1AE06F7A009433E3 /* PKGBUILD */ = {isa = PBXFileReference; lastKnownFileType = text; name = PKGBUILD; path = ioslavesd/PKGBUILD; sourceTree = "<group>"; };
 		AA2F82191AED6CE100DFBBDF /* wake-gateway.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "wake-gateway.cpp"; path = "ioslavesd-wake-gateway/wake-gateway.cpp"; sourceTree = "<group>"; };
+		AA3944021B70E37C00E43364 /* log_defimpl.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = log_defimpl.h; path = common/log_defimpl.h; sourceTree = "<group>"; };
 		AA41B72B1ADEC2E200B369BE /* common.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = common.cpp; path = common/common.cpp; sourceTree = "<group>"; };
 		AA41B72C1ADEC2E200B369BE /* common.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = common.hpp; path = common/common.hpp; sourceTree = "<group>"; };
 		AA41B7351ADEC2FE00B369BE /* api.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = api.h; path = "common-ioslavesd/api.h"; sourceTree = "<group>"; };
@@ -212,6 +214,7 @@
 			isa = PBXGroup;
 			children = (
 				AA6B99FC1AED9F1700146475 /* log.h */,
+				AA3944021B70E37C00E43364 /* log_defimpl.h */,
 				AA41B72C1ADEC2E200B369BE /* common.hpp */,
 				AA41B72B1ADEC2E200B369BE /* common.cpp */,
 				AAC7F7B31861FEB500033009 /* slave */,
@@ -584,6 +587,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				AAF5EBB81B63F03100E445C3 /* arduino.cpp in Sources */,
+				AA3944011B703E1900E43364 /* common.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -593,6 +597,10 @@
 		AA129CF21A90E83E009A2B42 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					IOSL_MASTER_IMPL_NO_AUTH,
+					"$(inherited)",
+				);
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
 					/usr/local/include/nopoll,
@@ -694,6 +702,10 @@
 		AAB552FC18F44E8C00DC3ED9 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					IOSL_MASTER_KEYSTORE_EXT_METHODS,
+					"$(inherited)",
+				);
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
 					/usr/local/include/nopoll,
@@ -743,7 +755,7 @@
 				EXECUTABLE_PREFIX = lib;
 				EXECUTABLE_SUFFIX = "";
 				GCC_PREPROCESSOR_DEFINITIONS = (
-					"DEBUG=1",
+					"IOSL_MASTER_KEYSTORE_ARDUINO_DEVICE_PATH_FILE=\"\\\"/var/ioslaves/master/arduino_device\\\"\"",
 					"$(inherited)",
 				);
 				PRODUCT_NAME = arduino.ioslmcext;

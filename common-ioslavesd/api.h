@@ -43,7 +43,6 @@ struct _block_sigchild {
 };
 #define sigchild_block() _block_sigchild _block_sigchild_handle
 
-#define XIF_LOG_DEFAULT_LOGSTREAM
 #include "log.h"
 #include "common.hpp"
 #include <xifutils/polyvar.hpp>
@@ -184,6 +183,8 @@ extern "C" void ioslapi_set_callbacks (ioslaves::service* _me, sig_atomic_t* _si
 }
 
 	// API Log
+#define XIF_LOG_DEFAULT_LOGSTREAM_IMPL
+#include "log_defimpl.h"
 pthread_mutex_t xlog::logstream_impl::mutex = PTHREAD_MUTEX_INITIALIZER;
 std::ostringstream xlog::logstream_impl::stream;
 void xlog::logstream_impl::log (log_lvl lvl, const char* part, std::string msg, int m, logl_t* lid) noexcept {

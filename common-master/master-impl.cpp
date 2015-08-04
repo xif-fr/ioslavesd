@@ -14,6 +14,8 @@ bool iosl_master::$leave_exceptions = false;
 bool iosl_master::$leave_answcode = false;
 bool iosl_master::$silent = false;
 
+#ifndef IOSL_MASTER_IMPL_NO_AUTH
+
 	// Key storage plugins
 #ifdef IOSL_MASTER_KEYSTORE_EXT_METHODS
 #include "keystore.hpp"
@@ -29,6 +31,8 @@ typedef void* dl_t;
 #define private public
 #include <libconfig.h++>
 #undef private
+
+#endif
 
 	// Network
 #include <socket++/handler/socket_client.hpp>
@@ -88,6 +92,8 @@ void iosl_master::slave_command (socketxx::io::simple_socket<socketxx::base_nets
 		throw master_err(EXIT_FAILURE_COMM, logstream << "Failed to communicate with slave : " << e.what());
 	}
 }
+
+#ifndef IOSL_MASTER_IMPL_NO_AUTH
 
 	// Authentification
 void iosl_master::authenticate (socketxx::io::simple_socket<socketxx::base_netsock> slave_sock, std::string key_id) {
@@ -205,6 +211,8 @@ socketxx::base_netsock iosl_master::slave_api_service_connect (std::string slave
 		throw master_err(EXIT_FAILURE_COMM, logstream << "Communication error while connecting to slave or API service : " << e.what());
 	}
 }
+
+#endif /* !defined(IOSL_MASTER_IMPL_NO_AUTH) */
 
 	// Test if a slave is up
 bool iosl_master::slave_test (std::string slave_id) {

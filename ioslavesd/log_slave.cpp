@@ -1,20 +1,33 @@
-#include "main.h"
+/**********************************************************\
+ *               -== Xif Network project ==-
+ *                       ioslavesd
+ *                  Log implementation
+ * *********************************************************
+ * Copyright © Félix Faisant 2013-2015. All rights reserved
+ * This software is under the GNU General Public License
+ \**********************************************************/
+
+	// Common log interface
+#define XIF_LOG_DEFAULT_LOGSTREAM_IMPL
+#include "log_defimpl.h"
 using namespace xlog;
-#include <sstream>
+pthread_mutex_t xlog::logstream_impl::mutex = PTHREAD_MUTEX_INITIALIZER;
+std::ostringstream xlog::logstream_impl::stream;
+
+	// File
 #include <stdio.h>
 #include <unistd.h>
-#include <fcntl.h>
+
+	// General and utils
 #include <time.h>
 #include <string.h>
 #include <errno.h>
-#include <pthread.h>
 #include <vector>
 #include <xifutils/cxx.hpp>
 #include <xifutils/intstr.hpp>
 
-pthread_mutex_t xlog::logstream_impl::mutex = PTHREAD_MUTEX_INITIALIZER;
-std::ostringstream xlog::logstream_impl::stream;
-	
+	// ioslavesd interface
+#include "main.h"
 std::vector<log_entry> log_history;
 
 #define STRFTIME_BUF_SIZE 30

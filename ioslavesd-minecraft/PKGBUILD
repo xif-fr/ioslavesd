@@ -13,7 +13,7 @@ backup=('srv/mc/ioslmc.conf')
 options=()
 install='ioslavesd-mc.install'
 
-source=('../common/common.hpp' '../common/common.cpp' '../common/log.h'
+source=('../common/common.hpp' '../common/common.cpp' '../common/log.h'  '../common/log_defimpl.h'
         '../common-ioslavesd/api.h'
         '../common-minecraft/minecraft.h'
         'minecraft.cpp' 'ftp-auth-mc.cpp'

@@ -12,6 +12,17 @@
 #include "master.hpp"
 	
 	// Log
+#include <sstream>
+std::ostringstream log_stream;
+std::ostream& xlog::logstream_acquire () noexcept {
+	return log_stream;
+}
+std::string xlog::logstream_retrieve () noexcept {
+	std::string buf = log_stream.str();
+	log_stream.str(std::string());
+	return buf;
+}
+
 #include <iostream>
 #define LOG_ARROW       "\033[34;1m=> \033[0m"
 #define LOG_ARROW_OK    "\033[32;1m=> \033[0m"
@@ -74,7 +85,11 @@ int main (int argc, char* const argv[]) {
 			
 			try {
 				socketxx::io::simple_socket<socketxx::base_netsock> slave_sock = iosl_master::slave_connect(slave, 0);
+			#ifndef IOSL_MASTER_IMPL_NO_AUTH
 				iosl_master::slave_command_auth(slave_sock, master_id, ioslaves::op_code::PERM_STATUS, _S(master_id,'.',slave));
+			#else
+				iosl_master::slave_command(slave_sock, master_id, ioslaves::op_code::PERM_STATUS);
+			#endif
 				ioslaves::answer_code answ = (ioslaves::answer_code)slave_sock.i_char();
 				if (answ != ioslaves::answer_code::OK) 
 					throw answ;
