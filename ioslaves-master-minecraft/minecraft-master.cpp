@@ -169,10 +169,11 @@ void xlog::logstream_impl::log (log_lvl lvl, const char* part, std::string msg, 
 	if (_log_wait_flag and not (m & LOG_ADD)) ::__log__ << std::flush;
 	_log_wait_flag = false;
 	switch (lvl) {
-		case log_lvl::LOG: case log_lvl::NOTICE: case log_lvl::IMPORTANT: case log_lvl::MAJOR: break;
-		case log_lvl::FATAL: case log_lvl::ERROR: case log_lvl::OOPS: case log_lvl::SEVERE: std::clog << LOG_ARROW_ERR << COLOR_RED << "Error : " << COLOR_RESET; break;
-		case log_lvl::WARNING: std::clog << COLOR_YELLOW << "Warning : " << COLOR_RESET; break;
-		case log_lvl::DONE: std::clog << LOG_ARROW_OK; break;
+		case log_lvl::LOG: break;
+		case log_lvl::NOTICE: case log_lvl::IMPORTANT: case log_lvl::MAJOR: ::__log__<< LOG_ARROW; break;
+		case log_lvl::FATAL: case log_lvl::ERROR: case log_lvl::OOPS: case log_lvl::SEVERE: ::__log__ << LOG_ARROW_ERR << COLOR_RED << "Error : " << COLOR_RESET; break;
+		case log_lvl::WARNING: ::__log__ << COLOR_YELLOW << "Warning : " << COLOR_RESET; break;
+		case log_lvl::DONE: ::__log__ << LOG_ARROW_OK; break;
 	}
 	::__log__ << msg;
 	if (m & LOG_WAIT) { _log_wait_flag = true; ::__log__ << ' '; } 

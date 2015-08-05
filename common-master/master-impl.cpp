@@ -149,7 +149,7 @@ void iosl_master::authenticate (socketxx::io::simple_socket<socketxx::base_netso
 			if (not iosl_master::$silent)
 				__log__(log_lvl::DONE, "AUTH", logstream << "Key storage plugin '" << store_method << "' loaded");
 		__extension__ iosl_master::keystore_api::key_answer_challenge_f answer_challenge_func = 
-				(iosl_master::keystore_api::key_answer_challenge_f) ::dlsym(dl_handle, "ioslapi_start");
+				(iosl_master::keystore_api::key_answer_challenge_f) ::dlsym(dl_handle, "key_answer_challenge");
 			if (answer_challenge_func == NULL) 
 				throw master_err(EXIT_FAILURE_SYSERR, logstream << "Can't load key_answer_challenge function of plugin : " << ::dlerror());
 			try {
