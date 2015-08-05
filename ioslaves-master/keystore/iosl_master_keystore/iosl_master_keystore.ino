@@ -122,11 +122,13 @@ byte serialRead () {
 
 	// Main
 void setup () {
+	Serial.begin(9600);
 	bgrid::initGrid();
 	Wire.begin();
-	Serial.begin(9600);
 	pinMode(30, OUTPUT);
 	digitalWrite(30, LOW);
+	delay(100);
+	Serial.write((byte)OK);
 	arduino_auth_opcode op = (arduino_auth_opcode)::serialRead();
 
         /* TODO : CHECK PASSWD */
@@ -145,13 +147,13 @@ void setup () {
 				Serial.print(" ");
 			}
 			Serial.println(" ");
-			break;
+			return;
 		case OP_ERASE_EEPROM: 
 			Serial.write((byte)OK);
 			for (size_t addr = 0; addr < eeprom::SZ; addr++) 
 				eeprom::i2c_eeprom_write_byte(eeprom::I2C_EEPROM_ADDR, addr, 0x0);
 			Serial.write((byte)OK);
-			break;
+			return;
 		case OP_CHALLENGE: {
 			Serial.write((byte)OK);
 			uint8_t keyid_sz = ::serialRead();
@@ -205,15 +207,15 @@ void setup () {
 					return;
 				}
 			}
-			Serial.write((byte)OK);
-			Serial.write((byte)slot_key);
 			romaddr_t addr_key =
-				eeprom::KEYS_BEG + addr_key * KEY_SZ;
+				eeprom::KEYS_BEG + slot_key * KEY_SZ;
 			if (slot_key >= eeprom::KEYS_NUM or addr_key + KEY_SZ > eeprom::SZ) {
 				Serial.write((byte)EEPROM_ERROR);
 				return;
 			}
 			::free(key_id);
+			Serial.write((byte)OK);
+			Serial.write((byte)slot_key);
 				// WhirpoolHash(Challenge+Key)
 			whirpool::ctx_t hashctx;
 			whirpool::init(&hashctx);
@@ -229,8 +231,7 @@ void setup () {
 			Serial.write((byte)OK);
 			for (uint8_t i = 0; i < WHIRLPOOL_DIGEST_LENGTH; i++) 
 				Serial.write(hashctx.H.c[i]);
-			return;
-		} break;
+		} return;
 		case OP_ADD_KEY: {
 			Serial.write((byte)OK);
 			uint8_t keyid_sz = ::serialRead();
@@ -349,12 +350,15 @@ void setup () {
 			eeprom::i2c_eeprom_write_byte(eeprom::I2C_EEPROM_ADDR, addr_idxentry + keyid_sz, (byte)'\0');
 			eeprom::i2c_eeprom_write_byte(eeprom::I2C_EEPROM_ADDR, addr_idxentry + keyid_sz + 1, (byte)slot_newkey);
 			Serial.write((byte)OK);
-		} break;
+		} return;
+		default: 
+			Serial.write((byte)COMM_ERROR);
+			return;
 	}
 }
 
 void loop () {
 	delay(100);
-	Serial.end();
+	//Serial.end();
 	while (true);
 }
