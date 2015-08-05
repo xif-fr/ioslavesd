@@ -14,6 +14,8 @@ bool iosl_master::$leave_exceptions = false;
 bool iosl_master::$leave_answcode = false;
 bool iosl_master::$silent = false;
 
+#ifndef IOSL_MASTER_IMPL_NO_AUTH
+
 	// Key storage plugins
 #ifdef IOSL_MASTER_KEYSTORE_EXT_METHODS
 #include "keystore.hpp"
@@ -29,6 +31,8 @@ typedef void* dl_t;
 #define private public
 #include <libconfig.h++>
 #undef private
+
+#endif
 
 	// Network
 #include <socket++/handler/socket_client.hpp>
@@ -89,6 +93,8 @@ void iosl_master::slave_command (socketxx::io::simple_socket<socketxx::base_nets
 	}
 }
 
+#ifndef IOSL_MASTER_IMPL_NO_AUTH
+
 	// Authentification
 void iosl_master::authenticate (socketxx::io::simple_socket<socketxx::base_netsock> slave_sock, std::string key_id) {
 	std::string key_path = _S( IOSLAVES_MASTER_KEYS_DIR,"/",key_id,".key" );
@@ -132,15 +138,27 @@ void iosl_master::authenticate (socketxx::io::simple_socket<socketxx::base_netso
 			});
 			if (dl_handle == NULL) 
 				throw master_err(EXIT_FAILURE_SYSERR, logstream << "Can't load key storage plugin '" << keystore_plugin_path << "' : " << ::dlerror());
+			iosl_master::keystore_api::callbacks* callbacks = 
+				(iosl_master::keystore_api::callbacks*) ::dlsym(dl_handle, "api_callbacks");
+			if (callbacks == NULL) 
+				throw master_err(EXIT_FAILURE_SYSERR, logstream << "Can't load api_callbacks structure : " << ::dlerror());
+			callbacks->logstream_acquire = &xlog::logstream_acquire;
+			callbacks->logstream_retrieve = &xlog::logstream_retrieve;
+			callbacks->log_ostream = &xlog::__log__;
+			callbacks->log_string = &xlog::__log__;
 			if (not iosl_master::$silent)
 				__log__(log_lvl::DONE, "AUTH", logstream << "Key storage plugin '" << store_method << "' loaded");
 		__extension__ iosl_master::keystore_api::key_answer_challenge_f answer_challenge_func = 
-				(iosl_master::keystore_api::key_answer_challenge_f) ::dlsym(dl_handle, "ioslapi_start");
+				(iosl_master::keystore_api::key_answer_challenge_f) ::dlsym(dl_handle, "key_answer_challenge");
 			if (answer_challenge_func == NULL) 
 				throw master_err(EXIT_FAILURE_SYSERR, logstream << "Can't load key_answer_challenge function of plugin : " << ::dlerror());
+			try {
 			answer = (*answer_challenge_func)(key_id,
 			                                  challenge,
 			                                  data_c);
+			} catch (std::runtime_error& e) {
+				throw master_err(EXIT_FAILURE_EXTERR, logstream << "Error in key storage plugin '" << store_method << "' while resolving challenge : " << e.what());
+			}
 	#else
 			throw master_err(EXIT_FAILURE_AUTH, logstream << "Key storage method '" << store_method << "' is unknown and external storage methods are not enabled");
 	#endif
@@ -205,6 +223,8 @@ socketxx::base_netsock iosl_master::slave_api_service_connect (std::string slave
 		throw master_err(EXIT_FAILURE_COMM, logstream << "Communication error while connecting to slave or API service : " << e.what());
 	}
 }
+
+#endif /* !defined(IOSL_MASTER_IMPL_NO_AUTH) */
 
 	// Test if a slave is up
 bool iosl_master::slave_test (std::string slave_id) {

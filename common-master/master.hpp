@@ -11,7 +11,6 @@
 #define IOSLAVES_MASTER_HPP
 
 	// Common
-#define XIF_LOG_DEFAULT_LOGSTREAM
 #include "log.h"
 #include "common.hpp"
 #include <xifutils/cxx.hpp>

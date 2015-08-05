@@ -13,7 +13,6 @@
 #define _IOSLAVESD_MAIN_H
 
 	// Common / General
-#define XIF_LOG_DEFAULT_LOGSTREAM
 #include "log.h"
 #include "common.hpp"
 #include <list>

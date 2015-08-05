@@ -396,7 +396,7 @@ std::string ioslaves::infofile_get (const char* path, bool nul_if_no_file) {
 	fd_t f = ::open(path, O_RDONLY);
 	if (f == -1) {
 		if (nul_if_no_file and errno == ENOENT) return std::string();
-		throw xif::sys_error("can't open infofile");
+		throw xif::sys_error(_S("can't open infofile ",path));
 	}
 	RAII_AT_END_L( ::close(f) );
 	size_t sz = ::lseek(f, 0, SEEK_END);

@@ -11,7 +11,7 @@ makedepends=('xifutils')
 backup=('etc/ioslavesd/ioslavesd.conf' 'etc/ioslavesd/services/ssh.service')
 install='ioslavesd.install'
 
-source=('../common/common.hpp' '../common/common.cpp' '../common/log.h'
+source=('../common/common.hpp' '../common/common.cpp' '../common/log.h' '../common/log_defimpl.h'
         '../common-ioslavesd/api.h'
         '../common-master/master.hpp' '../common-master/master-impl.cpp'
         'main.h' 'slave.cpp' 'upnp.cpp' 'log_slave.cpp' 'status.cpp' 'keys.cpp'

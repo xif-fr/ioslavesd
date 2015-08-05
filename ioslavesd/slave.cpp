@@ -64,6 +64,7 @@ std::set<std::string> allowed_api_services;
 #define IN_LISTENING_IP inaddr_any
 #define IN_ACCEPT_MAX_WAITING_CLIENTS 10
 #define IN_CLIENT_TIMEOUT {2,0}
+#define IN_CLIENT_AUTH_TIMEOUT {4,0}
 #define POOL_TIMEOUT {1,0}
 in_port_t ioslavesd_listening_port = 2929;
 
@@ -105,7 +106,7 @@ void ioslaves::api::euid_switch (uid_t uid, gid_t gid) {
 	__log__(log_lvl::LOG, "EUID", logstream << "Setting uid/gid to " << uid << "/" << gid, LOG_DEBUG);
 	bool set = uid == 0;
 	long r = ::syscall( (set? SYS_setresuid32 : SYS_setresgid32), (int)-1, (int)(set? uid : gid), (int)-1 ) 
-			 | ::syscall( (set? SYS_setresgid32 : SYS_setresuid32), (int)-1, (int)(set? gid : uid), (int)-1 );
+	       | ::syscall( (set? SYS_setresgid32 : SYS_setresuid32), (int)-1, (int)(set? gid : uid), (int)-1 );
 	if (r != 0)
 		__log__(log_lvl::SEVERE, "EUID", logstream << "Failed to set uid/gid to " << uid << "/" << gid << " : " << ::strerror(errno));
 	errno = errsave;
@@ -431,8 +432,10 @@ int main (int argc, const char* argv[]) {
 				::memcpy(buf+CHALLENGE_LEN, key.bin, KEY_LEN);
 				ioslaves::hash_t expected_answer;
 				::WHIRLPOOL(buf, CHALLENGE_LEN+KEY_LEN, expected_answer.bin);
+				cli.set_read_timeout(IN_CLIENT_AUTH_TIMEOUT);
 				ioslaves::hash_t master_answer;
 				cli.i_buf(master_answer.bin, HASH_LEN);
+				cli.set_read_timeout(IN_CLIENT_TIMEOUT);
 				for (size_t i = 0; i < HASH_LEN; i++) {
 					if (expected_answer.bin[i] != master_answer.bin[i]) {
 						cli.o_char((char)ioslaves::answer_code::BAD_CHALLENGE_ANSWER);
