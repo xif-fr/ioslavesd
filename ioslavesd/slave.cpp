@@ -328,6 +328,14 @@ int main (int argc, const char* argv[]) {
 		return 1;
 	}
 	
+		// Init UPnP
+	if (enable_upnp) {
+		__log__(log_lvl::IMPORTANT, NULL, logstream << "Initializing UPnP IGD NAT port mapping...");
+		try {
+			ioslaves::upnpInit();
+		} catch (ioslaves::upnpError) { return EXIT_FAILURE; }
+	}
+		
 		// Load services
 	__log__(log_lvl::IMPORTANT, NULL, logstream << "Loading services...");
 	{
@@ -351,14 +359,6 @@ int main (int argc, const char* argv[]) {
 		__dp_loop_next:
 			continue;
 		}
-	}
-	
-		// Init UPnP
-	if (enable_upnp) {
-		__log__(log_lvl::IMPORTANT, NULL, logstream << "Initializing UPnP IGD NAT port mapping...");
-		try {
-			ioslaves::upnpInit();
-		} catch (ioslaves::upnpError) { return EXIT_FAILURE; }
 	}
 	
 		// Main listening socket
