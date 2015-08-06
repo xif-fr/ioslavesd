@@ -1,7 +1,7 @@
 # Maintainer: Félix Faisant <xcodexif@xif.fr>
 
 pkgname=ioslavesd-wake-gateway
-pkgver=3.2
+pkgver=3.3
 pkgrel=1
 pkgdesc='Xif Network - ioslavesd plugin for relaying wakeup requests'
 license=('custom')
@@ -17,7 +17,7 @@ source=('../common/common.hpp' '../common/common.cpp' '../common/log.h' '../comm
         'wake-gateway.cpp'
         'Makefile'
         'wake-gateway.service')
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP'
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
             'SKIP' 'SKIP' 'SKIP' 'SKIP'
             'SKIP'
             'SKIP'

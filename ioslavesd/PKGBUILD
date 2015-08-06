@@ -1,7 +1,7 @@
 # Maintainer: Félix Faisant <xcodexif@xif.fr>
 
 pkgname=ioslavesd
-pkgver=3.2.1
+pkgver=3.3
 pkgrel=1
 pkgdesc='Xif Network - ioslaves control program deamon for slave side'
 license=('custom')
@@ -17,7 +17,7 @@ source=('../common/common.hpp' '../common/common.cpp' '../common/log.h' '../comm
         'main.h' 'slave.cpp' 'upnp.cpp' 'log_slave.cpp' 'status.cpp' 'keys.cpp'
         'Makefile'
         'ioslavesd.service' 'ioslavesd.install' 'ioslavesd.conf' 'ssh.service')
-sha256sums=('SKIP' 'SKIP' 'SKIP'
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP'
             'SKIP'
             'SKIP' 'SKIP'
             'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
