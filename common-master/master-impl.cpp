@@ -97,6 +97,11 @@ void iosl_master::slave_command (socketxx::io::simple_socket<socketxx::base_nets
 
 	// Authentification
 void iosl_master::authenticate (socketxx::io::simple_socket<socketxx::base_netsock> slave_sock, std::string key_id) {
+	ioslaves::answer_code o = (ioslaves::answer_code)slave_sock.i_char();
+	if (o == ioslaves::answer_code::OK) {
+		if ($leave_answcode) throw o;
+		throw master_err(EXIT_FAILURE_AUTH, logstream << "Slave refused authentification : " << ioslaves::getAnswerCodeDescription(o));
+	}
 	std::string key_path = _S( IOSLAVES_MASTER_KEYS_DIR,"/",key_id,".key" );
 	FILE* key_f = ::fopen(key_path.c_str(), "r");
 	if (key_f == NULL) {
@@ -171,7 +176,7 @@ void iosl_master::authenticate (socketxx::io::simple_socket<socketxx::base_netso
 		throw master_err(e.ret, logstream << "Failure in key file '" << key_id << "' : " << e.what());
 	}
 	slave_sock.o_buf(answer.bin, HASH_LEN);
-	ioslaves::answer_code o = (ioslaves::answer_code)slave_sock.i_char();
+	o = (ioslaves::answer_code)slave_sock.i_char();
 	if (o == ioslaves::answer_code::OK) {
 		if (not iosl_master::$silent)
 			__log__(log_lvl::DONE, "AUTH", logstream << "Authentification with key '" << key_id << "' succeded !");

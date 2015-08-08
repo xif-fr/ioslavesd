@@ -28,6 +28,10 @@ using namespace xlog;
 
 	// Time
 #define IOSL_SHUTDOWN_CHK_INTERVAL 2*60
+#define IOSL_CLI_DELAY_AUTH 0//s
+#define IOSL_CLI_DELAY_NO_AUTH 2//s
+#define IOSL_CLI_DELAY_FAIL_AUTH 10//s
+#define IOSL_CLI_DELAY_REST_TRY 2//s
 
 	// Crypto
 #include <openssl/whrlpool.h>
@@ -63,7 +67,7 @@ std::set<std::string> allowed_api_services;
 #define IN_LISTENING_PORT ioslavesd_listening_port
 #define IN_LISTENING_IP inaddr_any
 #define IN_ACCEPT_MAX_WAITING_CLIENTS 10
-#define IN_CLIENT_TIMEOUT {2,0}
+#define IN_CLIENT_TIMEOUT {1,500000}
 #define IN_CLIENT_AUTH_TIMEOUT {4,0}
 #define POOL_TIMEOUT {1,0}
 in_port_t ioslavesd_listening_port = 2929;
@@ -126,6 +130,7 @@ bool shutdown_ignore_err = false;
 time_t shutdown_iosl_time = 0;
 time_t start_iosl_time = 0;
 enum { QUIT_NORMAL, QUIT_SHUTDOWN, QUIT_REBOOT } quit_type = QUIT_NORMAL;
+std::map<in_addr_t, time_t> conn_next_delay;
 	// API vars
 ioslaves::api::common_vars_t ioslaves::api::api_vars = {
 	.system_stat = &ioslaves::system_stat,
@@ -405,7 +410,6 @@ int main (int argc, const char* argv[]) {
 			if (not really) continue;
 			ioslaves::op_code opcode;
 			
-				// Authentification
 			std::string master_id = cli.i_str();
 			if (not master_id.empty() and not ioslaves::validateMasterID(master_id)) {
 				__log__(log_lvl::NOTICE, NULL, logstream << cli.addr.get_ip_str() << " : Invalid master ID");
@@ -415,10 +419,24 @@ int main (int argc, const char* argv[]) {
 			ioslaves::perms_t perms;
 			bool silent = false;
 			
+				// Connection delay refusal
+			if (conn_next_delay.find(cli.addr.get_ip_addr().s_addr) != conn_next_delay.end()) {
+				time_t next_accept_time = conn_next_delay[cli.addr.get_ip_addr().s_addr];
+				if (next_accept_time > ::iosl_time()) {
+					if (auth) {
+						if (::iosl_time() - next_accept_time > IOSL_CLI_DELAY_REST_TRY) 
+							continue;
+					} else 
+						continue;
+				}
+			}
+			
+				// Authentification
 			if (auth and not master_id.empty()) {
 				ioslaves::key_t key;
 				try {
 					std::tie (key,perms) = ioslaves::load_master_key(master_id);
+					cli.o_char((char)ioslaves::answer_code::OK);
 				} catch (ioslaves::req_err& e) {
 					__log__(log_lvl::ERROR, "KEY", logstream << "Authentification of " << cli.addr.get_ip_str() << " : Key loading failed : " << e.descr);
 					cli.o_char((char)e.answ_code);
@@ -440,6 +458,7 @@ int main (int argc, const char* argv[]) {
 					if (expected_answer.bin[i] != master_answer.bin[i]) {
 						cli.o_char((char)ioslaves::answer_code::BAD_CHALLENGE_ANSWER);
 						__log__(log_lvl::NOTICE, "AUTH", logstream << "Authentification failed for " << cli.addr.get_ip_str() << " as '" << master_id << "' ! Bad answer to challenge.");
+						conn_next_delay[cli.addr.get_ip_addr().s_addr] = ::iosl_time() + IOSL_CLI_DELAY_FAIL_AUTH;
 						goto _abort_connect;
 					}
 				}
@@ -448,10 +467,12 @@ int main (int argc, const char* argv[]) {
 				silent = ioslaves::perms_verify_op(perms, opcode).props["silent"] == "true";
 				if (not silent)
 					__log__(log_lvl::LOG, "AUTH", logstream << "Authentification succeeded for '" << master_id << "' (" << cli.addr.get_ip_str() << ")");
+				conn_next_delay[cli.addr.get_ip_addr().s_addr] = ::iosl_time() + IOSL_CLI_DELAY_AUTH;
 			} else {
 				__log__(log_lvl::LOG, "AUTH", logstream << "Connection of " << cli.addr.get_ip_str() << " as " << (master_id.empty() ? "anonymous" : _S("'",master_id,"' (not verified, no auth)")));
 				perms.by_default = false;
 				opcode = (ioslaves::op_code)cli.i_char();
+				conn_next_delay[cli.addr.get_ip_addr().s_addr] = ::iosl_time() + IOSL_CLI_DELAY_NO_AUTH;
 			}
 			ioslaves::perms_t::op_perm_t op_perms = ioslaves::perms_verify_op(perms, opcode);
 			auto OpPermsCheck = [&] () {

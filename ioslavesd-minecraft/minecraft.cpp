@@ -1540,7 +1540,7 @@ void* minecraft::serv_thread (void* arg) {
 								timeval utc_time; ::gettimeofday(&utc_time, NULL);
 								log_hist.push_back( log_line({utc_time.tv_sec, line}) );
 								
-								for (auto it = live_consoles.begin(); it != live_consoles.end(); it++) {
+								for (auto it = live_consoles.begin(); it != live_consoles.end();) {
 									try {
 										(*it)->o_int<int64_t>(utc_time.tv_sec);
 										(*it)->o_str(line); 
@@ -1548,8 +1548,10 @@ void* minecraft::serv_thread (void* arg) {
 										__log__(log_lvl::LOG, THLOGSCLI(s), "Live console client hanged up");
 										FD_CLR((*it)->socketxx::base_fd::get_fd(), &select_set);
 										delete *it;
-										live_consoles.erase(it);
+										auto p_it = it++; live_consoles.erase(p_it);
+										continue;
 									}
+									it++;
 								}
 							}
 						}

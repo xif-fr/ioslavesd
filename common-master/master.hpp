@@ -59,7 +59,7 @@ class master_err : public std::runtime_error {
 	master_err (std::string descr, int retcode) : std::runtime_error(descr), ret(retcode) {}
 	master_err (int retcode, std::ostream& s) : std::runtime_error(xlog::logstream_retrieve()), ret(retcode) {}
 };
-#define EXIT_FAILURE_CONN   91  // Connection failure with slave
+#define EXIT_FAILURE_CONN   90  // Connection failure with slave
 #define EXIT_FAILURE_DOWN   91  // Slave seems to be down
 #define EXIT_FAILURE_AUTH   92  // Authentification failure
 #define EXIT_FAILURE_COMM   93  // Communication failure with slave

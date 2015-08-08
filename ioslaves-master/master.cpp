@@ -707,6 +707,11 @@ void IStat () {
 	std::cerr << "Getting slave status and infos..." << std::endl;
 	$slave_sock->o_char((char)ioslaves::op_code::GET_STATUS);
 	xif::polyvar info = $slave_sock->i_var();
+	if ($slave_id != (std::string)info["me"]) {
+		std::cerr << LOG_ARROW_ERR << "Received status info of slave '" << (std::string)info["me"] << "', not slave '" << $slave_id << "' !" << std::endl;
+		EXIT_FAILURE = EXIT_FAILURE_IOSL;
+		throw EXCEPT_ERROR_IGNORE;
+	}
 	std::cout << info.to_json(3) << std::endl;
 }
 
