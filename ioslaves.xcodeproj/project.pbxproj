@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AA103D181B7798300078E20C /* macgui-main.m in Sources */ = {isa = PBXBuildFile; fileRef = AA103D131B7798300078E20C /* macgui-main.m */; };
+		AA103D191B7798300078E20C /* Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = AA103D141B7798300078E20C /* Info.plist */; };
+		AA103D1A1B7798300078E20C /* XifNetAppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = AA103D161B7798300078E20C /* XifNetAppDelegate.m */; };
+		AA103D1D1B77983F0078E20C /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = AA103D1C1B77983F0078E20C /* MainMenu.xib */; };
 		AA1D3ACF1ADECD7600E2C7F6 /* master-impl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B75B1ADECB1700B369BE /* master-impl.cpp */; };
 		AA1D3AD71ADECDAF00E2C7F6 /* ftp-auth-mc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA1D3AD21ADECDAF00E2C7F6 /* ftp-auth-mc.cpp */; };
 		AA1D3AD91ADECDAF00E2C7F6 /* minecraft.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA1D3AD41ADECDAF00E2C7F6 /* minecraft.cpp */; };
@@ -37,6 +41,7 @@
 		AA41B7681ADECB3900B369BE /* master.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B7651ADECB3900B369BE /* master.cpp */; };
 		AA41B76D1ADECB9B00B369BE /* minecraft-master.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B76A1ADECB9B00B369BE /* minecraft-master.cpp */; };
 		AA41B76E1ADECBE200B369BE /* master-impl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B75B1ADECB1700B369BE /* master-impl.cpp */; };
+		AA46BE591B779B8400E72F0C /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AA46BE581B779B8400E72F0C /* Cocoa.framework */; };
 		AA4A44C91B57AADB005CBBDC /* keys.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA4A44C81B57AADB005CBBDC /* keys.cpp */; };
 		AA6B99FD1AED9F1700146475 /* log.h in Headers */ = {isa = PBXBuildFile; fileRef = AA6B99FC1AED9F1700146475 /* log.h */; };
 		AA6B99FE1AED9F1700146475 /* log.h in Headers */ = {isa = PBXBuildFile; fileRef = AA6B99FC1AED9F1700146475 /* log.h */; };
@@ -52,6 +57,11 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		AA103D131B7798300078E20C /* macgui-main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = "macgui-main.m"; path = "ioslaves-master-macgui/macgui-main.m"; sourceTree = SOURCE_ROOT; };
+		AA103D141B7798300078E20C /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = "ioslaves-master-macgui/Info.plist"; sourceTree = SOURCE_ROOT; };
+		AA103D151B7798300078E20C /* XifNetAppDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = XifNetAppDelegate.h; path = "ioslaves-master-macgui/XifNetAppDelegate.h"; sourceTree = SOURCE_ROOT; };
+		AA103D161B7798300078E20C /* XifNetAppDelegate.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = XifNetAppDelegate.m; path = "ioslaves-master-macgui/XifNetAppDelegate.m"; sourceTree = SOURCE_ROOT; };
+		AA103D1C1B77983F0078E20C /* MainMenu.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; name = MainMenu.xib; path = "../ioslaves-master-macgui/en.lproj/MainMenu.xib"; sourceTree = "<group>"; };
 		AA1045AA1B5D9A3C00E8A875 /* minecraft-master.key.tpl */ = {isa = PBXFileReference; lastKnownFileType = text; name = "minecraft-master.key.tpl"; path = "ioslaves-master-minecraft/minecraft-master.key.tpl"; sourceTree = SOURCE_ROOT; };
 		AA1045AC1B5D9A6700E8A875 /* Makefile */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.make; name = Makefile; path = "ioslaves-master-minecraft/Makefile"; sourceTree = SOURCE_ROOT; };
 		AA1045AD1B5D9A7F00E8A875 /* Makefile */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.make; path = Makefile; sourceTree = "<group>"; };
@@ -85,10 +95,12 @@
 		AA41B75D1ADECB1700B369BE /* wol.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = wol.cpp; path = "common-master/wol.cpp"; sourceTree = SOURCE_ROOT; };
 		AA41B7651ADECB3900B369BE /* master.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = master.cpp; sourceTree = "<group>"; };
 		AA41B76A1ADECB9B00B369BE /* minecraft-master.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "minecraft-master.cpp"; path = "ioslaves-master-minecraft/minecraft-master.cpp"; sourceTree = SOURCE_ROOT; };
+		AA46BE581B779B8400E72F0C /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = /System/Library/Frameworks/Cocoa.framework; sourceTree = "<absolute>"; };
 		AA4A44C81B57AADB005CBBDC /* keys.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = keys.cpp; path = ioslavesd/keys.cpp; sourceTree = "<group>"; };
 		AA6B99FC1AED9F1700146475 /* log.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = log.h; path = common/log.h; sourceTree = "<group>"; };
 		AA7EEC49193C9221002AD7E4 /* libxifnetdyndns.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = libxifnetdyndns.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA90C531189F7461003A8C60 /* libminecraft.ioslaves.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = libminecraft.ioslaves.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA96398D1B77975300D67ED5 /* XifNet Master.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "XifNet Master.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA99F1B0184C65DD00BB6836 /* ioslavesd */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ioslavesd; sourceTree = BUILT_PRODUCTS_DIR; };
 		AAB552F418F44E8C00DC3ED9 /* minecraft-master */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "minecraft-master"; sourceTree = BUILT_PRODUCTS_DIR; };
 		AAB9CA501B6D97F30026AF8C /* arduino_comm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = arduino_comm.h; path = keystore/arduino_comm.h; sourceTree = "<group>"; };
@@ -123,6 +135,14 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA96398A1B77975300D67ED5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA46BE591B779B8400E72F0C /* Cocoa.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -168,9 +188,9 @@
 			isa = PBXGroup;
 			children = (
 				AA41B7551ADEC7EB00B369BE /* ioslstatd.cpp */,
+				AA129CEB1A90E83E009A2B42 /* ioslstatd */,
 				AA41B7561ADEC7EB00B369BE /* Makefile */,
 				AA41B7571ADEC7EB00B369BE /* PKGBUILD */,
-				AA129CEB1A90E83E009A2B42 /* ioslstatd */,
 			);
 			name = ioslstatd;
 			path = ../ioslstatd;
@@ -186,6 +206,14 @@
 				AA1045AA1B5D9A3C00E8A875 /* minecraft-master.key.tpl */,
 			);
 			name = "minecraft-master";
+			sourceTree = "<group>";
+		};
+		AA46BE5A1B779B9600E72F0C /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				AA46BE581B779B8400E72F0C /* Cocoa.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 		AA7EEC43193C9193002AD7E4 /* XifNetDynDns */ = {
@@ -208,6 +236,20 @@
 				AAD2147D1AE970EE0062A678 /* Wake Gateway */,
 			);
 			name = "API Services";
+			sourceTree = "<group>";
+		};
+		AA9639AA1B77976C00D67ED5 /* OSX GUI */ = {
+			isa = PBXGroup;
+			children = (
+				AA103D131B7798300078E20C /* macgui-main.m */,
+				AA103D141B7798300078E20C /* Info.plist */,
+				AA103D151B7798300078E20C /* XifNetAppDelegate.h */,
+				AA103D161B7798300078E20C /* XifNetAppDelegate.m */,
+				AA103D1C1B77983F0078E20C /* MainMenu.xib */,
+				AA96398D1B77975300D67ED5 /* XifNet Master.app */,
+				AA46BE5A1B779B9600E72F0C /* Frameworks */,
+			);
+			name = "OSX GUI";
 			sourceTree = "<group>";
 		};
 		AA99F1A5184C65DD00BB6836 = {
@@ -252,6 +294,7 @@
 				AAC0E9AE1B5D3D76007BA3B8 /* perms-tpl */,
 				AA23087718F1CADA00AB9CD3 /* minecraft-master */,
 				AA129CED1A90E83E009A2B42 /* ioslstatd */,
+				AA9639AA1B77976C00D67ED5 /* OSX GUI */,
 			);
 			name = master;
 			path = "ioslaves-master";
@@ -388,6 +431,23 @@
 			productReference = AA90C531189F7461003A8C60 /* libminecraft.ioslaves.dylib */;
 			productType = "com.apple.product-type.library.dynamic";
 		};
+		AA96398C1B77975300D67ED5 /* XifNet Master */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA9639A81B77975400D67ED5 /* Build configuration list for PBXNativeTarget "XifNet Master" */;
+			buildPhases = (
+				AA9639891B77975300D67ED5 /* Sources */,
+				AA96398A1B77975300D67ED5 /* Frameworks */,
+				AA96398B1B77975300D67ED5 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "XifNet Master";
+			productName = "XifNet Master";
+			productReference = AA96398D1B77975300D67ED5 /* XifNet Master.app */;
+			productType = "com.apple.product-type.application";
+		};
 		AA99F1AF184C65DD00BB6836 /* ioslavesd */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = AA99F1BA184C65DD00BB6836 /* Build configuration list for PBXNativeTarget "ioslavesd" */;
@@ -498,9 +558,22 @@
 				AA129CEA1A90E83E009A2B42 /* ioslstatd */,
 				AAD214821AE971C50062A678 /* wake-gateway */,
 				AAF5EBB31B63F02400E445C3 /* arduino.keystore */,
+				AA96398C1B77975300D67ED5 /* XifNet Master */,
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		AA96398B1B77975300D67ED5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA103D191B7798300078E20C /* Info.plist in Resources */,
+				AA103D1D1B77983F0078E20C /* MainMenu.xib in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		AA129CE71A90E83E009A2B42 /* Sources */ = {
@@ -529,6 +602,15 @@
 				AA41B72E1ADEC2E200B369BE /* common.cpp in Sources */,
 				AA1D3AD71ADECDAF00E2C7F6 /* ftp-auth-mc.cpp in Sources */,
 				AA1D3AD91ADECDAF00E2C7F6 /* minecraft.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA9639891B77975300D67ED5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA103D181B7798300078E20C /* macgui-main.m in Sources */,
+				AA103D1A1B7798300078E20C /* XifNetAppDelegate.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -635,6 +717,21 @@
 					"$(inherited)",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		AA9639A91B77975400D67ED5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
+				INFOPLIST_FILE = "ioslaves-master-macgui/Info.plist";
+				OTHER_LDFLAGS = (
+					"-lldns",
+					"-lconfig++",
+					"$(inherited)",
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				WRAPPER_EXTENSION = app;
 			};
 			name = Debug;
 		};
@@ -785,6 +882,14 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				AA90C533189F7461003A8C60 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		AA9639A81B77975400D67ED5 /* Build configuration list for PBXNativeTarget "XifNet Master" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA9639A91B77975400D67ED5 /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
