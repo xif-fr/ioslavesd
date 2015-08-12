@@ -601,7 +601,7 @@ time_t minecraft::lastsaveTimeFile (std::string path, bool set) {
 	path += "/lastsave"; 
 	file = ::open(path.c_str(), (set ? O_CREAT|O_WRONLY|O_TRUNC : O_RDONLY), S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP);
 	if (file == INVALID_HANDLE) 
-		throw xif::sys_error(_S("failed to open server to ",(set?"set":"get")," folder last-save-time file (",path,")"));
+		throw xif::sys_error(logstream << "failed to open server to " << (set?"set":"get") << " folder last-save-time file (" << path << ")" << logstr);
 	RAII_AT_END_L( ::close(file); );
 	const size_t sz = sizeof(time_t)*2;
 	if (set) {
@@ -999,7 +999,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 		r = ::stat(working_dir.c_str(), &wdir_stat);
 		if (r == -1) {
 			if (errno != ENOENT)
-				throw xif::sys_error(_S("can't stat(",working_dir,")"));
+				throw xif::sys_error(logstream << "can't stat(" << working_dir << ")" << logstr);
 				// Temp map
 			if (not s->s_is_perm_map) {
 				__log__(log_lvl::LOG, "FILES", MCLOGSCLI(s) << "Loading temporary map...");
@@ -1027,7 +1027,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 						out_fs.seekp(0, std::ios_base::end);
 						out_fs << '\n' << in_fs.rdbuf();
 					} catch (std::ios::failure& e) {
-						throw std::runtime_error(_S( "failed to apply concatenate properties files : ",e.what() ));
+						throw std::runtime_error(logstream << "failed to apply concatenate properties files : " << e.what() << logstr);
 					}
 				}
 			} 

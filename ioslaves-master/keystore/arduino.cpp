@@ -25,17 +25,16 @@ using namespace xlog;
 
 	// Protocol
 #include "arduino_comm.h"
-inline std::string arduino_comm_get_answercode_descr (std::string descr, arduino_auth_answ o) {
-	if (not descr.empty()) descr += " : ";
+inline std::string arduino_comm_get_answercode_descr (arduino_auth_answ o) {
 	switch (o) {
-		case arduino_auth_answ::OK: return descr+"ok";
-		case arduino_auth_answ::COMM_ERROR: return descr+"communication error with the module";
-		case arduino_auth_answ::EEPROM_ERROR: return descr+"EEPROM error";
-		case arduino_auth_answ::NO_MORE_SPACE: return descr+"no more space for key storage";
-		case arduino_auth_answ::NOT_FOUND: return descr+"not found";
-		case arduino_auth_answ::PASSWD_FAIL: return descr+"user failed to input passcode";
-		case arduino_auth_answ::ERROR: return descr+"generic error";
-		default: return descr+"unknown error";
+		case arduino_auth_answ::OK: return "ok";
+		case arduino_auth_answ::COMM_ERROR: return "communication error with the module";
+		case arduino_auth_answ::EEPROM_ERROR: return "EEPROM error";
+		case arduino_auth_answ::NO_MORE_SPACE: return "no more space for key storage";
+		case arduino_auth_answ::NOT_FOUND: return "not found";
+		case arduino_auth_answ::PASSWD_FAIL: return "user failed to input passcode";
+		case arduino_auth_answ::ERROR: return "generic error";
+		default: return "unknown error";
 	}
 }
 
@@ -76,14 +75,14 @@ extern "C" void key_store (std::string key_id, ioslaves::key_t key, libconfig::S
 		serial = ::arduino_get_connection(device.c_str(), 
 		                                  arduino_auth_opcode::OP_ADD_KEY);
 	} catch (std::runtime_error& e) {
-		throw std::runtime_error(_S("failed to connect to arduino : ",e.what()));
+		throw std::runtime_error(logstream << "failed to connect to arduino : " << e.what() << logstr);
 	}
 	RAII_AT_END_L( ::close(serial) );
 	::arduino_write_str(serial, key_id, KEY_ID_MAX_SZ);
 	arduino_auth_answ o;
 	o = (arduino_auth_answ)::arduino_read_byte(serial, ARDUINO_TIMEOUT);
 	if (o != arduino_auth_answ::OK) 
-		throw std::runtime_error(arduino_comm_get_answercode_descr(_S( "key adding for '",key_id,"' is not accepted by arduino" ), o));
+		throw std::runtime_error(logstream << "key adding for '" << key_id << "' is not accepted by arduino : " << arduino_comm_get_answercode_descr(o) << logstr);
 	uint8_t key_slot = ::arduino_read_byte(serial, ARDUINO_TIMEOUT);
 	__log__(log_lvl::IMPORTANT, "ARDUINO", logstream << "Sending key '" << key_id << "' to arduino for storing on key slot n°" << (int)key_slot);
 	for (size_t i = 0; i < KEY_SZ; i++) {
@@ -110,7 +109,7 @@ extern "C" ioslaves::hash_t key_answer_challenge (std::string key_id, ioslaves::
 	arduino_auth_answ o;
 	o = (arduino_auth_answ)::arduino_read_byte(serial, ARDUINO_TIMEOUT);
 	if (o != arduino_auth_answ::OK) 
-		throw std::runtime_error(arduino_comm_get_answercode_descr(_S( "challenge resolving for '",key_id,"' is not accepted by arduino" ), o));
+		throw std::runtime_error(logstream << "challenge resolving for '" << key_id << "' is not accepted by arduino" << arduino_comm_get_answercode_descr(o) << logstr);
 	uint8_t key_slot = ::arduino_read_byte(serial, ARDUINO_TIMEOUT);
 	__log__(log_lvl::IMPORTANT, "ARDUINO", logstream << "Sending challenge to arduino for resolving with key '" << key_id << "' on slot n°" << (int)key_slot);
 	ssize_t rs;

@@ -156,7 +156,7 @@ void upnp_ports_open (ioslaves::upnpPort& p, bool silent) {
 			r = UPNP_AddPortMapping(upnp_device_url.controlURL, upnp_device_data.first.servicetype, e_port.c_str(), i_port.c_str(), upnp_lanIP, p.p_descr.c_str(), proto, NULL, NULL);
 			if (r != UPNPCOMMAND_SUCCESS) {
 				errno = r;
-				throw ioslaves::upnpError(_S("Failed to add port redirection : ",strupnperror(r)), r);
+				throw ioslaves::upnpError(logstream << "Failed to add port redirection : " << strupnperror(r) << logstr, r);
 			}
 		}
 			// Verify if the first port of the range is opened
@@ -225,9 +225,9 @@ bool upnp_port_check (in_port_t p_ext_port, ioslaves::upnpPort::proto p_prot) {
 	if (r == 714) 
 		return false;
 	if (r != UPNPCOMMAND_SUCCESS) 
-		throw ioslaves::upnpError(_S("Failed to verify port status : ",strupnperror(r)), r, false);
+		throw ioslaves::upnpError(logstream << "Failed to verify port status : " << strupnperror(r) << logstr, r, false);
 	if (_S(verif_int_ip) != _S(upnp_lanIP)) 
-		throw ioslaves::upnpError(_S("Checking for port status : Port ",e_port," doesn't belong to us, but to ",verif_int_ip), -1, false);
+		throw ioslaves::upnpError(logstream << "Checking for port status : Port " << e_port << " doesn't belong to us, but to " << verif_int_ip << logstr, -1, false);
 	return true;
 }
 

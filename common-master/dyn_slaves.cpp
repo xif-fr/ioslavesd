@@ -19,11 +19,11 @@ using ioslaves::answer_code;
 #include <pthread.h>
 
 std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::select_slaves (const char* needed_service, 
-																								 ram_megs_t needed_ram, proc_power_t needed_power, 
-																								 efficiency_ratio_t eff, proc_power_t mean_power, float usable_threads, 
-																								 bool quickly, 
-																								 std::vector<std::string> needed_tags,
-																								 std::function<points_t(const iosl_dyn_slaves::slave_info&)> additional_filter) {
+                                                                         ram_megs_t needed_ram, proc_power_t needed_power, 
+                                                                         efficiency_ratio_t eff, proc_power_t mean_power, float usable_threads, 
+                                                                         bool quickly, 
+                                                                         std::vector<std::string> needed_tags,
+                                                                         std::function<points_t(const iosl_dyn_slaves::slave_info&)> additional_filter) {
 	
 		/// List slaves and open info files
 	std::vector<std::pair<iosl_dyn_slaves::slave_info,libconfig::Config*>> slaves_list_cfg;

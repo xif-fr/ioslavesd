@@ -22,6 +22,8 @@ enum class log_lvl : unsigned char {
 std::ostream& logstream_acquire () noexcept;
 #define logstream xlog::logstream_acquire()
 std::string logstream_retrieve () noexcept;
+struct stream_manip_logstr { int foo; };
+#define logstr xlog::stream_manip_logstr{0}
 
 typedef size_t logl_t;
 
@@ -33,6 +35,10 @@ typedef size_t logl_t;
 void __log__ (log_lvl, const char* part, std::ostream&, int flags = 0, logl_t* lid = NULL) noexcept;
 void __log__ (log_lvl, const char* part, std::string msg, int flags = 0, logl_t* lid = NULL) noexcept;
 
+}
+
+inline std::string operator<< (std::ostream&, xlog::stream_manip_logstr) {
+	return xlog::logstream_retrieve();
 }
 	
 #endif

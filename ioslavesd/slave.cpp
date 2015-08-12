@@ -1174,7 +1174,7 @@ ioslaves::service::type ioslaves::service::strToType (std::string str) {
 	_IOSLAVES_STR_TO_SERVICE_TYPE(SYSTEMCTL);
 	_IOSLAVES_STR_TO_SERVICE_TYPE(PROG_DEAMON);
 	_IOSLAVES_STR_TO_SERVICE_TYPE(IOSLPLUGIN);
-	throw std::runtime_error(_S("service::strToType : Unknown type '",str,"' in field 'type' !"));
+	throw std::runtime_error(logstream << "service::strToType : Unknown type '" << str << "' in field 'type' !" << logstr);
 }
 #define _IOSLAVES_SERVICE_TYPE_TO_STR(TYPE) if (this->s_type == type::TYPE) return std::string(#TYPE);
 std::string ioslaves::service::typeToStr () {
@@ -1228,7 +1228,7 @@ void ioslaves::loadService (std::string name, FILE* service_file) {
 					     if (str[i] == 'T') p.p_proto = ioslaves::upnpPort::TCP;
 					else if (str[i] == 'U') p.p_proto = ioslaves::upnpPort::UDP;
 					else 
-						throw std::runtime_error(_S( "ports : invalid protocol letter '",str[i],"'" ));
+						throw std::runtime_error(logstream << "ports : invalid protocol letter '" << str[i] << "'" << logstr);
 					st = PORT_NUM;
 					portnum = 0;
 					p.p_ext_port = 0;
@@ -1260,7 +1260,7 @@ void ioslaves::loadService (std::string name, FILE* service_file) {
 							throw std::runtime_error(_S( "port numer : ",e.what() ));
 						}
 					} else {
-						throw std::runtime_error(_S( "char '",str[i],"' not allowed in port number" ));
+						throw std::runtime_error(logstream << "char '" << str[i] << "' not allowed in port number" << logstr);
 					}
 				}
 			}
