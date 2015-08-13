@@ -137,6 +137,24 @@ ioslaves::api::common_vars_t ioslaves::api::api_vars = {
 	.shutdown_iosl_time = &shutdown_iosl_time,
 };
 
+	// Log async dispatch
+std::list<socketxx::io::simple_socket<socketxx::base_netsock>> log_clients;
+std::function<void(log_entry)> log_callback = [] (log_entry le) {
+	for (auto it = log_clients.begin(); it != log_clients.end();) {
+		try {
+			it->o_int<uint64_t>(le.le_time);
+			it->o_char((char)le.le_lvl);
+			it->o_str(le.le_part);
+			it->o_str(le.le_msg);
+		} catch (socketxx::error& e) {
+			__log__(log_lvl::LOG, NULL, "Log client hanged up");
+			auto p_it = it++; log_clients.erase(p_it);
+			continue;
+		}
+		it++;
+	}
+};
+
 	/// Main
 int main (int argc, const char* argv[]) {
 	int r;
@@ -764,6 +782,13 @@ int main (int argc, const char* argv[]) {
 							cli.o_str((log_history[i].le_part==NULL)?"":log_history[i].le_part);
 							cli.o_str(log_history[i].le_msg);
 						}
+					} break;
+					case ioslaves::op_code::LOG_OBSERVE: {
+						__log__(log_lvl::LOG, "OP", logstream << "Operation : register master to async log dispatch");
+						OpPermsCheck();
+						cli.o_char((char)ioslaves::answer_code::OK);
+						log_clients.insert(log_clients.end(), cli);
+						continue;
 					} break;
 					default:
 						__log__(log_lvl::NOTICE, "OP", logstream << "Unknown opcode '" << (char)opcode << "'");

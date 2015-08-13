@@ -15,6 +15,7 @@ allowed_ops: {
 	p : {};	// Open port
 	c : {};	// Close port
 	h : {};	// Log history
+	L : {}; // Async log
 	S : {};	// Status pool
 };
 denied_ops: [];

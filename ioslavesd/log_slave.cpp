@@ -91,12 +91,14 @@ void xlog::logstream_impl::log (log_lvl lvl, const char* part, std::string msg, 
 			tty_output = txt_output = "\n";
 			waiting_log = false;
 		}
+		log_entry new_le;
+		new_le.le_time = now.tv_sec;
+		new_le.le_msg = msg;
+		new_le.le_part = part;
+		new_le.le_lvl = lvl;
+		if (log_callback) 
+			log_callback(new_le);
 		if (not (m & LOG_NO_HISTORY)) {
-			log_entry new_le;
-			new_le.le_time = now.tv_sec;
-			new_le.le_msg = msg;
-			new_le.le_part = part;
-			new_le.le_lvl = lvl;
 			log_history.push_back(new_le);
 			if (lid != NULL) *lid = (logl_t)log_history.size()-1;
 		}

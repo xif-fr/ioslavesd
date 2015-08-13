@@ -100,6 +100,7 @@ struct log_entry {
 	xlog::log_lvl le_lvl;
 };
 extern std::vector<log_entry> log_history;
+extern std::function<void(log_entry)> log_callback;
 extern const char* log_file_path;
 
 	// ioslavesd

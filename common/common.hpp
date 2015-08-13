@@ -54,6 +54,7 @@ namespace ioslaves {
 		PERM_STATUS = 'S',
 		CALL_API_SERVICE = 'l',
 		LOG_HISTORY = 'h',
+		LOG_OBSERVE = 'L',
 		KEY_AUTH = 'k',
 		KEY_DEL = 'd',
 	};
