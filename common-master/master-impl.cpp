@@ -66,14 +66,16 @@ in_port_t iosl_master::slave_get_port_dns (std::string slave_id) {
 
 	// Resolve and connect to a slave
 socketxx::base_netsock iosl_master::slave_connect (std::string slave_id, in_port_t default_port, timeval timeout) {
-	in_port_t $connect_port = default_port;
-	try { // Retriving port number with SRV records
-		$connect_port = iosl_master::slave_get_port_dns(slave_id);
-	} catch (ldns_error&) {
-		if (default_port == 0)
-			throw;
-	}
-	socketxx::base_netsock::addr_info addr ( _s(slave_id,'.',XIFNET_SLAVES_DOM), $connect_port );
+	socketxx::base_netsock::addr_info addr ( _s(slave_id,'.',XIFNET_SLAVES_DOM), [&] () -> in_port_t {
+		try { // Retriving port number with SRV records
+			return iosl_master::slave_get_port_dns(slave_id);
+		} catch (ldns_error&) {
+			if (default_port == 0)
+				throw;
+			else 
+				return default_port;
+		}
+	});
 	auto sock = socketxx::end::socket_client<socketxx::base_netsock> (addr, timeout);
 	sock.set_read_timeout(timeout);
 	return sock;
@@ -98,7 +100,7 @@ void iosl_master::slave_command (socketxx::io::simple_socket<socketxx::base_nets
 	// Authentification
 void iosl_master::authenticate (socketxx::io::simple_socket<socketxx::base_netsock> slave_sock, std::string key_id) {
 	ioslaves::answer_code o = (ioslaves::answer_code)slave_sock.i_char();
-	if (o == ioslaves::answer_code::OK) {
+	if (o != ioslaves::answer_code::OK) {
 		if ($leave_answcode) throw o;
 		throw master_err(EXIT_FAILURE_AUTH, logstream << "Slave refused authentification : " << ioslaves::getAnswerCodeDescription(o));
 	}
@@ -187,8 +189,7 @@ void iosl_master::authenticate (socketxx::io::simple_socket<socketxx::base_netso
 }
 
 	// Apply operation with authentification
-void iosl_master::slave_command_auth (socketxx::io::simple_socket<socketxx::base_netsock> sock, std::string master_id, ioslaves::op_code opp, std::string key_id) {
-	socketxx::io::simple_socket<socketxx::base_netsock> slave_sock = sock;
+void iosl_master::slave_command_auth (socketxx::io::simple_socket<socketxx::base_netsock> slave_sock, std::string master_id, ioslaves::op_code opp, std::string key_id) {
 	try {
 		slave_sock.o_bool(true);
 		slave_sock.o_str(master_id);

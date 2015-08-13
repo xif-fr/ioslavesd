@@ -677,7 +677,7 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 					EXIT_FAILURE = EXIT_FAILURE_EXTERR;
 					throw EXCEPT_ERROR_IGNORE;
 				}
-				__log__ << LOG_AROBASE_ERR << "Please wait " << time_up << "s for slave starting..." << std::flush;
+				__log__ << LOG_AROBASE << "Please wait " << time_up << "s for slave starting..." << std::flush;
 				::sleep((uint)time_up);
 				secondtry = true;
 				return get_sock();
