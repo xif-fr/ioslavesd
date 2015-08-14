@@ -57,6 +57,7 @@ namespace ioslaves {
 		LOG_OBSERVE = 'L',
 		KEY_AUTH = 'k',
 		KEY_DEL = 'd',
+		NOP = '-'
 	};
 	
 		// Authentification - Keys - Crypto

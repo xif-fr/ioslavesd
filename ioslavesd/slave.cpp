@@ -789,6 +789,10 @@ int main (int argc, const char* argv[]) {
 						log_clients.insert(log_clients.end(), cli);
 						continue;
 					} break;
+					case ioslaves::op_code::NOP: {
+						__log__(log_lvl::LOG, "OP", logstream << "Operation : absolutely nothing");
+						cli.o_char((char)ioslaves::answer_code::OK);
+					} break;
 					default:
 						__log__(log_lvl::NOTICE, "OP", logstream << "Unknown opcode '" << (char)opcode << "'");
 						cli.o_char((char)ioslaves::answer_code::OP_NOT_DEF);
