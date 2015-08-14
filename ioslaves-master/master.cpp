@@ -930,22 +930,34 @@ void IKeygen () {
 		std::cout << "The key can be sent to the slave automatically with the authorization of an authorized master." << std::endl;
 		std::cout << "For that, the key footprint must be sent to the master via an channel that guarantees integrity." << std::endl;
 		std::cout << "You have " << IOSLAVES_KEY_SEND_DELAY << " seconds to send the key after the master sent the authorization." << std::endl;
-		std::cout << LOG_ARROW << "Ready to send ?" << COLOR_RESET << " (Enter/Ctrl-C)" << std::flush;
+		std::cout << LOG_ARROW << "Ready to send ?";
+	_retry:
+		std::cout << " (Enter/Ctrl-C)" << std::flush;
 		std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-		socketxx::io::simple_socket<socketxx::base_netsock> slsock = 
-			iosl_master::slave_connect($slave_id, 0, timeval({1,0}));
-		slsock.o_bool(false);
-		slsock.o_str($master_id);
-		#warning TO DO : Must be encrypted
-		slsock.o_buf(key.bin, KEY_LEN);
-		ioslaves::answer_code o;
-		o = (ioslaves::answer_code)slsock.i_char();
-		if (o != ioslaves::answer_code::OK)
-			throw o;
-		std::cout << LOG_ARROW_OK << "Key is accepted ! Keep in mind : With great power comes great responsibility." << std::endl;
-		std::cout << "Below are permissions associated with this key : " << std::endl << "--------------------" << std::endl;
-		std::cout << slsock.i_str() << std::endl;
-		std::cout << "--------------------" << std::endl;
+		try {
+			socketxx::io::simple_socket<socketxx::base_netsock> slsock = 
+				iosl_master::slave_connect($slave_id, 0, timeval({1,0}));
+			slsock.o_bool(false);
+			slsock.o_str($master_id);
+			#warning TO DO : Must be encrypted
+			slsock.o_buf(key.bin, KEY_LEN);
+			ioslaves::answer_code o;
+			o = (ioslaves::answer_code)slsock.i_char();
+			if (o != ioslaves::answer_code::OK)
+				throw o;
+			std::cout << LOG_ARROW_OK << "Key is accepted ! Keep in mind : With great power comes great responsibility." << std::endl;
+			try {
+				std::string perms_str = slsock.i_str();
+				std::cout << "Below are permissions associated with this key : \n--------------------\n" << perms_str << "\n--------------------" << std::endl;
+			} catch (socketxx::error&) {
+				return;
+			}
+		} catch (socketxx::error& e) {
+			std::cerr << LOG_ARROW_ERR << "Network error while sending key : " << e.what() << std::endl;
+			std::cout << LOG_ARROW << "Do you want to retry ?";
+			goto _retry;
+		}
+
 	}
 }
 
