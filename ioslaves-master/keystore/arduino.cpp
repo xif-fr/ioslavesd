@@ -93,18 +93,23 @@ extern "C" void key_store (std::string key_id, ioslaves::key_t key, libconfig::S
 	}
 	o = (arduino_auth_answ)::arduino_read_byte(serial, ARDUINO_TIMEOUT);
 	if (o != arduino_auth_answ::OK) 
-		throw std::runtime_error(arduino_comm_get_answercode_descr("error while storing key", o));
+		throw std::runtime_error(logstream << "error while storing key : " << arduino_comm_get_answercode_descr(o) << logstr);
 	o = (arduino_auth_answ)::arduino_read_byte(serial, ARDUINO_TIMEOUT);
 	if (o != arduino_auth_answ::OK) 
-		throw std::runtime_error(arduino_comm_get_answercode_descr("error while writing index", o));
+		throw std::runtime_error(logstream << "error while writing index : " << arduino_comm_get_answercode_descr(o) << logstr);
 	__log__(log_lvl::DONE, "ARDUINO", logstream << "Key stored on Arduino !");
 }
 
 	// Challenge answering implentation
 extern "C" ioslaves::hash_t key_answer_challenge (std::string key_id, ioslaves::challenge_t challenge, const libconfig::Setting& data) {
-	fd_t serial = 
-		::arduino_get_connection( ioslaves::infofile_get(IOSL_MASTER_KEYSTORE_ARDUINO_DEVICE_PATH_FILE, false).c_str(), 
-		                          arduino_auth_opcode::OP_CHALLENGE);
+	fd_t serial;
+	try {
+		serial = ::arduino_get_connection( ioslaves::infofile_get(IOSL_MASTER_KEYSTORE_ARDUINO_DEVICE_PATH_FILE, false).c_str(), 
+		                                   arduino_auth_opcode::OP_CHALLENGE);
+	} catch (std::runtime_error& e) {
+		throw std::runtime_error(logstream << "failed to connect to arduino : " << e.what() << logstr);
+	}
+	RAII_AT_END_L( ::close(serial) );
 	::arduino_write_str(serial, key_id, KEY_ID_MAX_SZ);
 	arduino_auth_answ o;
 	o = (arduino_auth_answ)::arduino_read_byte(serial, ARDUINO_TIMEOUT);
@@ -121,7 +126,7 @@ extern "C" ioslaves::hash_t key_answer_challenge (std::string key_id, ioslaves::
 	}
 	o = (arduino_auth_answ)::arduino_read_byte(serial, ARDUINO_TIMEOUT);
 	if (o != arduino_auth_answ::OK) 
-		throw std::runtime_error(arduino_comm_get_answercode_descr("error while hashing challenge+key on arduino", o));
+		throw std::runtime_error(logstream << "error while hashing challenge+key on arduino : " << arduino_comm_get_answercode_descr(o) << logstr);
 	ioslaves::hash_t hash;
 	for (size_t i = 0; i < HASH_LEN; i++) {
 		hash.bin[i] = ::arduino_read_byte(serial, ARDUINO_TIMEOUT);
@@ -174,7 +179,7 @@ fd_t arduino_get_connection (const char* device, arduino_auth_opcode op) {
 	o = (arduino_auth_answ)::arduino_read_byte(serial, ARDUINO_PASSWD_TIMEOUT);
 	o = (arduino_auth_answ)b;
 	if (o != arduino_auth_answ::OK) 
-		std::runtime_error(arduino_comm_get_answercode_descr("arduino module refused operation", o));
+		std::runtime_error(logstream << "arduino module refused operation : " << arduino_comm_get_answercode_descr(o) << logstr);
 	__log__(log_lvl::DONE, "ARDUINO", logstream << "Operation accepted");
 	keepco = true;
 	return serial;
