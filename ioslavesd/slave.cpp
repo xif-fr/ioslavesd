@@ -137,7 +137,7 @@ ioslaves::api::common_vars_t ioslaves::api::api_vars = {
 	.shutdown_iosl_time = &shutdown_iosl_time,
 };
 
-	// Log async dispatch
+	// Log async dispatch. Avoid fucking deadlocks plz
 std::list<socketxx::io::simple_socket<socketxx::base_netsock>> log_clients;
 std::function<void(log_entry)> log_callback = [] (log_entry le) {
 	for (auto it = log_clients.begin(); it != log_clients.end();) {
@@ -147,7 +147,6 @@ std::function<void(log_entry)> log_callback = [] (log_entry le) {
 			it->o_str(le.le_part);
 			it->o_str(le.le_msg);
 		} catch (socketxx::error& e) {
-			__log__(log_lvl::LOG, NULL, "Log client hanged up");
 			auto p_it = it++; log_clients.erase(p_it);
 			continue;
 		}
