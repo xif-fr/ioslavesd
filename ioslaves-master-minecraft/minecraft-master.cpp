@@ -649,8 +649,8 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 				iosl_master::$leave_answcode = true; RAII_AT_END_L( iosl_master::$leave_answcode = false );
 				__log__ << LOG_ARROW << "Connecting to '" << slave << "'..." << std::flush;
 				return iosl_master::slave_api_service_connect(slave, $master_id, "minecraft", TIMEOUT_CONNECT);
-			} catch (ioslaves::answer_code answ) {
-				if (answ == ioslaves::answer_code::BAD_STATE and $granmaster) {
+			} catch (master_err& e) {
+				if (e.is_ioslaves_err() and e.o == ioslaves::answer_code::BAD_STATE and $granmaster) {
 					__log__ << LOG_ARROW << "Minecraft service seems to be off. Starting it..." << std::flush;
 					socketxx::io::simple_socket<socketxx::base_netsock> sock = iosl_master::slave_connect(slave, 0);
 					iosl_master::slave_command_auth(sock, $master_id, ioslaves::op_code::SERVICE_START, _S($master_id,'.',slave));
@@ -661,10 +661,8 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 						throw answ;
 					}
 					return iosl_master::slave_api_service_connect(slave, $master_id, "minecraft", TIMEOUT_CONNECT);
-				} else {
-					__log__ << LOG_ARROW_ERR << "Can't connect to Minecraft service : " << ioslaves::getAnswerCodeDescription(answ) << std::flush;
-					throw answ;
-				}
+				} else 
+					throw;
 			}
 		} catch (master_err& e) {
 			__log__ << LOG_ARROW_ERR << "ioslaves-master error : " << e.what() << std::flush;
@@ -682,6 +680,8 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 				secondtry = true;
 				return get_sock();
 			} else {
+				if (e.is_ioslaves_err()) 
+					throw e.o;
 				EXIT_FAILURE = EXIT_FAILURE_CONN;
 				throw EXCEPT_ERROR_IGNORE;	
 			}

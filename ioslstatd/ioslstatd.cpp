@@ -95,8 +95,6 @@ int main (int argc, char* const argv[]) {
 					throw answ;
 				slaves.insert( decltype(slaves)::value_type( slave, slave_sock ) );
 				std::cerr << LOG_ARROW_OK << "Ok" << std::endl;
-			} catch (ioslaves::answer_code& answ) {
-				std::cerr << LOG_ARROW_ERR << "Answer code : " << ioslaves::getAnswerCodeDescription(answ) << std::endl;
 			} catch (master_err& e) {
 				std::cerr << LOG_ARROW_ERR << "Master error : " << e.what() << std::endl;
 			} catch (socketxx::dns_resolve_error& e) {

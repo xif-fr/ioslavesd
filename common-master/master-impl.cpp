@@ -11,7 +11,6 @@
 #include "master.hpp"
 using namespace xlog;
 bool iosl_master::$leave_exceptions = false;
-bool iosl_master::$leave_answcode = false;
 bool iosl_master::$silent = false;
 
 #ifndef IOSL_MASTER_IMPL_NO_AUTH
@@ -38,6 +37,9 @@ typedef void* dl_t;
 #include <socket++/handler/socket_client.hpp>
 #include <socket++/base_inet.hpp>
 #include <socket++/quickdefs.h>
+
+	// DNS
+#include <ldns/ldns.h>
 
 	// Retrieve SRV record corresponding to slave using ldns 
 in_port_t iosl_master::slave_get_port_dns (std::string slave_id) {
@@ -100,10 +102,8 @@ void iosl_master::slave_command (socketxx::io::simple_socket<socketxx::base_nets
 	// Authentification
 void iosl_master::authenticate (socketxx::io::simple_socket<socketxx::base_netsock> slave_sock, std::string key_id) {
 	ioslaves::answer_code o = (ioslaves::answer_code)slave_sock.i_char();
-	if (o != ioslaves::answer_code::OK) {
-		if ($leave_answcode) throw o;
-		throw master_err(EXIT_FAILURE_AUTH, logstream << "Slave refused authentification : " << ioslaves::getAnswerCodeDescription(o));
-	}
+	if (o != ioslaves::answer_code::OK) 
+		throw master_err(EXIT_FAILURE_AUTH, logstream << "Slave refused authentification : " << ioslaves::getAnswerCodeDescription(o), o);
 	std::string key_path = _S( IOSLAVES_MASTER_KEYS_DIR,"/",key_id,".key" );
 	FILE* key_f = ::fopen(key_path.c_str(), "r");
 	if (key_f == NULL) {
@@ -175,17 +175,15 @@ void iosl_master::authenticate (socketxx::io::simple_socket<socketxx::base_netso
 	} catch (libconfig::ConfigException& e) {
 		throw master_err(EXIT_FAILURE_EXTERR, logstream << "Malformed key file for '" << key_id << "' : " << e.what());
 	} catch (master_err& e) {
-		throw master_err(e.ret, logstream << "Failure in key file '" << key_id << "' : " << e.what());
+		throw master_err(e.ret, logstream << "Failure with key '" << key_id << "' : " << e.what());
 	}
 	slave_sock.o_buf(answer.bin, HASH_LEN);
 	o = (ioslaves::answer_code)slave_sock.i_char();
 	if (o == ioslaves::answer_code::OK) {
 		if (not iosl_master::$silent)
 			__log__(log_lvl::DONE, "AUTH", logstream << "Authentification with key '" << key_id << "' succeded !");
-	} else {
-		if ($leave_answcode) throw o;
-		throw master_err(EXIT_FAILURE_AUTH, logstream << "Authentification failed : " << ioslaves::getAnswerCodeDescription(o));
-	}
+	} else 
+		throw master_err(EXIT_FAILURE_AUTH, logstream << "Authentification failed : " << ioslaves::getAnswerCodeDescription(o), o);
 }
 
 	// Apply operation with authentification
@@ -210,7 +208,7 @@ socketxx::base_netsock iosl_master::slave_api_service_connect (std::string slave
 		slave_sock.o_str(api_service);
 		ioslaves::answer_code answ = (ioslaves::answer_code)slave_sock.i_char();
 		if (answ != ioslaves::answer_code::OK) 
-			throw answ;
+			throw master_err(EXIT_FAILURE_IOSL, logstream << "Failed to connect to API service : " << ioslaves::getAnswerCodeDescription(answ), answ);
 		return slave_sock;
 	} catch (socketxx::end::client_connect_error& e) {
 		if ($leave_exceptions) throw;
@@ -221,9 +219,6 @@ socketxx::base_netsock iosl_master::slave_api_service_connect (std::string slave
 	} catch (iosl_master::ldns_error& e) {
 		if ($leave_exceptions) throw;
 		throw master_err(EXIT_FAILURE_DOWN, logstream << "Can't retrive port number : " << e.what());
-	} catch (ioslaves::answer_code o) {
-		if ($leave_answcode) throw;
-		throw master_err(EXIT_FAILURE_IOSL, logstream << "Failed to connect to API service : " << ioslaves::getAnswerCodeDescription(o));
 	} catch (socketxx::error& e) {
 		if ($leave_exceptions) throw;
 		throw master_err(EXIT_FAILURE_COMM, logstream << "Communication error while connecting to slave or API service : " << e.what());

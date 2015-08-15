@@ -51,13 +51,16 @@
 #include <socket++/quickdefs.h>
 #define IOSLAVES_MASTER_DEFAULT_PORT 2929
 #define HAVE_STDBOOL_H // LDNS bug
-#include <ldns/ldns.h>
+#include <ldns/error.h>
 
 	// Master errors
 class master_err : public std::runtime_error { 
 	public: int ret;
-	master_err (std::string descr, int retcode) : std::runtime_error(descr), ret(retcode) {}
-	master_err (int retcode, std::ostream& s) : std::runtime_error(xlog::logstream_retrieve()), ret(retcode) {}
+	ioslaves::answer_code o;
+	master_err (std::string descr, int retcode) : std::runtime_error(descr), ret(retcode), o((ioslaves::answer_code)0) {}
+	master_err (int retcode, std::ostream& s) : std::runtime_error(xlog::logstream_retrieve()), ret(retcode), o((ioslaves::answer_code)0) {}
+	master_err (int retcode, std::ostream& s, ioslaves::answer_code o) : std::runtime_error(xlog::logstream_retrieve()), ret(retcode), o(o) {}
+	bool is_ioslaves_err() { return (o != (ioslaves::answer_code)0); }
 };
 #define EXIT_FAILURE_CONN   90  // Connection failure with slave
 #define EXIT_FAILURE_DOWN   91  // Slave seems to be down
@@ -71,7 +74,6 @@ class master_err : public std::runtime_error {
 
 namespace iosl_master { 
 	extern bool $leave_exceptions;
-	extern bool $leave_answcode;
 	extern bool $silent;
 	
 		// Test if a slave is up

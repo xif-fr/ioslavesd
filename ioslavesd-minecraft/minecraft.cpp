@@ -1027,7 +1027,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 						out_fs.seekp(0, std::ios_base::end);
 						out_fs << '\n' << in_fs.rdbuf();
 					} catch (std::ios::failure& e) {
-						throw std::runtime_error(logstream << "failed to apply concatenate properties files : " << e.what() << logstr);
+						throw std::runtime_error(logstream << "failed to concatenate properties files : " << e.what() << logstr);
 					}
 				}
 			} 

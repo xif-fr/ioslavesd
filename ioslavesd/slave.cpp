@@ -843,8 +843,10 @@ int main (int argc, const char* argv[]) {
 							iosl_master::slave_command(sock, _S("_IOSL_",hostname), ioslaves::op_code::CALL_API_SERVICE);
 						sock.o_str("xifnetdyndns");
 						ioslaves::answer_code answ = (ioslaves::answer_code)sock.i_char();
-						if (answ != ioslaves::answer_code::OK) 
-							throw answ;
+						if (answ != ioslaves::answer_code::OK) {
+							__log__(log_lvl::ERROR, "DynDNS", logstream << "Failed to connect to  xifnetdyndns service : " << ioslaves::getAnswerCodeDescription(answ));
+							continue;
+						}
 						sock.o_int<in_port_t>(ioslavesd_listening_port);
 						in_addr_t my_ip = sock.i_int<in_addr_t>();
 						if (my_ip_last == 0) 
@@ -862,8 +864,6 @@ int main (int argc, const char* argv[]) {
 						__log__(lvl, "DynDNS", logstream << "Network error with xifnetdyndns service : " << e.what(), lvl==log_lvl::OOPS?LOG_DEBUG:0);
 					} catch (master_err& e) {
 						__log__(log_lvl::ERROR, "DynDNS", logstream << "Master error while connecting to DynDNS : " << e.what());
-					} catch (ioslaves::answer_code answ) {
-						__log__(log_lvl::ERROR, "DynDNS", logstream << "DynDNS service error : " << ioslaves::getAnswerCodeDescription(answ));
 					}
 				}
 			}
@@ -1138,8 +1138,10 @@ ioslaves::answer_code ioslaves::dns_srv_req (std::function< ioslaves::answer_cod
 		iosl_master::slave_command_auth(sock, _S("_IOSL_",hostname), ioslaves::op_code::CALL_API_SERVICE, dyndns_slave_key_id);
 		sock.o_str("xifnetdyndns");
 		ioslaves::answer_code answ = (ioslaves::answer_code)sock.i_char();
-		if (answ != ioslaves::answer_code::OK) 
-			throw answ;
+		if (answ != ioslaves::answer_code::OK) {
+			__log__(log_lvl::ERROR, "DynDNS", logstream << "Failed to connect to xifnetdyndns service : " << ioslaves::getAnswerCodeDescription(answ));
+			return answ;
+		}
 		sock.o_int<in_port_t>(0);
 		sock.i_int<in_addr_t>();
 		sock.o_char((char)ioslaves::answer_code::WANT_SEND);
@@ -1148,9 +1150,9 @@ ioslaves::answer_code ioslaves::dns_srv_req (std::function< ioslaves::answer_cod
 	} catch (socketxx::classic_error& e) {
 		__log__(log_lvl::ERROR, "DynDNS", logstream << "Network error with xifnetdyndns service : " << e.what());
 	} catch (master_err& e) {
-		__log__(log_lvl::ERROR, "DynDNS", logstream << "Master error while connecting to DynDNS : " << e.what());
-	} catch (ioslaves::answer_code answ) {
-		__log__(log_lvl::ERROR, "DynDNS", logstream << "Error with xifnetdyndns service : " << ioslaves::getAnswerCodeDescription(answ));
+		__log__(log_lvl::ERROR, "DynDNS", logstream << "Failed to connect to DynDNS : " << e.what());
+		if (e.is_ioslaves_err()) 
+			return e.o;
 	}
 	return ioslaves::answer_code::ERROR;
 }
