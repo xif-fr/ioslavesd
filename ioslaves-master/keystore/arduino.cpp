@@ -12,8 +12,12 @@
 using namespace xlog;
 #include "common.hpp"
 #include <xifutils/cxx.hpp>
+
+	// API
 #define IOSL_MASTER_KEYSTORE_PLUGIN_IMPL
 #include "keystore.hpp"
+#include <dlfcn.h>
+typedef void* dl_t;
 
 	// General
 #include <iostream>
@@ -46,6 +50,7 @@ inline std::string arduino_comm_get_answercode_descr (arduino_auth_answ o) {
 fd_t arduino_get_connection (const char* device, arduino_auth_opcode op);
 uint8_t arduino_read_byte (fd_t serial, timeval timeout);
 void arduino_write_str (fd_t serial, const std::string& str, uint8_t maxsz);
+bool arduino_reuse_conn;
 
 	// Key storage implentation
 extern "C" void key_store (std::string key_id, ioslaves::key_t key, libconfig::Setting& data_write) {
@@ -77,7 +82,10 @@ extern "C" void key_store (std::string key_id, ioslaves::key_t key, libconfig::S
 	} catch (std::runtime_error& e) {
 		throw std::runtime_error(logstream << "failed to connect to arduino : " << e.what() << logstr);
 	}
-	RAII_AT_END_L( ::close(serial) );
+	RAII_AT_END({
+		if (not arduino_reuse_conn) 
+			::close(serial);
+	});
 	::arduino_write_str(serial, key_id, KEY_ID_MAX_SZ);
 	arduino_auth_answ o;
 	o = (arduino_auth_answ)::arduino_read_byte(serial, ARDUINO_TIMEOUT);
@@ -109,7 +117,10 @@ extern "C" ioslaves::hash_t key_answer_challenge (std::string key_id, ioslaves::
 	} catch (std::runtime_error& e) {
 		throw std::runtime_error(logstream << "failed to connect to arduino : " << e.what() << logstr);
 	}
-	RAII_AT_END_L( ::close(serial) );
+	RAII_AT_END({
+		if (not arduino_reuse_conn) 
+			::close(serial);
+	});
 	::arduino_write_str(serial, key_id, KEY_ID_MAX_SZ);
 	arduino_auth_answ o;
 	o = (arduino_auth_answ)::arduino_read_byte(serial, ARDUINO_TIMEOUT);
@@ -136,19 +147,43 @@ extern "C" ioslaves::hash_t key_answer_challenge (std::string key_id, ioslaves::
 
 	// Get serial connection with Arduino
 fd_t arduino_get_connection (const char* device, arduino_auth_opcode op) {
-	__log__(log_lvl::LOG, "ARDUINO", logstream << "Connecting to arduino device " << device << " ...");
 	int r;
-	fd_t serial = ::open(device, O_RDWR|O_NOCTTY|O_NDELAY);
-	if (serial == -1) 
-		throw xif::sys_error("failed to open tty to device");
-	bool keepco = false;
+	fd_t serial = -1;
+	bool delco = true;
 	RAII_AT_END({
-		if (not keepco) 
+		if (delco) 
 			::close(serial);
 	});
+	arduino_reuse_conn = false;
+	fd_t* serial_save_p = NULL;
+	dl_t dl_handle = ::dlopen(NULL, RTLD_LAZY|RTLD_GLOBAL);
+	if (dl_handle == NULL) 
+		goto _connect;
+	serial_save_p = (fd_t*)::dlsym(dl_handle, "arduino_auth_reuse_fd");
+	if (serial_save_p == NULL)
+		goto _connect;
+	else {
+		if (*serial_save_p == 0) {
+			arduino_reuse_conn = true;
+			__log__(log_lvl::LOG, "ARDUINO", "Opening new reusable connection...");
+			goto _connect;
+		} else if (*serial_save_p > 0) {
+			arduino_reuse_conn = true;
+			__log__(log_lvl::LOG, "ARDUINO", logstream << "Reusing connection #" << *serial_save_p << " to Arduino...");
+			serial = *serial_save_p;
+			goto _communicate;
+		}
+	}
+_connect:
+	__log__(log_lvl::LOG, "ARDUINO", logstream << "Connecting to arduino device " << device << " ...");
+	serial = ::open(device, O_RDWR|O_NOCTTY|O_NDELAY);
+	if (serial == -1) 
+		throw xif::sys_error("failed to open tty to device");
+	delco = true;
 	r = ::fcntl(serial, F_SETFL, 0);
 	if (r == -1) 
 		throw xif::sys_error("failed to fcntl serial tty");
+	{
 	struct termios tty;
 	r = ::tcgetattr(serial, &tty);
 	if (r == -1) 
@@ -164,14 +199,22 @@ fd_t arduino_get_connection (const char* device, arduino_auth_opcode op) {
 	r = ::tcsetattr(serial, TCSANOW, &tty);
 	if (r == -1) 
 		throw xif::sys_error("failed to get serial tty attrs");
+	}
 	try {
 		::arduino_read_byte(serial, ARDUINO_CONNECTION_TIMEOUT);
 	} catch (xif::sys_error&) { throw; }
 	  catch (std::runtime_error&) {
 		throw std::runtime_error("connection to arduino timed out");
 	}
+	if (arduino_reuse_conn) 
+		*serial_save_p = serial;
+_communicate:
 	ssize_t rs;
-	uint8_t b = (uint8_t)op;
+	uint8_t b = (uint8_t)arduino_reuse_conn;
+	rs = ::write(serial, &b, sizeof(b));
+	if (rs != sizeof(b))
+		throw xif::sys_error("failed to send reuse byte");
+	b = (uint8_t)op;
 	rs = ::write(serial, &b, sizeof(b));
 	if (rs != sizeof(b))
 		throw xif::sys_error("failed to send opcode");
@@ -181,7 +224,7 @@ fd_t arduino_get_connection (const char* device, arduino_auth_opcode op) {
 	if (o != arduino_auth_answ::OK) 
 		std::runtime_error(logstream << "arduino module refused operation : " << arduino_comm_get_answercode_descr(o) << logstr);
 	__log__(log_lvl::DONE, "ARDUINO", logstream << "Operation accepted");
-	keepco = true;
+	delco = false;
 	return serial;
 }
 	// Read a byte from serial connection

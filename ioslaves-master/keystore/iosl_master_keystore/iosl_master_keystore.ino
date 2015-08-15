@@ -129,6 +129,8 @@ void setup () {
 	digitalWrite(30, LOW);
 	delay(100);
 	Serial.write((byte)OK);
+_reuse_conn:
+	bool reuse = ::serialRead();
 	arduino_auth_opcode op = (arduino_auth_opcode)::serialRead();
 
         /* TODO : CHECK PASSWD */
@@ -147,13 +149,15 @@ void setup () {
 				Serial.print(" ");
 			}
 			Serial.println(" ");
-			return;
+			if (reuse) goto _reuse_conn;
+			else return;
 		case OP_ERASE_EEPROM: 
 			Serial.write((byte)OK);
 			for (size_t addr = 0; addr < eeprom::SZ; addr++) 
 				eeprom::i2c_eeprom_write_byte(eeprom::I2C_EEPROM_ADDR, addr, 0x0);
 			Serial.write((byte)OK);
-			return;
+			if (reuse) goto _reuse_conn;
+			else return;
 		case OP_CHALLENGE: {
 			Serial.write((byte)OK);
 			uint8_t keyid_sz = ::serialRead();
@@ -231,7 +235,9 @@ void setup () {
 			Serial.write((byte)OK);
 			for (uint8_t i = 0; i < WHIRLPOOL_DIGEST_LENGTH; i++) 
 				Serial.write(hashctx.H.c[i]);
-		} return;
+			if (reuse) goto _reuse_conn;
+			else return;
+		}
 		case OP_ADD_KEY: {
 			Serial.write((byte)OK);
 			uint8_t keyid_sz = ::serialRead();
@@ -350,7 +356,9 @@ void setup () {
 			eeprom::i2c_eeprom_write_byte(eeprom::I2C_EEPROM_ADDR, addr_idxentry + keyid_sz, (byte)'\0');
 			eeprom::i2c_eeprom_write_byte(eeprom::I2C_EEPROM_ADDR, addr_idxentry + keyid_sz + 1, (byte)slot_newkey);
 			Serial.write((byte)OK);
-		} return;
+			if (reuse) goto _reuse_conn;
+			else return;
+		}
 		default: 
 			Serial.write((byte)COMM_ERROR);
 			return;
@@ -359,6 +367,6 @@ void setup () {
 
 void loop () {
 	delay(100);
-	//Serial.end();
+	Serial.end();
 	while (true);
 }
