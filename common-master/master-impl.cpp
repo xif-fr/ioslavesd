@@ -178,6 +178,9 @@ void iosl_master::authenticate (socketxx::io::simple_socket<socketxx::base_netso
 		throw master_err(e.ret, logstream << "Failure with key '" << key_id << "' : " << e.what());
 	}
 	slave_sock.o_buf(answer.bin, HASH_LEN);
+	RAII_AT_END_N(mzero, {
+		::memset(&answer, 0x0, sizeof(ioslaves::hash_t));
+	});
 	o = (ioslaves::answer_code)slave_sock.i_char();
 	if (o == ioslaves::answer_code::OK) {
 		if (not iosl_master::$silent)

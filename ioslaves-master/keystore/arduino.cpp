@@ -142,6 +142,9 @@ extern "C" ioslaves::hash_t key_answer_challenge (std::string key_id, ioslaves::
 	for (size_t i = 0; i < HASH_LEN; i++) {
 		hash.bin[i] = ::arduino_read_byte(serial, ARDUINO_TIMEOUT);
 	}
+	RAII_AT_END_N(mzero, {
+		::memset(&hash, 0x0, sizeof(ioslaves::hash_t));
+	});
 	return hash;
 }
 
