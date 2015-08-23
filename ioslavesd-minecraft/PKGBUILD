@@ -1,7 +1,7 @@
 # Maintainer: Félix Faisant <xcodexif@xif.fr>
 
 pkgname=ioslavesd-minecraft
-pkgver=3.3
+pkgver=3.4.6
 pkgrel=1
 pkgdesc='Xif Network - ioslaved plugin for Minecraft Server Distributed Hosting'
 license=('custom')
