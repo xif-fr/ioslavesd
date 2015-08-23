@@ -298,7 +298,7 @@ void minecraft::ftp_register_user (std::string username, std::string md5passwd, 
 			auto p_it = it++; minecraft::ftp_sessions.erase(p_it);
 		} else {
 			if (username == it->username) 
-				throw ioslaves::req_err(ioslaves::answer_code::EXISTS, "FTP", logstream << "A valid session for username '" << username << "' for server '" << it->server << "' already exists");
+				throw ioslaves::req_err(ioslaves::answer_code::EXISTS, "FTP", logstream << "A valid session for username '" << username << "' for server '" << it->server << "' already exists", log_lvl::OOPS);
 			++it;
 		}
 	}

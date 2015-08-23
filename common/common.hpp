@@ -101,7 +101,6 @@ namespace ioslaves {
 	std::string getAnswerCodeDescription (ioslaves::answer_code);
 		
 		// Validating names or IDs
-	bool validateShellProgramName (std::string prog_name);
 	bool validateHexa (std::string hexa_str);
 	bool validateName (std::string id_str);
 	bool validateHostname (std::string host);
@@ -115,8 +114,8 @@ namespace ioslaves {
 		std::string descr;
 		req_err (answer_code answ, std::string msg) noexcept : answ_code(answ), descr(msg) {}
 		req_err (answer_code answ, std::ostream& s) noexcept : answ_code(answ), descr(xlog::logstream_retrieve()) {}
-		req_err (answer_code answ, const char* part, std::string msg) noexcept : answ_code(answ), descr(msg) { xlog::__log__(xlog::log_lvl::ERROR, part, msg); }
-		req_err (answer_code answ, const char* part, std::ostream& s) noexcept : answ_code(answ), descr(xlog::logstream_retrieve()) { xlog::__log__(xlog::log_lvl::ERROR, part, descr); }
+		req_err (answer_code answ, const char* part, std::string msg, xlog::log_lvl lvl = xlog::log_lvl::ERROR) noexcept : answ_code(answ), descr(msg) { xlog::__log__(lvl, part, msg); }
+		req_err (answer_code answ, const char* part, std::ostream& s, xlog::log_lvl lvl = xlog::log_lvl::ERROR) noexcept : answ_code(answ), descr(xlog::logstream_retrieve()) { xlog::__log__(lvl, part, descr); }
 		virtual const char* what () const noexcept { return descr.c_str(); }
 		virtual ~req_err() {}
 	};

@@ -57,11 +57,11 @@ time_t iosl_time () {
 /**           Strings validation				**/
 /** ------------------------------------	**/
 
-bool ioslaves::validateShellProgramName (std::string str) {
+bool ioslaves::validateName (std::string str) {
 	if (str.empty()) return false;
 	if (not ::isalpha(str[0])) return false;
 	for (size_t i = 1; i < str.length(); ++i) {
-		if (not (::isalnum(str[i]) || str[i] == '-' || str[i] == '_')) return false;
+		if (not (::isalnum(str[i]) || str[i] == '-' || str[i] == '_' || str[i] == '.')) return false;
 	}
 	return true;
 }
@@ -80,15 +80,6 @@ bool ioslaves::validateHostname (std::string host) {
 	for (size_t i = 0; i < host.length(); ++i) {
 		if (not (::isalnum(host[i]) || host[i] == '-' || host[i] == '.'))
 			return false;
-	}
-	return true;
-}
-
-bool ioslaves::validateName (std::string str) {
-	if (str.empty()) return false;
-	if (not ::isalpha(str[0])) return false;
-	for (size_t i = 1; i < str.length(); ++i) {
-		if (not (::isalnum(str[i]) || str[i] == '_')) return false;
 	}
 	return true;
 }

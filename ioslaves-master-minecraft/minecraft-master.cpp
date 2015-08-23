@@ -646,7 +646,6 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 	std::function<socketxx::io::simple_socket<socketxx::base_socket>(void)> get_sock = [&]() -> socketxx::io::simple_socket<socketxx::base_socket> {
 		try {
 			try {
-				iosl_master::$leave_answcode = true; RAII_AT_END_L( iosl_master::$leave_answcode = false );
 				__log__ << LOG_ARROW << "Connecting to '" << slave << "'..." << std::flush;
 				return iosl_master::slave_api_service_connect(slave, $master_id, "minecraft", TIMEOUT_CONNECT);
 			} catch (master_err& e) {
@@ -655,7 +654,7 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 					socketxx::io::simple_socket<socketxx::base_netsock> sock = iosl_master::slave_connect(slave, 0);
 					iosl_master::slave_command_auth(sock, $master_id, ioslaves::op_code::SERVICE_START, _S($master_id,'.',slave));
 					sock.o_str("minecraft");
-					answ = (ioslaves::answer_code)sock.i_char();
+					ioslaves::answer_code answ = (ioslaves::answer_code)sock.i_char();
 					if (answ != ioslaves::answer_code::OK) {
 						__log__ << LOG_ARROW_ERR << "Failed to start Minecraft service : " << ioslaves::getAnswerCodeDescription(answ) << std::flush;
 						throw answ;

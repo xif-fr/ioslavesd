@@ -144,7 +144,7 @@ std::function<void(log_entry)> log_callback = [] (log_entry le) {
 		try {
 			it->o_int<uint64_t>(le.le_time);
 			it->o_char((char)le.le_lvl);
-			it->o_str(le.le_part);
+			it->o_str(le.le_part == NULL ? "" : le.le_part);
 			it->o_str(le.le_msg);
 		} catch (socketxx::error& e) {
 			auto p_it = it++; log_clients.erase(p_it);
@@ -494,7 +494,7 @@ int main (int argc, const char* argv[]) {
 			ioslaves::perms_t::op_perm_t op_perms = ioslaves::perms_verify_op(perms, opcode);
 			auto OpPermsCheck = [&] () {
 				if (not op_perms.authorized) 
-					throw ioslaves::req_err(ioslaves::answer_code::NOT_AUTHORIZED, "PERMS", "Permissions are not satisfied for this operation.");
+					throw ioslaves::req_err(ioslaves::answer_code::NOT_AUTHORIZED, "PERMS", "Permissions are not satisfied for this operation.", log_lvl::SEVERE);
 			};
 			
 				// Query
@@ -518,7 +518,7 @@ int main (int argc, const char* argv[]) {
 							int rr;
 							while ((rr = ::readdir_r(dir, dentr, &dp)) != -1 and dp != NULL) {
 								if (dentr->d_type != DT_DIR) 
-									throw ioslaves::req_err(ioslaves::answer_code::NOT_AUTHORIZED, "PERMS", "Key folder not empty : first key sending can't be satisfied");
+									throw ioslaves::req_err(ioslaves::answer_code::NOT_AUTHORIZED, "PERMS", "Key folder not empty : first key sending can't be satisfied", log_lvl::SEVERE);
 							}
 							if (rr == -1) throw xif::sys_error("readdir error while listing keys dir");
 							__log__(log_lvl::IMPORTANT, "PERMS", logstream << "Master is not authenticated but key folder is empty : authorizing first key sending");
@@ -570,8 +570,8 @@ int main (int argc, const char* argv[]) {
 							}
 							__log__(log_lvl::IMPORTANT, "KEY", logstream << "Key with footprint " << footprint << " is accepted for master " << of_master << " (" << clikey.addr.get_ip_str() << ")");
 							ioslaves::key_save(of_master, 
-													 key, 
-													 keyperms);
+							                   key, 
+							                   keyperms);
 							clikey.o_char((char)ioslaves::answer_code::OK);
 							cli.o_char((char)ioslaves::answer_code::OK);
 							clikey.o_str(keyperms);
@@ -782,6 +782,7 @@ int main (int argc, const char* argv[]) {
 							cli.o_str(log_history[i].le_msg);
 						}
 					} break;
+						/** ---------------------- Log async dispatch ---------------------- **/
 					case ioslaves::op_code::LOG_OBSERVE: {
 						__log__(log_lvl::LOG, "OP", logstream << "Operation : register master to async log dispatch");
 						OpPermsCheck();
@@ -789,6 +790,7 @@ int main (int argc, const char* argv[]) {
 						log_clients.insert(log_clients.end(), cli);
 						continue;
 					} break;
+						/** ---------------------- Nothing ---------------------- **/
 					case ioslaves::op_code::NOP: {
 						__log__(log_lvl::LOG, "OP", logstream << "Operation : absolutely nothing");
 						cli.o_char((char)ioslaves::answer_code::OK);
@@ -1310,7 +1312,7 @@ void ioslaves::loadService (std::string name, FILE* service_file) {
 		switch (s->s_type) {
 			case ioslaves::service::type::IOSLPLUGIN:
 			case ioslaves::service::type::SYSTEMCTL:
-				if (!ioslaves::validateShellProgramName(s->s_command)) {
+				if (!ioslaves::validateName(s->s_command)) {
 					__log__(log_lvl::ERROR, "SECURITY", logstream << "Service " << s->s_name << " : `" << s->s_command << "` is not a valid name !");
 					return;
 				}

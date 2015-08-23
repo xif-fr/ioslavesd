@@ -322,7 +322,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 	int r;
 	
 	if (perms == NULL) 
-		throw ioslaves::req_err(ioslaves::answer_code::NOT_AUTHORIZED, "PERMS", logstream << "Minecraft API service requires authentification");
+		throw ioslaves::req_err(ioslaves::answer_code::NOT_AUTHORIZED, "PERMS", logstream << "Minecraft API service requires authentification", log_lvl::OOPS);
 	
 	try {
 		socketxx::io::simple_socket<socketxx::base_socket> cli (_cli_sock);
@@ -663,7 +663,7 @@ void minecraft::transferAndExtract (socketxx::io::simple_socket<socketxx::base_s
 	else if (what == minecraft::transferWhat::JAR)
 		sock.o_bool(alt);
 	if (!sock.i_bool()) 
-		throw ioslaves::req_err(ioslaves::answer_code::DENY, "FILES", logstream << "Master refused sending file '" << name << "'");
+		throw ioslaves::req_err(ioslaves::answer_code::DENY, "FILES", logstream << "Master refused sending file '" << name << "'", log_lvl::OOPS);
 	std::string tempfile_name;
 	logl_t l;
 	__log__(log_lvl::LOG, "FILES", logstream << "Downloading file '" << name << "' of type '" << (char)what << "' from master...", LOG_WAIT, &l);
@@ -926,7 +926,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 		time_t s_running_time = cli.i_int<uint32_t>();
 		time_t time_rest = *ioslaves::api::common_vars->shutdown_iosl_time - ::iosl_time();
 		if (not minecraft::ignore_shutdown_time and *ioslaves::api::common_vars->shutdown_iosl_time != 0 and time_rest < s_running_time) 
-			throw ioslaves::req_err(ioslaves::answer_code::LACK_RSRC, "SERV", MCLOGSCLI(s) << "Server wants ~" << s_running_time/60 << "min, but slave would shutdown in " << time_rest/60 << "min. " << "Refusing start request.");
+			throw ioslaves::req_err(ioslaves::answer_code::LACK_RSRC, "SERV", MCLOGSCLI(s) << "Server wants ~" << s_running_time/60 << "min, but slave would shutdown in " << time_rest/60 << "min. " << "Refusing start request.", log_lvl::OOPS);
 		s->s_map = cli.i_str();
 		if (!ioslaves::validateName(s->s_map)) 
 			throw ioslaves::req_err(ioslaves::answer_code::SECURITY_ERROR, "PARAM", MCLOGSCLI(s) << "'" << s->s_map << "' is not a valid map name");
@@ -943,7 +943,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 		int16_t usable_mem = sysinfo["mem_usable"];
 		if (s->s_megs_ram < 512) s->s_megs_ram = 512;
 		if (usable_mem < s->s_megs_ram) 
-			throw ioslaves::req_err(ioslaves::answer_code::LACK_RSRC, "SERV", MCLOGSCLI(s) << "Server needs at least " << s->s_megs_ram << "MB of memory, but only " << usable_mem << "MB of RAM is usable. " << "Refusing start request.");
+			throw ioslaves::req_err(ioslaves::answer_code::LACK_RSRC, "SERV", MCLOGSCLI(s) << "Server needs at least " << s->s_megs_ram << "MB of memory, but only " << usable_mem << "MB of RAM is usable. " << "Refusing start request.", log_lvl::OOPS);
 		if (s->s_megs_ram < 1024) s->s_megs_ram = 1024;
 		
 			// Delete remaining FTP sessions for server
@@ -957,17 +957,17 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			int8_t itry = -0xF;
 		__new_port:
 			if (++itry == MINECRAFT_PORT_RANGE_SZ)
-				throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "PORT", "Port range entierly used !");
+				throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "PORT", "Port range entierly used !", log_lvl::SEVERE);
 			s->s_port = ::rand()%MINECRAFT_PORT_RANGE_SZ + MINECRAFT_PORT_RANGE_BEG;
 			if (minecraft::servs.find(servid) != minecraft::servs.end())
-				throw ioslaves::req_err(ioslaves::answer_code::BAD_STATE, "SERV", MCLOGSCLI(s) << "Server already opened");
+				throw ioslaves::req_err(ioslaves::answer_code::BAD_STATE, "SERV", MCLOGSCLI(s) << "Server already opened", log_lvl::OOPS);
 			for (std::pair<std::string,minecraft::serv*> p : minecraft::servs) {
 				if (p.second->s_port == s->s_port) 
 					goto __new_port;
 			}
 			for (minecraft::serv* oth_s : minecraft::openning_servs) {
 				if (oth_s->s_servid == servid) 
-					throw ioslaves::req_err(ioslaves::answer_code::BAD_STATE, "SERV", MCLOGSCLI(s) << "Server already openning");
+					throw ioslaves::req_err(ioslaves::answer_code::BAD_STATE, "SERV", MCLOGSCLI(s) << "Server already openning", log_lvl::OOPS);
 				if (oth_s->s_port == s->s_port)
 					goto __new_port;
 			}
@@ -1044,7 +1044,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			}
 		} else if (S_ISDIR(wdir_stat.st_mode)) {
 			if (not s->s_is_perm_map) 
-				throw ioslaves::req_err(ioslaves::answer_code::EXISTS, "FILES", MCLOGSCLI(s) << "Can't use temporary map '" << s->s_map << "' : a permanent server folder exists with this name");
+				throw ioslaves::req_err(ioslaves::answer_code::EXISTS, "FILES", MCLOGSCLI(s) << "Can't use temporary map '" << s->s_map << "' : a permanent server folder exists with this name", log_lvl::OOPS);
 				// Permanent map folder found
 				// Checking for .lck files
 			if (s->s_serv_type != minecraft::serv_type::FORGE)
@@ -1142,7 +1142,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			r = ::access(jar_path.c_str(), R_OK);
 			if (r == -1) {
 				if (errno == ENOENT)
-					throw ioslaves::req_err(ioslaves::answer_code::NOT_FOUND, "FILES", MCLOGSCLI(s) << "Custom jar `" << jar_name << "` not found in server folder");
+					throw ioslaves::req_err(ioslaves::answer_code::NOT_FOUND, "FILES", MCLOGSCLI(s) << "Custom jar `" << jar_name << "` not found in server folder", log_lvl::OOPS);
 				else throw xif::sys_error("testing for custom .jar in server dir failed");
 			}
 		} else {

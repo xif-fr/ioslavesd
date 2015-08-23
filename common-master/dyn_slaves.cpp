@@ -317,8 +317,6 @@ time_t iosl_master::slave_start (std::string slave_id, std::string master_id) {
 			throw ioslaves::req_err(answer_code::ERROR, logstream << "Network error with wake-gateway service : " << e.what());
 		} catch (master_err& e) {
 			throw ioslaves::req_err(answer_code::ERROR, logstream << "Master error while connecting to wake-gateway service : " << e.what());
-		} catch (ioslaves::answer_code answ) {
-			throw ioslaves::req_err(answer_code::EXTERNAL_ERROR, logstream << "Wake-gateway service failed to start slave (" << ioslaves::getAnswerCodeDescription(answ) << ")");
 		}
 		__log__(log_lvl::DONE, "WAKE", "Start request relayed !");
 	} 
