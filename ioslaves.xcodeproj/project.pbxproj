@@ -7,13 +7,28 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		AA103D181B7798300078E20C /* macgui-main.m in Sources */ = {isa = PBXBuildFile; fileRef = AA103D131B7798300078E20C /* macgui-main.m */; };
-		AA103D191B7798300078E20C /* Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = AA103D141B7798300078E20C /* Info.plist */; };
-		AA103D1A1B7798300078E20C /* XifNetAppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = AA103D161B7798300078E20C /* XifNetAppDelegate.m */; };
-		AA103D1D1B77983F0078E20C /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = AA103D1C1B77983F0078E20C /* MainMenu.xib */; };
+		AA0F06D91B7824D600839DA0 /* master-impl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B75B1ADECB1700B369BE /* master-impl.cpp */; };
+		AA0F06DA1B7824F000839DA0 /* common.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B72B1ADEC2E200B369BE /* common.cpp */; };
+		AA0F06DB1B7824F500839DA0 /* common.hpp in Headers */ = {isa = PBXBuildFile; fileRef = AA41B72C1ADEC2E200B369BE /* common.hpp */; };
+		AA0F06DC1B7824F500839DA0 /* common.hpp in Headers */ = {isa = PBXBuildFile; fileRef = AA41B72C1ADEC2E200B369BE /* common.hpp */; };
+		AA0F06DD1B7824FA00839DA0 /* log.h in Headers */ = {isa = PBXBuildFile; fileRef = AA6B99FC1AED9F1700146475 /* log.h */; };
+		AA0F06DE1B78250600839DA0 /* log_defimpl.h in Headers */ = {isa = PBXBuildFile; fileRef = AA3944021B70E37C00E43364 /* log_defimpl.h */; };
+		AA0F06DF1B78250700839DA0 /* log_defimpl.h in Headers */ = {isa = PBXBuildFile; fileRef = AA3944021B70E37C00E43364 /* log_defimpl.h */; };
+		AA0F06E01B78250900839DA0 /* log_defimpl.h in Headers */ = {isa = PBXBuildFile; fileRef = AA3944021B70E37C00E43364 /* log_defimpl.h */; };
+		AA0F06E81B797C7B00839DA0 /* XifNetSlaveController.mm in Sources */ = {isa = PBXBuildFile; fileRef = AA0F06E61B797C7A00839DA0 /* XifNetSlaveController.mm */; };
+		AA103D181B7798300078E20C /* macgui-main.mm in Sources */ = {isa = PBXBuildFile; fileRef = AA103D131B7798300078E20C /* macgui-main.mm */; };
+		AA103D1A1B7798300078E20C /* XifNetAppDelegate.mm in Sources */ = {isa = PBXBuildFile; fileRef = AA103D161B7798300078E20C /* XifNetAppDelegate.mm */; };
 		AA1D3ACF1ADECD7600E2C7F6 /* master-impl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B75B1ADECB1700B369BE /* master-impl.cpp */; };
 		AA1D3AD71ADECDAF00E2C7F6 /* ftp-auth-mc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA1D3AD21ADECDAF00E2C7F6 /* ftp-auth-mc.cpp */; };
 		AA1D3AD91ADECDAF00E2C7F6 /* minecraft.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA1D3AD41ADECDAF00E2C7F6 /* minecraft.cpp */; };
+		AA24CDCE1B8DFF1300B0AA73 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = AA24CDCC1B8DFF1300B0AA73 /* MainMenu.xib */; };
+		AA2B28EA1B83C06D00DAA1DD /* xif_logo_warn.png in Resources */ = {isa = PBXBuildFile; fileRef = AA2B28E91B83C06D00DAA1DD /* xif_logo_warn.png */; };
+		AA2B28EE1B83C14E00DAA1DD /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = AA2B28F01B83C14E00DAA1DD /* MainMenu.xib */; };
+		AA2B28F21B83C30B00DAA1DD /* icon.icns in Resources */ = {isa = PBXBuildFile; fileRef = AA2B28F11B83C30B00DAA1DD /* icon.icns */; };
+		AA2B28F71B83C85D00DAA1DD /* dot_blue.png in Resources */ = {isa = PBXBuildFile; fileRef = AA2B28F31B83C85D00DAA1DD /* dot_blue.png */; };
+		AA2B28F81B83C85D00DAA1DD /* dot_red.png in Resources */ = {isa = PBXBuildFile; fileRef = AA2B28F41B83C85D00DAA1DD /* dot_red.png */; };
+		AA2B28F91B83C85D00DAA1DD /* dot_white.png in Resources */ = {isa = PBXBuildFile; fileRef = AA2B28F51B83C85D00DAA1DD /* dot_white.png */; };
+		AA2B28FA1B83C85D00DAA1DD /* dot_yellow.png in Resources */ = {isa = PBXBuildFile; fileRef = AA2B28F61B83C85D00DAA1DD /* dot_yellow.png */; };
 		AA2F821A1AED6CE100DFBBDF /* wake-gateway.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA2F82191AED6CE100DFBBDF /* wake-gateway.cpp */; };
 		AA3944011B703E1900E43364 /* common.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B72B1ADEC2E200B369BE /* common.cpp */; };
 		AA41B72D1ADEC2E200B369BE /* common.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B72B1ADEC2E200B369BE /* common.cpp */; };
@@ -41,6 +56,10 @@
 		AA41B7681ADECB3900B369BE /* master.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B7651ADECB3900B369BE /* master.cpp */; };
 		AA41B76D1ADECB9B00B369BE /* minecraft-master.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B76A1ADECB9B00B369BE /* minecraft-master.cpp */; };
 		AA41B76E1ADECBE200B369BE /* master-impl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B75B1ADECB1700B369BE /* master-impl.cpp */; };
+		AA429FA51B81D58B003385EB /* SlaveViews.xib in Resources */ = {isa = PBXBuildFile; fileRef = AA429FA31B81D58B003385EB /* SlaveViews.xib */; };
+		AA429FDD1B81FBE8003385EB /* xif_logo_err.png in Resources */ = {isa = PBXBuildFile; fileRef = AA429FDA1B81FBE8003385EB /* xif_logo_err.png */; };
+		AA429FDE1B81FBE8003385EB /* xif_logo_log.png in Resources */ = {isa = PBXBuildFile; fileRef = AA429FDB1B81FBE8003385EB /* xif_logo_log.png */; };
+		AA429FDF1B81FBE8003385EB /* xif_logo_maj.png in Resources */ = {isa = PBXBuildFile; fileRef = AA429FDC1B81FBE8003385EB /* xif_logo_maj.png */; };
 		AA46BE591B779B8400E72F0C /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AA46BE581B779B8400E72F0C /* Cocoa.framework */; };
 		AA4A44C91B57AADB005CBBDC /* keys.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA4A44C81B57AADB005CBBDC /* keys.cpp */; };
 		AA6B99FD1AED9F1700146475 /* log.h in Headers */ = {isa = PBXBuildFile; fileRef = AA6B99FC1AED9F1700146475 /* log.h */; };
@@ -50,18 +69,31 @@
 		AA8397941AE97AF9007FDF06 /* master-impl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B75B1ADECB1700B369BE /* master-impl.cpp */; };
 		AA8397961AE97B22007FDF06 /* api.h in Headers */ = {isa = PBXBuildFile; fileRef = AA41B7351ADEC2FE00B369BE /* api.h */; };
 		AA8397981AE97B3D007FDF06 /* common.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B72B1ADEC2E200B369BE /* common.cpp */; };
+		AAAA9BB31B7BB4B90058E2F5 /* stat_warnblue.png in Resources */ = {isa = PBXBuildFile; fileRef = AAAA9BB21B7BB4B80058E2F5 /* stat_warnblue.png */; };
+		AAAA9BB51B7BB4C10058E2F5 /* stat_keywarn.png in Resources */ = {isa = PBXBuildFile; fileRef = AAAA9BB41B7BB4C10058E2F5 /* stat_keywarn.png */; };
+		AAB1B35A1B7A7ADC00646491 /* stat_cant.png in Resources */ = {isa = PBXBuildFile; fileRef = AAB1B3551B7A7ADC00646491 /* stat_cant.png */; };
+		AAB1B35B1B7A7ADC00646491 /* stat_down.png in Resources */ = {isa = PBXBuildFile; fileRef = AAB1B3561B7A7ADC00646491 /* stat_down.png */; };
+		AAB1B35C1B7A7ADC00646491 /* stat_error.png in Resources */ = {isa = PBXBuildFile; fileRef = AAB1B3571B7A7ADC00646491 /* stat_error.png */; };
+		AAB1B35D1B7A7ADC00646491 /* stat_up.png in Resources */ = {isa = PBXBuildFile; fileRef = AAB1B3581B7A7ADC00646491 /* stat_up.png */; };
+		AAB1B35E1B7A7ADC00646491 /* stat_warn.png in Resources */ = {isa = PBXBuildFile; fileRef = AAB1B3591B7A7ADC00646491 /* stat_warn.png */; };
+		AAB1B3611B7AB45E00646491 /* xif_logo_sel.png in Resources */ = {isa = PBXBuildFile; fileRef = AAB1B35F1B7AB45E00646491 /* xif_logo_sel.png */; };
+		AAB1B3621B7AB45E00646491 /* xif_logo.png in Resources */ = {isa = PBXBuildFile; fileRef = AAB1B3601B7AB45E00646491 /* xif_logo.png */; };
+		AAB1B3641B7ABC7900646491 /* stat_forbid.png in Resources */ = {isa = PBXBuildFile; fileRef = AAB1B3631B7ABC7900646491 /* stat_forbid.png */; };
 		AAB9CA511B6D97F30026AF8C /* arduino_comm.h in Headers */ = {isa = PBXBuildFile; fileRef = AAB9CA501B6D97F30026AF8C /* arduino_comm.h */; };
+		AAC3C95F1B88AB2B009F5090 /* sshfs_icon.icns in Resources */ = {isa = PBXBuildFile; fileRef = AAC3C95E1B88AB2B009F5090 /* sshfs_icon.icns */; };
 		AAD214891AE974E30062A678 /* wol.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA41B75D1ADECB1700B369BE /* wol.cpp */; };
 		AADFEA671B63F53D00163432 /* keystore.hpp in Headers */ = {isa = PBXBuildFile; fileRef = AADFEA661B63F53D00163432 /* keystore.hpp */; };
 		AAF5EBB81B63F03100E445C3 /* arduino.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AAF5EBAE1B63EF9100E445C3 /* arduino.cpp */; };
+		AAFED1211B7F5F0000FC0297 /* stat_cross.png in Resources */ = {isa = PBXBuildFile; fileRef = AAFED1201B7F5F0000FC0297 /* stat_cross.png */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		AA103D131B7798300078E20C /* macgui-main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = "macgui-main.m"; path = "ioslaves-master-macgui/macgui-main.m"; sourceTree = SOURCE_ROOT; };
+		AA0F06E51B797C7A00839DA0 /* XifNetSlaveController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = XifNetSlaveController.h; path = "ioslaves-master-macgui/XifNetSlaveController.h"; sourceTree = SOURCE_ROOT; };
+		AA0F06E61B797C7A00839DA0 /* XifNetSlaveController.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = XifNetSlaveController.mm; path = "ioslaves-master-macgui/XifNetSlaveController.mm"; sourceTree = SOURCE_ROOT; };
+		AA103D131B7798300078E20C /* macgui-main.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = "macgui-main.mm"; path = "ioslaves-master-macgui/macgui-main.mm"; sourceTree = SOURCE_ROOT; };
 		AA103D141B7798300078E20C /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = "ioslaves-master-macgui/Info.plist"; sourceTree = SOURCE_ROOT; };
 		AA103D151B7798300078E20C /* XifNetAppDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = XifNetAppDelegate.h; path = "ioslaves-master-macgui/XifNetAppDelegate.h"; sourceTree = SOURCE_ROOT; };
-		AA103D161B7798300078E20C /* XifNetAppDelegate.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = XifNetAppDelegate.m; path = "ioslaves-master-macgui/XifNetAppDelegate.m"; sourceTree = SOURCE_ROOT; };
-		AA103D1C1B77983F0078E20C /* MainMenu.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; name = MainMenu.xib; path = "../ioslaves-master-macgui/en.lproj/MainMenu.xib"; sourceTree = "<group>"; };
+		AA103D161B7798300078E20C /* XifNetAppDelegate.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = XifNetAppDelegate.mm; path = "ioslaves-master-macgui/XifNetAppDelegate.mm"; sourceTree = SOURCE_ROOT; xcLanguageSpecificationIdentifier = xcode.lang.objcpp; };
 		AA1045AA1B5D9A3C00E8A875 /* minecraft-master.key.tpl */ = {isa = PBXFileReference; lastKnownFileType = text; name = "minecraft-master.key.tpl"; path = "ioslaves-master-minecraft/minecraft-master.key.tpl"; sourceTree = SOURCE_ROOT; };
 		AA1045AC1B5D9A6700E8A875 /* Makefile */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.make; name = Makefile; path = "ioslaves-master-minecraft/Makefile"; sourceTree = SOURCE_ROOT; };
 		AA1045AD1B5D9A7F00E8A875 /* Makefile */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.make; path = Makefile; sourceTree = "<group>"; };
@@ -75,6 +107,13 @@
 		AA2333981AE06F4A009433E3 /* PKGBUILD */ = {isa = PBXFileReference; lastKnownFileType = text; name = PKGBUILD; path = "ioslavesd-xifnetdyndns/PKGBUILD"; sourceTree = "<group>"; };
 		AA2333991AE06F65009433E3 /* PKGBUILD */ = {isa = PBXFileReference; lastKnownFileType = text; name = PKGBUILD; path = "ioslavesd-minecraft/PKGBUILD"; sourceTree = "<group>"; };
 		AA23339A1AE06F7A009433E3 /* PKGBUILD */ = {isa = PBXFileReference; lastKnownFileType = text; name = PKGBUILD; path = ioslavesd/PKGBUILD; sourceTree = "<group>"; };
+		AA24CDCD1B8DFF1300B0AA73 /* en */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = en; path = "ioslaves-master-macgui/en.lproj/MainMenu.xib"; sourceTree = SOURCE_ROOT; };
+		AA2B28E91B83C06D00DAA1DD /* xif_logo_warn.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = xif_logo_warn.png; path = "ioslaves-master-macgui/xif_logo_warn.png"; sourceTree = SOURCE_ROOT; };
+		AA2B28F11B83C30B00DAA1DD /* icon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; name = icon.icns; path = "ioslaves-master-macgui/icon.icns"; sourceTree = SOURCE_ROOT; };
+		AA2B28F31B83C85D00DAA1DD /* dot_blue.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = dot_blue.png; path = "ioslaves-master-macgui/dot_blue.png"; sourceTree = SOURCE_ROOT; };
+		AA2B28F41B83C85D00DAA1DD /* dot_red.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = dot_red.png; path = "ioslaves-master-macgui/dot_red.png"; sourceTree = SOURCE_ROOT; };
+		AA2B28F51B83C85D00DAA1DD /* dot_white.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = dot_white.png; path = "ioslaves-master-macgui/dot_white.png"; sourceTree = SOURCE_ROOT; };
+		AA2B28F61B83C85D00DAA1DD /* dot_yellow.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = dot_yellow.png; path = "ioslaves-master-macgui/dot_yellow.png"; sourceTree = SOURCE_ROOT; };
 		AA2F82191AED6CE100DFBBDF /* wake-gateway.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "wake-gateway.cpp"; path = "ioslavesd-wake-gateway/wake-gateway.cpp"; sourceTree = "<group>"; };
 		AA3944021B70E37C00E43364 /* log_defimpl.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = log_defimpl.h; path = common/log_defimpl.h; sourceTree = "<group>"; };
 		AA41B72B1ADEC2E200B369BE /* common.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = common.cpp; path = common/common.cpp; sourceTree = "<group>"; };
@@ -95,6 +134,10 @@
 		AA41B75D1ADECB1700B369BE /* wol.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = wol.cpp; path = "common-master/wol.cpp"; sourceTree = SOURCE_ROOT; };
 		AA41B7651ADECB3900B369BE /* master.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = master.cpp; sourceTree = "<group>"; };
 		AA41B76A1ADECB9B00B369BE /* minecraft-master.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "minecraft-master.cpp"; path = "ioslaves-master-minecraft/minecraft-master.cpp"; sourceTree = SOURCE_ROOT; };
+		AA429FA41B81D58B003385EB /* en */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = en; path = "ioslaves-master-macgui/en.lproj/SlaveViews.xib"; sourceTree = SOURCE_ROOT; };
+		AA429FDA1B81FBE8003385EB /* xif_logo_err.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = xif_logo_err.png; path = "ioslaves-master-macgui/xif_logo_err.png"; sourceTree = SOURCE_ROOT; };
+		AA429FDB1B81FBE8003385EB /* xif_logo_log.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = xif_logo_log.png; path = "ioslaves-master-macgui/xif_logo_log.png"; sourceTree = SOURCE_ROOT; };
+		AA429FDC1B81FBE8003385EB /* xif_logo_maj.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = xif_logo_maj.png; path = "ioslaves-master-macgui/xif_logo_maj.png"; sourceTree = SOURCE_ROOT; };
 		AA46BE581B779B8400E72F0C /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = /System/Library/Frameworks/Cocoa.framework; sourceTree = "<absolute>"; };
 		AA4A44C81B57AADB005CBBDC /* keys.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = keys.cpp; path = ioslavesd/keys.cpp; sourceTree = "<group>"; };
 		AA6B99FC1AED9F1700146475 /* log.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = log.h; path = common/log.h; sourceTree = "<group>"; };
@@ -102,9 +145,21 @@
 		AA90C531189F7461003A8C60 /* libminecraft.ioslaves.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = libminecraft.ioslaves.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA96398D1B77975300D67ED5 /* XifNet Master.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "XifNet Master.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA99F1B0184C65DD00BB6836 /* ioslavesd */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ioslavesd; sourceTree = BUILT_PRODUCTS_DIR; };
+		AAAA9BB01B7BB2A50058E2F5 /* macgui-common.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "macgui-common.h"; path = "ioslaves-master-macgui/macgui-common.h"; sourceTree = SOURCE_ROOT; };
+		AAAA9BB21B7BB4B80058E2F5 /* stat_warnblue.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = stat_warnblue.png; path = "ioslaves-master-macgui/stat_warnblue.png"; sourceTree = SOURCE_ROOT; };
+		AAAA9BB41B7BB4C10058E2F5 /* stat_keywarn.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = stat_keywarn.png; path = "ioslaves-master-macgui/stat_keywarn.png"; sourceTree = SOURCE_ROOT; };
+		AAB1B3551B7A7ADC00646491 /* stat_cant.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = stat_cant.png; path = "ioslaves-master-macgui/stat_cant.png"; sourceTree = SOURCE_ROOT; };
+		AAB1B3561B7A7ADC00646491 /* stat_down.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = stat_down.png; path = "ioslaves-master-macgui/stat_down.png"; sourceTree = SOURCE_ROOT; };
+		AAB1B3571B7A7ADC00646491 /* stat_error.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = stat_error.png; path = "ioslaves-master-macgui/stat_error.png"; sourceTree = SOURCE_ROOT; };
+		AAB1B3581B7A7ADC00646491 /* stat_up.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = stat_up.png; path = "ioslaves-master-macgui/stat_up.png"; sourceTree = SOURCE_ROOT; };
+		AAB1B3591B7A7ADC00646491 /* stat_warn.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = stat_warn.png; path = "ioslaves-master-macgui/stat_warn.png"; sourceTree = SOURCE_ROOT; };
+		AAB1B35F1B7AB45E00646491 /* xif_logo_sel.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = xif_logo_sel.png; path = "ioslaves-master-macgui/xif_logo_sel.png"; sourceTree = SOURCE_ROOT; };
+		AAB1B3601B7AB45E00646491 /* xif_logo.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = xif_logo.png; path = "ioslaves-master-macgui/xif_logo.png"; sourceTree = SOURCE_ROOT; };
+		AAB1B3631B7ABC7900646491 /* stat_forbid.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = stat_forbid.png; path = "ioslaves-master-macgui/stat_forbid.png"; sourceTree = SOURCE_ROOT; };
 		AAB552F418F44E8C00DC3ED9 /* minecraft-master */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "minecraft-master"; sourceTree = BUILT_PRODUCTS_DIR; };
 		AAB9CA501B6D97F30026AF8C /* arduino_comm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = arduino_comm.h; path = keystore/arduino_comm.h; sourceTree = "<group>"; };
 		AAC0E9AE1B5D3D76007BA3B8 /* perms-tpl */ = {isa = PBXFileReference; lastKnownFileType = folder; path = "perms-tpl"; sourceTree = "<group>"; };
+		AAC3C95E1B88AB2B009F5090 /* sshfs_icon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; name = sshfs_icon.icns; path = "ioslaves-master-macgui/sshfs_icon.icns"; sourceTree = SOURCE_ROOT; };
 		AAC7F7A81861FEA600033009 /* ioslaves-master */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "ioslaves-master"; sourceTree = BUILT_PRODUCTS_DIR; };
 		AAD214831AE971C50062A678 /* wake-gateway.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = "wake-gateway.dylib"; sourceTree = BUILT_PRODUCTS_DIR; };
 		AADFEA661B63F53D00163432 /* keystore.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = keystore.hpp; path = "common-master/keystore.hpp"; sourceTree = SOURCE_ROOT; };
@@ -114,6 +169,7 @@
 		AAF5EBAE1B63EF9100E445C3 /* arduino.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = arduino.cpp; path = keystore/arduino.cpp; sourceTree = "<group>"; };
 		AAF5EBB41B63F02400E445C3 /* libarduino.ioslmcext */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = libarduino.ioslmcext; sourceTree = BUILT_PRODUCTS_DIR; };
 		AAF5EBB91B63F1F000E445C3 /* iosl_master_keystore.ino */ = {isa = PBXFileReference; lastKnownFileType = text; name = iosl_master_keystore.ino; path = keystore/iosl_master_keystore/iosl_master_keystore.ino; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
+		AAFED1201B7F5F0000FC0297 /* stat_cross.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = stat_cross.png; path = "ioslaves-master-macgui/stat_cross.png"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -184,6 +240,35 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		AA0F06EE1B79EB1C00839DA0 /* Ressources */ = {
+			isa = PBXGroup;
+			children = (
+				AA2B28F31B83C85D00DAA1DD /* dot_blue.png */,
+				AA2B28F41B83C85D00DAA1DD /* dot_red.png */,
+				AA2B28F51B83C85D00DAA1DD /* dot_white.png */,
+				AA2B28F61B83C85D00DAA1DD /* dot_yellow.png */,
+				AAB1B3551B7A7ADC00646491 /* stat_cant.png */,
+				AAB1B3561B7A7ADC00646491 /* stat_down.png */,
+				AAB1B3571B7A7ADC00646491 /* stat_error.png */,
+				AAB1B3581B7A7ADC00646491 /* stat_up.png */,
+				AAB1B3591B7A7ADC00646491 /* stat_warn.png */,
+				AAAA9BB21B7BB4B80058E2F5 /* stat_warnblue.png */,
+				AAAA9BB41B7BB4C10058E2F5 /* stat_keywarn.png */,
+				AAB1B3631B7ABC7900646491 /* stat_forbid.png */,
+				AAFED1201B7F5F0000FC0297 /* stat_cross.png */,
+				AAB1B35F1B7AB45E00646491 /* xif_logo_sel.png */,
+				AAB1B3601B7AB45E00646491 /* xif_logo.png */,
+				AA429FDA1B81FBE8003385EB /* xif_logo_err.png */,
+				AA429FDB1B81FBE8003385EB /* xif_logo_log.png */,
+				AA429FDC1B81FBE8003385EB /* xif_logo_maj.png */,
+				AA2B28E91B83C06D00DAA1DD /* xif_logo_warn.png */,
+				AA2B28F11B83C30B00DAA1DD /* icon.icns */,
+				AAC3C95E1B88AB2B009F5090 /* sshfs_icon.icns */,
+				AA103D141B7798300078E20C /* Info.plist */,
+			);
+			name = Ressources;
+			sourceTree = "<group>";
+		};
 		AA129CED1A90E83E009A2B42 /* ioslstatd */ = {
 			isa = PBXGroup;
 			children = (
@@ -241,11 +326,15 @@
 		AA9639AA1B77976C00D67ED5 /* OSX GUI */ = {
 			isa = PBXGroup;
 			children = (
-				AA103D131B7798300078E20C /* macgui-main.m */,
-				AA103D141B7798300078E20C /* Info.plist */,
+				AAAA9BB01B7BB2A50058E2F5 /* macgui-common.h */,
+				AA103D131B7798300078E20C /* macgui-main.mm */,
 				AA103D151B7798300078E20C /* XifNetAppDelegate.h */,
-				AA103D161B7798300078E20C /* XifNetAppDelegate.m */,
-				AA103D1C1B77983F0078E20C /* MainMenu.xib */,
+				AA103D161B7798300078E20C /* XifNetAppDelegate.mm */,
+				AA24CDCC1B8DFF1300B0AA73 /* MainMenu.xib */,
+				AA429FA31B81D58B003385EB /* SlaveViews.xib */,
+				AA0F06E51B797C7A00839DA0 /* XifNetSlaveController.h */,
+				AA0F06E61B797C7A00839DA0 /* XifNetSlaveController.mm */,
+				AA0F06EE1B79EB1C00839DA0 /* Ressources */,
 				AA96398D1B77975300D67ED5 /* XifNet Master.app */,
 				AA46BE5A1B779B9600E72F0C /* Frameworks */,
 			);
@@ -347,6 +436,7 @@
 				AA41B7341ADEC2E200B369BE /* common.hpp in Headers */,
 				AA41B7391ADEC2FE00B369BE /* api.h in Headers */,
 				AA6B99FE1AED9F1700146475 /* log.h in Headers */,
+				AA0F06DF1B78250700839DA0 /* log_defimpl.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -357,6 +447,7 @@
 				AA41B7331ADEC2E200B369BE /* common.hpp in Headers */,
 				AA41B7381ADEC2FE00B369BE /* api.h in Headers */,
 				AA6B99FD1AED9F1700146475 /* log.h in Headers */,
+				AA0F06DE1B78250600839DA0 /* log_defimpl.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -366,6 +457,8 @@
 			files = (
 				AA8397961AE97B22007FDF06 /* api.h in Headers */,
 				AA6B99FF1AED9F1700146475 /* log.h in Headers */,
+				AA0F06DB1B7824F500839DA0 /* common.hpp in Headers */,
+				AA0F06E01B78250900839DA0 /* log_defimpl.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -375,6 +468,8 @@
 			files = (
 				AADFEA671B63F53D00163432 /* keystore.hpp in Headers */,
 				AAB9CA511B6D97F30026AF8C /* arduino_comm.h in Headers */,
+				AA0F06DC1B7824F500839DA0 /* common.hpp in Headers */,
+				AA0F06DD1B7824FA00839DA0 /* log.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -568,8 +663,30 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				AA103D191B7798300078E20C /* Info.plist in Resources */,
-				AA103D1D1B77983F0078E20C /* MainMenu.xib in Resources */,
+				AA2B28EE1B83C14E00DAA1DD /* MainMenu.xib in Resources */,
+				AAB1B35A1B7A7ADC00646491 /* stat_cant.png in Resources */,
+				AAB1B35B1B7A7ADC00646491 /* stat_down.png in Resources */,
+				AAB1B35C1B7A7ADC00646491 /* stat_error.png in Resources */,
+				AAB1B35D1B7A7ADC00646491 /* stat_up.png in Resources */,
+				AAB1B35E1B7A7ADC00646491 /* stat_warn.png in Resources */,
+				AAB1B3611B7AB45E00646491 /* xif_logo_sel.png in Resources */,
+				AAB1B3621B7AB45E00646491 /* xif_logo.png in Resources */,
+				AAB1B3641B7ABC7900646491 /* stat_forbid.png in Resources */,
+				AAAA9BB31B7BB4B90058E2F5 /* stat_warnblue.png in Resources */,
+				AAAA9BB51B7BB4C10058E2F5 /* stat_keywarn.png in Resources */,
+				AAFED1211B7F5F0000FC0297 /* stat_cross.png in Resources */,
+				AA429FA51B81D58B003385EB /* SlaveViews.xib in Resources */,
+				AA429FDD1B81FBE8003385EB /* xif_logo_err.png in Resources */,
+				AA429FDE1B81FBE8003385EB /* xif_logo_log.png in Resources */,
+				AA429FDF1B81FBE8003385EB /* xif_logo_maj.png in Resources */,
+				AA2B28EA1B83C06D00DAA1DD /* xif_logo_warn.png in Resources */,
+				AA2B28F21B83C30B00DAA1DD /* icon.icns in Resources */,
+				AA2B28F71B83C85D00DAA1DD /* dot_blue.png in Resources */,
+				AA2B28F81B83C85D00DAA1DD /* dot_red.png in Resources */,
+				AA2B28F91B83C85D00DAA1DD /* dot_white.png in Resources */,
+				AA2B28FA1B83C85D00DAA1DD /* dot_yellow.png in Resources */,
+				AAC3C95F1B88AB2B009F5090 /* sshfs_icon.icns in Resources */,
+				AA24CDCE1B8DFF1300B0AA73 /* MainMenu.xib in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -609,8 +726,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				AA103D181B7798300078E20C /* macgui-main.m in Sources */,
-				AA103D1A1B7798300078E20C /* XifNetAppDelegate.m in Sources */,
+				AA103D181B7798300078E20C /* macgui-main.mm in Sources */,
+				AA103D1A1B7798300078E20C /* XifNetAppDelegate.mm in Sources */,
+				AA0F06D91B7824D600839DA0 /* master-impl.cpp in Sources */,
+				AA0F06DA1B7824F000839DA0 /* common.cpp in Sources */,
+				AA0F06E81B797C7B00839DA0 /* XifNetSlaveController.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -675,6 +795,33 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXVariantGroup section */
+		AA24CDCC1B8DFF1300B0AA73 /* MainMenu.xib */ = {
+			isa = PBXVariantGroup;
+			children = (
+				AA24CDCD1B8DFF1300B0AA73 /* en */,
+			);
+			name = MainMenu.xib;
+			sourceTree = "<group>";
+		};
+		AA2B28F01B83C14E00DAA1DD /* MainMenu.xib */ = {
+			isa = PBXVariantGroup;
+			children = (
+			);
+			name = MainMenu.xib;
+			path = "/Users/xcodexif/Desktop/Code/C++/ioslaves/ioslaves-master-macgui/en.lproj";
+			sourceTree = "<absolute>";
+		};
+		AA429FA31B81D58B003385EB /* SlaveViews.xib */ = {
+			isa = PBXVariantGroup;
+			children = (
+				AA429FA41B81D58B003385EB /* en */,
+			);
+			name = SlaveViews.xib;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
 /* Begin XCBuildConfiguration section */
 		AA129CF21A90E83E009A2B42 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -723,8 +870,12 @@
 		AA9639A91B77975400D67ED5 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					IOSL_MASTER_KEYSTORE_EXT_METHODS,
+					"$(inherited)",
+				);
 				INFOPLIST_FILE = "ioslaves-master-macgui/Info.plist";
+				MACOSX_DEPLOYMENT_TARGET = 10.6;
 				OTHER_LDFLAGS = (
 					"-lldns",
 					"-lconfig++",
