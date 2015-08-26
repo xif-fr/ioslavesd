@@ -330,7 +330,7 @@ int main (int argc, char* const argv[]) {
 					try_help("not in granmaster mode : slave ID must be defined");
 				optctx::optctx_set(optctx::mcserv);
 				$server_name = optarg;
-				if (!ioslaves::validateName($server_name))
+				if (!ioslaves::validateServiceName($server_name))
 					try_help("--server: invalid server name\n");
 				break;
 			case 's':

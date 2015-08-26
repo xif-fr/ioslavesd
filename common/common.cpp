@@ -66,6 +66,15 @@ bool ioslaves::validateName (std::string str) {
 	return true;
 }
 
+bool ioslaves::validateServiceName (std::string str) {
+	if (str.empty()) return false;
+	if (not ::isalpha(str[0])) return false;
+	for (size_t i = 1; i < str.length(); ++i) {
+		if (not (::isalnum(str[i]) || str[i] == '-')) return false;
+	}
+	return true;
+}
+
 bool ioslaves::validateHexa (std::string hexa_str) {
 	if (hexa_str.empty()) return false;
 	for (size_t i = 0; i < hexa_str.length(); ++i) {

@@ -294,7 +294,7 @@ int main (int argc, char* const argv[]) {
 				optctx::optctx_set(optctx::slctrl_Ser);
 				if ($auto_auth) $auth = true;
 				$service_name = optarg;
-				if (!ioslaves::validateName($service_name)) 
+				if (!ioslaves::validateServiceName($service_name)) 
 					try_help("--service: invalid service ID\n");
 				break;
 			case 's':

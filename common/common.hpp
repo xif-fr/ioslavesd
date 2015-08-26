@@ -103,6 +103,7 @@ namespace ioslaves {
 		// Validating names or IDs
 	bool validateHexa (std::string hexa_str);
 	bool validateName (std::string id_str);
+	bool validateServiceName (std::string str);
 	bool validateHostname (std::string host);
 	bool validateSlaveName (std::string str);
 	bool validateMasterID (std::string master_id);

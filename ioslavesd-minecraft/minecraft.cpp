@@ -332,6 +332,11 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 		bool is_a_gran_master = cli.i_bool();
 		std::string s_servid = cli.i_str();
 		minecraft::op_code opp = (minecraft::op_code)cli.i_char();
+		if (!ioslaves::validateServiceName(s_servid)) {
+			__log__(log_lvl::ERROR, "PARAM", logstream << "'" << s_servid << "' is not a valid server name");
+			cli.o_char((char)ioslaves::answer_code::SECURITY_ERROR);
+			return;
+		}
 		
 			// Report server stop-reports to master, if able to handle it
 		pthread_mutex_handle_lock(minecraft::servs_mutex);

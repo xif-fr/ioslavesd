@@ -940,6 +940,7 @@ int main (int argc, const char* argv[]) {
 	
 	if (quit_type != QUIT_NORMAL) {
 		*signal_catch_sigchild_p = false;
+		__log__(log_lvl::IMPORTANT, NULL, "Exit with shutdown now");
 		ioslaves::api::euid_switch(0,0);
 		r = ::system( _s("shutdown -",(quit_type==QUIT_REBOOT?'r':'h')," now") ); 
 	}
