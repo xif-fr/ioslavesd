@@ -120,6 +120,10 @@ byte serialRead () {
 	return Serial.read();
 }
 
+	// Leds / Buzzer
+const digital_pin_t PIN_LED_RED = 15;
+const digital_pin_t PIN_LED_GREEN = 16;
+
 	// Main
 void setup () {
 	Serial.begin(9600);
@@ -127,14 +131,19 @@ void setup () {
 	Wire.begin();
 	pinMode(30, OUTPUT);
 	digitalWrite(30, LOW);
+	pinMode(PIN_LED_RED, OUTPUT);
+	pinMode(PIN_LED_GREEN, OUTPUT);
 	delay(100);
 	Serial.write((byte)OK);
 _reuse_conn:
+	digitalWrite(PIN_LED_RED, HIGH);
 	bool reuse = ::serialRead();
 	arduino_auth_opcode op = (arduino_auth_opcode)::serialRead();
 
         /* TODO : CHECK PASSWD */
 
+	digitalWrite(PIN_LED_RED, LOW);
+	digitalWrite(PIN_LED_GREEN, HIGH);
 	switch (op) {
 		case OP_DUMP_EEPROM:
 			Serial.write((byte)OK);
