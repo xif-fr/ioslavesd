@@ -142,9 +142,6 @@ extern "C" ioslaves::hash_t key_answer_challenge (std::string key_id, ioslaves::
 	for (size_t i = 0; i < HASH_LEN; i++) {
 		hash.bin[i] = ::arduino_read_byte(serial, ARDUINO_TIMEOUT);
 	}
-	RAII_AT_END_N(mzero, {
-		::memset(&hash, 0x0, sizeof(ioslaves::hash_t));
-	});
 	return hash;
 }
 
@@ -178,7 +175,7 @@ fd_t arduino_get_connection (const char* device, arduino_auth_opcode op) {
 		}
 	}
 _connect:
-	__log__(log_lvl::LOG, "ARDUINO", logstream << "Connecting to arduino device " << device << " ...");
+	__log__(log_lvl::LOG, "ARDUINO", logstream << "Connecting to arduino device '" << device << "'...");
 	serial = ::open(device, O_RDWR|O_NOCTTY|O_NDELAY);
 	if (serial == -1) 
 		throw xif::sys_error("failed to open tty to device");

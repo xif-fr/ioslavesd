@@ -403,17 +403,16 @@ std::string ioslaves::infofile_get (const char* path, bool nul_if_no_file) {
 	if (sz == 0)
 		return std::string();
 	::lseek(f, 0, SEEK_SET);
-	char* info = new char[sz+1];
+	char* info = new char[sz];
 	RAII_AT_END_N(info, {
 		delete[] info;
 	});
 	ssize_t rs = ::read(f, info, sz);
 	if (rs != (ssize_t)sz) 
 		throw xif::sys_error("failed to read from infofile");
-	info[sz] = '\0';
 	for (size_t i = 0; i < sz; i++) 
-		if (info[i] == '\n') { info[sz] = '\0'; break; }
-	return std::string(info, ::strlen(info));
+		if (info[i] == '\n') { sz = i; break; }
+	return std::string(info, (size_t)sz);
 }
 
 void ioslaves::infofile_set (const char* path, std::string info) {

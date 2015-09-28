@@ -22,6 +22,7 @@
 	IBOutlet NSProgressIndicator* slaveConnectIndicator;
 	int stopFD;
 	NSTimer* logSeenTimer;
+	time_t lastLogSeen;
 	IBOutlet NSImageView* logDotBlue;
 	IBOutlet NSImageView* logDotRed;
 	IBOutlet NSImageView* logDotYellow;

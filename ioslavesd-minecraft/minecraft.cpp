@@ -246,7 +246,7 @@ extern "C" void ioslapi_stop (void) {
 		libconfig::Config savereports;
 		libconfig::Setting& replist = savereports.getRoot();
 		for (auto it = minecraft::servs_stopped.begin(); it != minecraft::servs_stopped.end(); it++) {
-			minecraft::serv_stopped ss = *it;
+			minecraft::serv_stopped& ss = *it;
 			__log__(log_lvl::LOG, NULL, ss.serv, LOG_ADD|LOG_WAIT, &l);
 			libconfig::Setting& report = replist.add(ss.serv, libconfig::Setting::TypeGroup);
 			report.add("gracefully", libconfig::Setting::TypeBoolean) = ss.gracefully;
@@ -341,7 +341,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 			// Report server stop-reports to master, if able to handle it
 		pthread_mutex_handle_lock(minecraft::servs_mutex);
 		for (auto it = minecraft::servs_stopped.begin(); it != minecraft::servs_stopped.end();) {
-			minecraft::serv_stopped ss = *it;
+			minecraft::serv_stopped& ss = *it;
 			if (s_servid == ss.serv or is_a_gran_master) {
 				__log__(log_lvl::IMPORTANT, "COMM", logstream << "Reporting stop of server '" << ss.serv << "' to master");
 				cli.o_char((char)ioslaves::answer_code::WANT_REPORT);
@@ -1334,7 +1334,7 @@ void* minecraft::serv_thread (void* arg) {
 	{	// Delete old stop report
 		pthread_mutex_handle_lock(minecraft::servs_mutex);
 		for (auto it = minecraft::servs_stopped.begin(); it != minecraft::servs_stopped.end();) {
-			minecraft::serv_stopped ss = *it;
+			minecraft::serv_stopped& ss = *it;
 			if (s->s_servid == ss.serv) {
 				minecraft::servs_stopped.erase(it);
 				__log__(log_lvl::NOTICE, THLOGSCLI(s), "Deleted old stop report");

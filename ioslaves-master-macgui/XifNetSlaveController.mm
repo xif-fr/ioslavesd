@@ -145,6 +145,7 @@ NSAttributedString* log_master_strs[] = {
 		[slaveReconnectButton setTarget:self]; [slaveReconnectButton setAction:@selector(reconnect:)];
 		[slaveSSHButton setTarget:self]; [slaveSSHButton setAction:@selector(connectSSH:)];
 		[slaveSSHFSButton setTarget:self]; [slaveSSHFSButton setAction:@selector(connectSSHFS:)];
+		lastLogSeen = ::time(NULL);
 		[self logSeen];
 		NSUserDefaults* prefs = [NSUserDefaults standardUserDefaults];
 		NSDictionary* prefsSlaves = [prefs dictionaryForKey:@"slaves"];
@@ -348,6 +349,9 @@ NSAttributedString* log_master_strs[] = {
 		NSRunningApplication* terminalApp = [[NSRunningApplication runningApplicationsWithBundleIdentifier:@"com.apple.Terminal"] objectAtIndex:0];
 		[terminalApp activateWithOptions:NSApplicationActivateIgnoringOtherApps];
 		__log__(log_lvl::LOG, "SSH", logstream << "Executing '" << [shellScript UTF8String] << "'...");
+		::dispatch_sync(dispatch_get_main_queue(), ^{
+			[subMenu cancelTracking];
+		});
 	}
     ::sleep(4);
 	try {
@@ -525,7 +529,7 @@ NSAttributedString* log_master_strs[] = {
 				case ioslaves::answer_code::DENY: 
 					return connectFail( icons::forbidden, logstream << "Operation not authorized" << logstr );
 				case ioslaves::answer_code::BAD_CHALLENGE_ANSWER: 
-					return connectFail( icons::autherr, logstream << "Bad answer to slave " << self->slaveID << " 's challenge" << logstr );
+					return connectFail( icons::autherr, logstream << "Bad answer to slave " << self->slaveID << "'s challenge" << logstr );
 				case ioslaves::answer_code::INTERNAL_ERROR: 
 					return connectFail( icons::syserr, logstream << "System or internal error on slave '" << self->slaveID << "'" << logstr );
 				default: 
@@ -635,8 +639,13 @@ NSAttributedString* log_master_strs[] = {
 	if (logSeenTimer != nil) {
 		[logSeenTimer invalidate];
 		logSeenTimer = nil;
-	} else
+	} else {
+		if (self->lastLogSeen+15 < ::time(NULL) and self->isConnected) {
+			[self addLogLineAtTime:LOG_TIME_NOW OfLevel:(log_lvl::LOG) isLocal:true inPart:"" withMessage:"————————————————————————————————————————————————"];
+			self->lastLogSeen = ::time(NULL);
+		}
 		[self logSeen];
+	}
 }
 - (void)logSeen {
 	logSeenTimer = nil;

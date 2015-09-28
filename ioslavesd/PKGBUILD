@@ -3,7 +3,7 @@
 pkgname=ioslavesd
 pkgver=3.4.6
 pkgrel=1
-pkgdesc='Xif Network - ioslaves control program deamon for slave side'
+pkgdesc='Xif Network - ioslaves control program daemon for slave side'
 license=('custom')
 arch=('i686' 'x86_64')
 depends=('socketxx' 'libconfig' 'miniupnpc>=1.9' 'topp')

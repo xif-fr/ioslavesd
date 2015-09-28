@@ -1,7 +1,7 @@
 /**********************************************************\
  *                 -== Xif Network project ==-
  *                         ioslstatd
- *               ioslaves master : status deamon
+ *               ioslaves master : status daemon
  * *********************************************************
  * Copyright © Félix Faisant 2014-2015. All rights reserved
  * This software is under the GNU General Public License

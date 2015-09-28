@@ -544,9 +544,9 @@ void IPreSlaveCo () {
 		std::cerr << "Connecting to " << $slave_id << " at " << $connect_addr.get_ip_str() << ":" << $connect_addr.get_port() << "..." << std::endl;
 		$slave_sock = new socketxx::simple_socket_client<socketxx::base_netsock> ($connect_addr, $connect_timeout);
 		$slave_sock->set_read_timeout($comm_timeout);
-	} catch (socketxx::error& e) {
+	} catch (socketxx::end::client_connect_error& e) {
 		std::cerr << COLOR_RED << "Failed to connect to slave : " << COLOR_RESET << e.what() << std::endl;
-		EXIT_FAILURE = EXIT_FAILURE_CONN;
+		EXIT_FAILURE = EXIT_FAILURE_DOWN;
 		delete $slave_sock;
 		throw EXCEPT_ERROR_IGNORE;
 	}

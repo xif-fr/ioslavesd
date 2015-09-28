@@ -109,7 +109,7 @@ namespace ioslaves {
 		/// Service structure
 	struct service {
 		std::string s_name;
-		enum class type { SYSTEMCTL, PROG_DEAMON, IOSLPLUGIN } s_type;
+		enum class type { SYSTEMCTL, PROG_DAEMON, IOSLPLUGIN } s_type;
 			static type strToType (std::string str);
 			std::string typeToStr ();
 		std::vector<ioslaves::upnpPort> s_ports;

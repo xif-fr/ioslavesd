@@ -3,7 +3,7 @@
 pkgname=ioslstatd
 pkgver=3.4.5
 pkgrel=1
-pkgdesc='Xif Network - ioslaves master websocket status gathering deamon'
+pkgdesc='Xif Network - ioslaves master websocket status gathering daemon'
 license=('custom')
 arch=('i686' 'x86_64')
 depends=('ioslaves-master' 'nopoll')

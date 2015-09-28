@@ -1,7 +1,7 @@
 /**********************************************************\
  *               -== Xif Network project ==-
  *                       ioslavesd
- *        slave control deamon and services manager
+ *        slave control daemon and services manager
  * *********************************************************
  * Copyright © Félix Faisant 2013-2015. All rights reserved
  * This software is under the GNU General Public License
@@ -1205,14 +1205,14 @@ void ioslaves::api::dns_srv_del (const char* service_name, std::string domain, s
 #define _IOSLAVES_STR_TO_SERVICE_TYPE(TYPE) if (str == std::string(#TYPE)) return type::TYPE;
 ioslaves::service::type ioslaves::service::strToType (std::string str) {
 	_IOSLAVES_STR_TO_SERVICE_TYPE(SYSTEMCTL);
-	_IOSLAVES_STR_TO_SERVICE_TYPE(PROG_DEAMON);
+	_IOSLAVES_STR_TO_SERVICE_TYPE(PROG_DAEMON);
 	_IOSLAVES_STR_TO_SERVICE_TYPE(IOSLPLUGIN);
 	throw std::runtime_error(logstream << "service::strToType : Unknown type '" << str << "' in field 'type' !" << logstr);
 }
 #define _IOSLAVES_SERVICE_TYPE_TO_STR(TYPE) if (this->s_type == type::TYPE) return std::string(#TYPE);
 std::string ioslaves::service::typeToStr () {
 	_IOSLAVES_SERVICE_TYPE_TO_STR(SYSTEMCTL);
-	_IOSLAVES_SERVICE_TYPE_TO_STR(PROG_DEAMON);
+	_IOSLAVES_SERVICE_TYPE_TO_STR(PROG_DAEMON);
 	_IOSLAVES_SERVICE_TYPE_TO_STR(IOSLPLUGIN);
 	throw std::logic_error("typeToStr: bad service type");
 }
@@ -1318,7 +1318,7 @@ void ioslaves::loadService (std::string name, FILE* service_file) {
 					return;
 				}
 				break;
-			case ioslaves::service::type::PROG_DEAMON: 
+			case ioslaves::service::type::PROG_DAEMON: 
 				try {
 					std::string pidfile = service_conf.lookup("pid_file").operator std::string();
 					s->spec.exec.pid_file = new char[pidfile.length()+1];
@@ -1351,7 +1351,7 @@ void ioslaves::loadService (std::string name, FILE* service_file) {
 }
 	// Service destructor
 ioslaves::service::~service () { 
-	if (this->s_type == type::PROG_DEAMON and this->spec.exec.pid_file != NULL) {
+	if (this->s_type == type::PROG_DAEMON and this->spec.exec.pid_file != NULL) {
 		delete[] this->spec.exec.pid_file;
 		delete[] this->spec.exec.execnam;
 	}
@@ -1381,7 +1381,7 @@ ioslaves::service* ioslaves::getServiceByName (std::string name) {
 xif::polyvar ioslaves::serviceStatus (const ioslaves::service* s) {
 	switch (s->s_type) {
 		case ioslaves::service::type::SYSTEMCTL: return xif::polyvar();
-		case ioslaves::service::type::PROG_DEAMON: return xif::polyvar();
+		case ioslaves::service::type::PROG_DAEMON: return xif::polyvar();
 		case ioslaves::service::type::IOSLPLUGIN: {
 			if (not s->ss_status_running) return xif::polyvar();
 			dl_t dl_handle = s->spec.plugin.handle;
@@ -1405,8 +1405,10 @@ xif::polyvar ioslaves::serviceStatus (const ioslaves::service* s) {
 void ioslaves::controlService (ioslaves::service* s, bool start, const char* controlling_master) {
 	logl_t l;
 	switch (s->s_type) {
-		case ioslaves::service::type::SYSTEMCTL: __log__(log_lvl::IMPORTANT, "SERVICE", logstream << (start?"Starting":"Stopping") << " service '" << s->s_name << "' as systemctl service '" << s->s_command << "'..."); break;
-		case ioslaves::service::type::PROG_DEAMON:
+		case ioslaves::service::type::SYSTEMCTL: 
+			__log__(log_lvl::IMPORTANT, "SERVICE", logstream << (start?"Starting":"Stopping") << " service '" << s->s_name << "' as systemctl service '" << s->s_command << "'...");
+			break;
+		case ioslaves::service::type::PROG_DAEMON:
 			__log__(log_lvl::IMPORTANT, "SERVICE", logstream << (start?"Starting":"Stopping") << " daemon '" << s->s_name << "'...");
 			break;
 		case ioslaves::service::type::IOSLPLUGIN:
@@ -1495,7 +1497,7 @@ void ioslaves::controlService (ioslaves::service* s, bool start, const char* con
 		} break;
 		
 		//-------------- Start/Stop daemon executable
-		case ioslaves::service::type::PROG_DEAMON: {
+		case ioslaves::service::type::PROG_DAEMON: {
 			std::function<pid_t()> file_get_pid = [&]()-> pid_t {
 				ssize_t rs;
 				fd_t pid_f = ::open(s->spec.exec.pid_file, O_RDONLY);
@@ -1536,7 +1538,7 @@ void ioslaves::controlService (ioslaves::service* s, bool start, const char* con
 							throw xif::sys_error("failed to get proc name");
 						}
 						std::string proc_path = pathbuf;
-						__log__(log_lvl::LOG, "DEAMON", logstream << "Process cmdline of pid " << pid << " : `" << proc_path << "`");
+						__log__(log_lvl::LOG, "DAEMON", logstream << "Process cmdline of pid " << pid << " : `" << proc_path << "`");
 						if (::strlen(s->spec.exec.execnam) == 0 or proc_path.find(s->spec.exec.execnam)) 
 							goto __proc_validated;
 				#elif __linux__
@@ -1552,7 +1554,7 @@ void ioslaves::controlService (ioslaves::service* s, bool start, const char* con
 						rs = ::read(proc_cmd_f, pathbuf, sizeof(pathbuf));
 						if (rs > 0) {
 							proc_name = std::string(pathbuf, rs);
-							__log__(log_lvl::LOG, "DEAMON", logstream << "Process name of pid " << pid << " : `" << proc_name << "`");
+							__log__(log_lvl::LOG, "DAEMON", logstream << "Process name of pid " << pid << " : `" << proc_name << "`");
 							if (proc_name == s->spec.exec.execnam) 
 								goto __proc_validated;	
 						}
@@ -1570,7 +1572,7 @@ void ioslaves::controlService (ioslaves::service* s, bool start, const char* con
 						r = ::system(s->s_command.c_str());
 					}
 					if (r == -1) throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "DAEMON", logstream << "system() failed to exec daemon command : " << ::strerror(errno));
-					if (r != 0) throw ioslaves::req_err(ioslaves::answer_code::EXTERNAL_ERROR, "DAEMON", logstream << "`" << s->s_command << "` command failed !");
+					if (r != 0) throw ioslaves::req_err(ioslaves::answer_code::EXTERNAL_ERROR, "DAEMON", logstream << "`" << s->s_command << "` command failed ! ($? = " << r << ")");
 				} else {
 					const char* daemon_dead_why = "?";
 					pid_t pid = file_get_pid();
