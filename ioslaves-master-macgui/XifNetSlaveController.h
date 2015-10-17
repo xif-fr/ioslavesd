@@ -41,6 +41,7 @@
 	IBOutlet NSButton* slaveSSHFSButton;
 	IBOutlet NSSegmentedControl* slaveSshPresets;
 	IBOutlet NSButton* shutUpCheckBox;
+	IBOutlet NSButton* noVerboseLogCheckBox;
 }
 
 - (id)initWithSlaveID:(std::string)slaveId fullName:(NSString*)fullName;

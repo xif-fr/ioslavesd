@@ -303,7 +303,7 @@
 						<string key="NSFrame">{{20, 10}, {334, 19}}</string>
 						<reference key="NSSuperview" ref="539237006"/>
 						<reference key="NSWindow"/>
-						<reference key="NSNextKeyView"/>
+						<reference key="NSNextKeyView" ref="444546491"/>
 						<bool key="NSEnabled">YES</bool>
 						<object class="NSSegmentedCell" key="NSCell" id="849250767">
 							<int key="NSCellFlags">67239424</int>
@@ -325,10 +325,38 @@
 							<int key="NSSegmentStyle">2</int>
 						</object>
 					</object>
+					<object class="NSButton" id="634118676">
+						<reference key="NSNextResponder" ref="539237006"/>
+						<int key="NSvFlags">268</int>
+						<string key="NSFrame">{{551, 5}, {59, 18}}</string>
+						<reference key="NSSuperview" ref="539237006"/>
+						<reference key="NSWindow"/>
+						<bool key="NSEnabled">YES</bool>
+						<object class="NSButtonCell" key="NSCell" id="676571273">
+							<int key="NSCellFlags">67239424</int>
+							<int key="NSCellFlags2">131072</int>
+							<string key="NSContents">No --*</string>
+							<reference key="NSSupport" ref="26"/>
+							<reference key="NSControlView" ref="634118676"/>
+							<int key="NSButtonFlags">1211912703</int>
+							<int key="NSButtonFlags2">2</int>
+							<object class="NSCustomResource" key="NSNormalImage" id="833523647">
+								<string key="NSClassName">NSImage</string>
+								<string key="NSResourceName">NSSwitch</string>
+							</object>
+							<object class="NSButtonImageSource" key="NSAlternateImage" id="357446507">
+								<string key="NSImageName">NSSwitch</string>
+							</object>
+							<string key="NSAlternateContents"/>
+							<string key="NSKeyEquivalent"/>
+							<int key="NSPeriodicDelay">200</int>
+							<int key="NSPeriodicInterval">25</int>
+						</object>
+					</object>
 					<object class="NSButton" id="398334380">
 						<reference key="NSNextResponder" ref="539237006"/>
 						<int key="NSvFlags">268</int>
-						<string key="NSFrame">{{551, 11}, {63, 18}}</string>
+						<string key="NSFrame">{{551, 20}, {63, 18}}</string>
 						<reference key="NSSuperview" ref="539237006"/>
 						<reference key="NSWindow"/>
 						<reference key="NSNextKeyView" ref="988396199"/>
@@ -341,13 +369,8 @@
 							<reference key="NSControlView" ref="398334380"/>
 							<int key="NSButtonFlags">1211912703</int>
 							<int key="NSButtonFlags2">2</int>
-							<object class="NSCustomResource" key="NSNormalImage">
-								<string key="NSClassName">NSImage</string>
-								<string key="NSResourceName">NSSwitch</string>
-							</object>
-							<object class="NSButtonImageSource" key="NSAlternateImage">
-								<string key="NSImageName">NSSwitch</string>
-							</object>
+							<reference key="NSNormalImage" ref="833523647"/>
+							<reference key="NSAlternateImage" ref="357446507"/>
 							<string key="NSAlternateContents"/>
 							<string key="NSKeyEquivalent"/>
 							<int key="NSPeriodicDelay">200</int>
@@ -853,6 +876,14 @@
 				</object>
 				<object class="IBConnectionRecord">
 					<object class="IBOutletConnection" key="connection">
+						<string key="label">noVerboseLogCheckBox</string>
+						<reference key="source" ref="1021"/>
+						<reference key="destination" ref="634118676"/>
+					</object>
+					<int key="connectionID">717</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBOutletConnection" key="connection">
 						<string key="label">slaveNameLabel</string>
 						<reference key="source" ref="652961229"/>
 						<reference key="destination" ref="537489176"/>
@@ -1037,6 +1068,7 @@
 							<reference ref="355099310"/>
 							<reference ref="372405718"/>
 							<reference ref="125239693"/>
+							<reference ref="634118676"/>
 						</array>
 						<reference key="parent" ref="0"/>
 					</object>
@@ -1178,6 +1210,19 @@
 						<reference key="object" ref="849250767"/>
 						<reference key="parent" ref="125239693"/>
 					</object>
+					<object class="IBObjectRecord">
+						<int key="objectID">715</int>
+						<reference key="object" ref="634118676"/>
+						<array class="NSMutableArray" key="children">
+							<reference ref="676571273"/>
+						</array>
+						<reference key="parent" ref="539237006"/>
+					</object>
+					<object class="IBObjectRecord">
+						<int key="objectID">716</int>
+						<reference key="object" ref="676571273"/>
+						<reference key="parent" ref="634118676"/>
+					</object>
 				</array>
 			</object>
 			<dictionary class="NSMutableDictionary" key="flattenedProperties">
@@ -1223,12 +1268,14 @@
 				<string key="709.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
 				<integer value="0" key="710.IBNSSegmentedControlInspectorSelectedSegmentMetadataKey"/>
 				<string key="710.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
+				<string key="715.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
+				<string key="716.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
 			</dictionary>
 			<dictionary class="NSMutableDictionary" key="unlocalizedProperties"/>
 			<nil key="activeLocalization"/>
 			<dictionary class="NSMutableDictionary" key="localizations"/>
 			<nil key="sourceID"/>
-			<int key="maxID">714</int>
+			<int key="maxID">717</int>
 		</object>
 		<object class="IBClassDescriber" key="IBDocument.Classes">
 			<array class="NSMutableArray" key="referencedPartialClassDescriptions">
@@ -1261,6 +1308,7 @@
 						<string key="logDotYellow">NSImageView</string>
 						<string key="logScrollView">NSScrollView</string>
 						<string key="logTextView">NSTextView</string>
+						<string key="noVerboseLogCheckBox">NSButton</string>
 						<string key="shutUpCheckBox">NSButton</string>
 						<string key="slaveConnectIndicator">NSProgressIndicator</string>
 						<string key="slaveControlSubmenuView">NSView</string>
@@ -1270,7 +1318,6 @@
 						<string key="slaveReconnectButton">NSButton</string>
 						<string key="slaveSSHButton">NSButton</string>
 						<string key="slaveSSHFSButton">NSButton</string>
-						<string key="slaveSSHUserSelect">NSSegmentedControl</string>
 						<string key="slaveSshPresets">NSSegmentedControl</string>
 						<string key="slaveStatusImage">NSImageView</string>
 						<string key="slaveSubmenuView">NSView</string>
@@ -1299,6 +1346,10 @@
 						<object class="IBToOneOutletInfo" key="logTextView">
 							<string key="name">logTextView</string>
 							<string key="candidateClassName">NSTextView</string>
+						</object>
+						<object class="IBToOneOutletInfo" key="noVerboseLogCheckBox">
+							<string key="name">noVerboseLogCheckBox</string>
+							<string key="candidateClassName">NSButton</string>
 						</object>
 						<object class="IBToOneOutletInfo" key="shutUpCheckBox">
 							<string key="name">shutUpCheckBox</string>
@@ -1335,10 +1386,6 @@
 						<object class="IBToOneOutletInfo" key="slaveSSHFSButton">
 							<string key="name">slaveSSHFSButton</string>
 							<string key="candidateClassName">NSButton</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="slaveSSHUserSelect">
-							<string key="name">slaveSSHUserSelect</string>
-							<string key="candidateClassName">NSSegmentedControl</string>
 						</object>
 						<object class="IBToOneOutletInfo" key="slaveSshPresets">
 							<string key="name">slaveSshPresets</string>

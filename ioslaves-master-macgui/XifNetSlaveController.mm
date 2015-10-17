@@ -115,6 +115,7 @@ NSAttributedString* log_master_strs[] = {
 		NSForegroundColorAttributeName : MakeLogAttrColor(49,231,34) 
 	}),
 };
+#define AUTO_SCROLL_TRIGGER 50
 
 	// Slave views controller
 @implementation XifNetSlaveController
@@ -547,6 +548,8 @@ NSAttributedString* log_master_strs[] = {
 }
 
 - (void)addLogLineAtTime:(time_t)time OfLevel:(xlog::log_lvl)lvl isLocal:(bool)local inPart:(std::string)part withMessage:(std::string)msg {
+	if (not local and [noVerboseLogCheckBox state] == NSOnState and msg.find("-- ") == 0) 
+		return;
 	if (time == LOG_TIME_NOW) {
 		timeval now;
 		::gettimeofday(&now, NULL);
@@ -620,13 +623,15 @@ NSAttributedString* log_master_strs[] = {
 	NSTextStorage* text = [logTextView textStorage];
 	[text replaceCharactersInRange:NSMakeRange([text length], 0) withAttributedString:textLine];
 	[textLine release];
-	NSPoint newScrollOrigin;
-	if ([[logScrollView documentView] isFlipped]) {
-		newScrollOrigin = NSMakePoint(0.f,NSMaxY([[logScrollView documentView] frame])-NSHeight([[logScrollView contentView] bounds]));
-	} else {
-		newScrollOrigin = NSMakePoint(0.f,0.f);
+	if (NSMaxY([[logScrollView documentView] frame]) - NSMaxY([[logScrollView contentView] bounds]) < AUTO_SCROLL_TRIGGER) {
+		NSPoint newScrollOrigin;
+		if ([[logScrollView documentView] isFlipped]) {
+			newScrollOrigin = NSMakePoint(0.f,NSMaxY([[logScrollView documentView] frame])-NSHeight([[logScrollView contentView] bounds]));
+		} else {
+			newScrollOrigin = NSMakePoint(0.f,0.f);
+		}
+		[[logScrollView documentView] scrollPoint:newScrollOrigin];
 	}
-	[[logScrollView documentView] scrollPoint:newScrollOrigin];
 }
 
 - (void)menuWillOpen:(NSMenu*)menu {
