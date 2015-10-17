@@ -1962,9 +1962,14 @@ void minecraft::stopServer (socketxx::io::simple_socket<socketxx::base_socket> c
 			throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "STOP", MCLOGCLI(servid) << "Failed to send stop command");
 		}
 		cli.o_char((char)ioslaves::answer_code::OK);
+		time_t timeout = ::time(NULL)+15;
 		do {
 			errno = 0;
 			_read_pipe_state_(6);
+			if (_stat == 'S') 
+				timeout += 40;
+			if (timeout > ::time(NULL)) 
+				break;
 		} while (_stat == 'S' or _stat == 'l');
 		cli.o_char((char)ioslaves::answer_code::OK);
 		if (_stat != 'g') {

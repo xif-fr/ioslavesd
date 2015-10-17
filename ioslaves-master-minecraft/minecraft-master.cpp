@@ -48,6 +48,7 @@ int _exit_failure_code = 29;
 #define TIMEOUT_COMM timeval{10,000000}
 #define TIMEOUT_ZIP_DELAY timeval{30,000000}
 #define TIMEOUT_JAVA_ALIVE timeval{40,000000}
+#define TIMEOUT_STOP_SERVER timeval{30,000000}
 #define TIMEOUT_WEBSOCKET (useconds_t)2500000
 
 	// minecraft-master's option variables
@@ -1173,7 +1174,7 @@ _retry_start:
 		$slave_id.clear();
 		goto _try_start;
 	} else {
-		__log__ << LOG_AROBASE_ERR << "Try an another slave or let the slave selection do its work" << std::flush;
+		__log__ << LOG_AROBASE_ERR << "Try an another slave or let the slave selection do its job" << std::flush;
 		throw EXCEPT_ERROR_IGNORE;
 	}
 _try_start:
@@ -1515,9 +1516,11 @@ void MServStop () {
 	if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) 
 		throw o;
 	__log__ << LOG_ARROW_OK << "Server is stopping..." << std::flush;
+	sock.set_read_timeout(TIMEOUT_STOP_SERVER);
 	if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) 
 		throw o;
 	__log__ << LOG_ARROW_OK << "Thread and java exited" << std::flush;
+	sock.set_read_timeout(TIMEOUT_COMM)
 	while ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) {
 		if (o == ioslaves::answer_code::WANT_REPORT)
 			handleReportRequest(sock, $slave_id);
