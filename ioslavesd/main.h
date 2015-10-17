@@ -58,23 +58,23 @@ extern time_t ports_check_interval;
 
 	// ioslaves' files
 #define IOSLAVESD_SERVICE_FILE_EXT ".service"
-#ifdef IOSLAVES_DIR					/* centralised ioslavesd dir */
-	#define IOSLAVESD_ETC_DIR			IOSLAVES_DIR
-	#define IOSLAVESD_API_DL_DIR		IOSLAVES_DIR"/services/api"
-	#define IOSLAVESD_LOG_FILE			IOSLAVES_DIR"/ioslavesd.log"
-	#define IOSLAVESD_RUN_FILES		IOSLAVES_DIR
-	#define IOSLAVESD_DB_FILES 		IOSLAVES_DIR
+#ifdef IOSLAVES_DIR				/* centralised ioslavesd dir */
+	#define IOSLAVESD_ETC_DIR       IOSLAVES_DIR
+	#define IOSLAVESD_API_DL_DIR    IOSLAVES_DIR"/services/api"
+	#define IOSLAVESD_LOG_FILE      IOSLAVES_DIR"/ioslavesd.log"
+	#define IOSLAVESD_RUN_FILES     IOSLAVES_DIR
+	#define IOSLAVESD_DB_FILES      IOSLAVES_DIR
 #elif defined(IOSLAVES_FHS)		/* FHS standard dirs */
-	#define IOSLAVESD_ETC_DIR			"/etc/ioslavesd"
-	#define IOSLAVESD_API_DL_DIR		"/usr/lib/ioslavesd/api-services"
-	#define IOSLAVESD_LOG_FILE			"/var/log/ioslavesd.log"
-	#define IOSLAVESD_RUN_FILES		"/var/run"
-	#define IOSLAVESD_DB_FILES 		"/var/db"
+	#define IOSLAVESD_ETC_DIR       "/etc/ioslavesd"
+	#define IOSLAVESD_API_DL_DIR    "/usr/lib/ioslavesd/api-services"
+	#define IOSLAVESD_LOG_FILE      "/var/log/ioslavesd.log"
+	#define IOSLAVESD_RUN_FILES     "/var/run"
+	#define IOSLAVESD_DB_FILES      "/var/db"
 #endif
-#define IOSLAVESD_CONF_FILE			IOSLAVESD_ETC_DIR"/ioslavesd.conf"
-#define IOSLAVESD_SERVICE_FILES_DIR	IOSLAVESD_ETC_DIR"/services"
-#define IOSLAVESD_KEYS_DIR				IOSLAVESD_ETC_DIR"/keys"
-#define IOSLAVESD_UPTIME_FILE			IOSLAVESD_DB_FILES"/uptime.iosl"
+#define IOSLAVESD_CONF_FILE         IOSLAVESD_ETC_DIR"/ioslavesd.conf"
+#define IOSLAVESD_SERVICE_FILES_DIR IOSLAVESD_ETC_DIR"/services"
+#define IOSLAVESD_KEYS_DIR			IOSLAVESD_ETC_DIR"/keys"
+#define IOSLAVESD_UPTIME_FILE		IOSLAVESD_DB_FILES"/uptime.iosl"
 
 	// ioslavesd API
 #include <dlfcn.h>

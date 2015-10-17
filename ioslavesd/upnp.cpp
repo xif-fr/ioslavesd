@@ -29,10 +29,12 @@ time_t ports_check_interval = 0;
 
 	// miniUPnP
 #include <miniupnpc/miniupnpc.h>
+#include <miniupnpc/miniwget.h>
 #include <miniupnpc/upnpcommands.h>
 #include <miniupnpc/upnperrors.h>
 #define UPNP_DISCOVER_MAX_DELAY_MS 2000
 #define UPNP_DISCOVER_INTERFACE NULL
+#define UPNP_DISCOVER_IP_MULTICAST_TTL 1
 
 	// Don't re-discover each time : caching datas
 #define UPNP_CACHE_FILE IOSLAVESD_RUN_FILES"/upnp_url.cache"
@@ -44,9 +46,8 @@ time_t last_init = 0;
 
 void ioslaves::upnpInit () {
 	try {
-		if (last_init != 0) {
+		if (last_init != 0) 
 			FreeUPNPUrls(&upnp_device_url);
-		}
 		int r; ssize_t rs;
 		fd_t f = -1;
 			// Skip discover process
@@ -79,7 +80,9 @@ void ioslaves::upnpInit () {
 				url_str[sz] = '\0';
 				for (size_t i = 0; i < (size_t)sz; i++) 
 					if (url_str[i] == '\n') { url_str[sz] = '\0'; break; }
-				r = UPNP_GetIGDFromUrl(url_str, &upnp_device_url, &upnp_device_data, upnp_lanIP, (size_t)16);
+				r = UPNP_GetIGDFromUrl(url_str, 
+				                       &upnp_device_url, &upnp_device_data, 
+				                       upnp_lanIP, (size_t)16);
 				if (r == 1) {
 					__log__(log_lvl::LOG, "UPnP", logstream << "Got IGD URL in cache", LOG_DEBUG);
 					last_init = ::iosl_time();
@@ -91,27 +94,44 @@ void ioslaves::upnpInit () {
 		}
 		RAII_AT_END({ if (f != -1) ::close(f); });
 			// Search for UPnP devices on the network
-		UPNPDev* device_list = upnpDiscover(UPNP_DISCOVER_MAX_DELAY_MS, UPNP_DISCOVER_INTERFACE, NULL, 1, 0, &r);
-		if (device_list == NULL) {
-			freeUPNPDevlist(device_list);
+		UPNPDev* dev_list = upnpDiscoverAll(UPNP_DISCOVER_MAX_DELAY_MS, 
+		                                    UPNP_DISCOVER_INTERFACE, NULL, UPNP_LOCAL_PORT_SAME, false, UPNP_DISCOVER_IP_MULTICAST_TTL, 
+		                                    &r);
+		if (dev_list == NULL) {
+			freeUPNPDevlist(dev_list);
 			throw ioslaves::upnpError("No UPnP Device found on the network");
 		}
-		std::string list; {
-			UPNPDev* dev = device_list;
-			do {
-				if (list.find(dev->descURL) != std::string::npos) continue;
-				list += dev->descURL; list += ", ";
-			} while ((dev = dev->pNext) != NULL);
-			list.resize(list.length()-2);
+		for (UPNPDev* dev = dev_list; dev != NULL; dev = dev->pNext) {
+			int xml_descr_sz = 0;
+			const char* xml_descr = (char*)miniwget_getaddr(dev->descURL, &xml_descr_sz,
+			                                                upnp_lanIP, 16,
+			                                                dev->scope_id);
+			if (xml_descr == NULL or xml_descr_sz == 0) {
+				__log__(log_lvl::OOPS, "UPnP", logstream << "Error with UPnP device '" << dev->descURL << "'");
+				continue;
+			}
+			::memset(&upnp_device_data, 0x0, sizeof(struct IGDdatas));
+			parserootdesc(xml_descr, xml_descr_sz, 
+			              &upnp_device_data);
+			::free((void*)xml_descr);
+			__log__(log_lvl::LOG, "UPnP", logstream << "UPnP device '" << dev->descURL << "' : " << upnp_device_data.CIF.servicetype);
+			if (NULL != ::strstr(upnp_device_data.CIF.servicetype, "urn:schemas-upnp-org:service:WANCommonInterfaceConfig:")) {
+				::memset(&upnp_device_url, 0x0, sizeof(struct UPNPUrls));
+				GetUPNPUrls(&upnp_device_url, 
+				            &upnp_device_data, 
+				            dev->descURL, dev->scope_id);
+				bool igd_connected = UPNPIGD_IsConnected(&upnp_device_url, 
+				                                         &upnp_device_data);
+				if (igd_connected) {
+					__log__(log_lvl::DONE, "UPnP", logstream << "Ok, we choose UPnP IGD " << dev->descURL);
+					freeUPNPDevlist(dev_list);
+					goto _ok;
+				}
+			}
 		}
-		__log__(log_lvl::LOG, "UPnP", logstream << "Device list : " << list);
-			// Search for IGDs in the UPnP list
-		r = UPNP_GetValidIGD(device_list, &upnp_device_url, &upnp_device_data, upnp_lanIP, (size_t)16);
-		freeUPNPDevlist(device_list);
-		if (r != 1) {
-			FreeUPNPUrls(&upnp_device_url);
-			throw ioslaves::upnpError("No valid UPnP IGD found");
-		}
+		freeUPNPDevlist(dev_list);
+		throw ioslaves::upnpError("No valid UPnP IGD found");
+	_ok:
 		if (f != -1) {
 			::ftruncate(f, (size_t)0);
 			::lseek(f, (off_t)0, SEEK_SET);
