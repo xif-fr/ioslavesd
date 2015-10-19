@@ -190,7 +190,8 @@ void upnp_ports_open (ioslaves::upnpPort& p, bool silent) {
 			if (not silent)
 				__log__(log_lvl::WARNING, "UPnP", upnperr.what());
 		} else {
-			__log__(log_lvl::ERROR, "UPnP", upnperr.what());
+			if (not silent)
+				__log__(log_lvl::ERROR, "UPnP", upnperr.what());
 			if (i != 0) 
 				upnp_ports_close(ioslaves::upnpPort({p.p_ext_port, p.p_proto, p.p_int_port, i}), true);
 		}
@@ -219,7 +220,7 @@ void upnp_ports_close (ioslaves::upnpPort p, bool silent) {
 	for (size_t i = 0; i < p.p_range_sz; i++) {
 		r = UPNP_DeletePortMapping(upnp_device_url.controlURL, upnp_device_data.first.servicetype, ::ixtoa(p.p_ext_port+i).c_str(), proto, NULL);
 		if (r != UPNPCOMMAND_SUCCESS) {
-			if (r == 714) __log__(log_lvl::OOPS, "UPnP", logstream << "Failed to delete port redirection : port isn't opened");
+			if (r == 714) { if (not silent) __log__(log_lvl::OOPS, "UPnP", logstream << "Failed to delete port redirection : port isn't opened"); }
 			else __log__(log_lvl::OOPS, "UPnP", logstream << "Failed to delete port redirection : " << strupnperror(r));
 		}
 	}

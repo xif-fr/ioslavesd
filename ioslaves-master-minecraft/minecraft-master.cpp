@@ -803,11 +803,15 @@ void handleReportRequest (socketxx::io::simple_socket<socketxx::base_socket> soc
 	minecraft::whyStopped why_stopped = (minecraft::whyStopped)sock.i_char();
 	bool gracefully_stopped = sock.i_bool();
 	std::string map_to_save = sock.i_str();
+	__log__ << "Server was stopped " << (gracefully_stopped?"":"un") << "gracefully. Reason : " << (char)why_stopped << ".";
 	if (not $granmaster) {
-		__log__ << LOG_AROBASE_ERR << "Refusing report request : not granmaster" << std::flush;
+		__log__ << std::flush << LOG_AROBASE_ERR << "Refusing report request : not granmaster" << std::flush;
 		sock.o_bool(false);
 		return;
 	}
+	if (not map_to_save.empty()) 
+		__log__ << " Saving map '" << map_to_save << "'..." << std::flush;
+	else __log__ << std::flush;
 	std::string map_path = _S( IOSLAVES_MINECRAFT_MASTER_DIR,'/',servname,"/maps/",map_to_save );
 	r = ::access( _s(IOSLAVES_MINECRAFT_MASTER_DIR,'/',servname), X_OK);
 	if (r == -1) {
@@ -815,6 +819,9 @@ void handleReportRequest (socketxx::io::simple_socket<socketxx::base_socket> soc
 		sock.o_bool(false);
 		return;
 	}
+	if (::getRunningOnSlave(servname).empty())
+		__log__ << COLOR_YELLOW << "Warning ! Locally, server was stopped. Maybe an another master started this server. " << COLOR_RESET << std::flush;
+	::setRunningOnSlave(servname, "");
 	if (not map_to_save.empty()) {
 		r = ::mkdir(map_path.c_str(), S_IRWXU|S_IRWXG);
 		if (r == -1 && errno != EEXIST) {
@@ -824,14 +831,10 @@ void handleReportRequest (socketxx::io::simple_socket<socketxx::base_socket> soc
 		}
 		ioslaves::infofile_set(_s(map_path,"/truesave"), "false");
 		__log__ << "True save : false" << std::flush;
-	}
-	__log__ << "Server was stopped " << (gracefully_stopped?"":"un") << "gracefully. Reason : " << (char)why_stopped << ". Updating state..." << std::flush;
-	if (::getRunningOnSlave(servname).empty())
-		__log__ << COLOR_YELLOW << "Warning ! Locally, server was stopped. Maybe an another master started this server. " << COLOR_RESET << std::flush;
-	::setRunningOnSlave(servname, "");
-	sock.o_bool(true);
-	if (not map_to_save.empty()) 
+		sock.o_bool(true);
 		acceptFileSave(sock, servname, map_to_save, slave);
+	} else 
+		sock.o_bool(true);
 	__log__ << LOG_AROBASE_OK << "Report request : Done" << std::flush;
 }
 
@@ -1520,7 +1523,7 @@ void MServStop () {
 	if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) 
 		throw o;
 	__log__ << LOG_ARROW_OK << "Thread and java exited" << std::flush;
-	sock.set_read_timeout(TIMEOUT_COMM)
+	sock.set_read_timeout(TIMEOUT_COMM);
 	while ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) {
 		if (o == ioslaves::answer_code::WANT_REPORT)
 			handleReportRequest(sock, $slave_id);

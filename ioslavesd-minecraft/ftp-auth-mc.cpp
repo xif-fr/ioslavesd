@@ -103,7 +103,6 @@ void minecraft::ftp_stop_thead (int why) {
 	} else {
 		if (not minecraft::ftp_th_started) return;
 		__log__(log_lvl::WARNING, "FTP", logstream << "pure-ftpd stopped with code " << why << ". Stopping FTP auth thread...");
-		::sleep(2);
 	}
 	errno = 0;
 	r = (int)::write(minecraft::ftp_stopfd, "", 1);
@@ -285,6 +284,7 @@ void* minecraft::mc_ftpd_auth_thread (void* arg) {
 	} catch (socketxx::error& e) {
 		__log__(log_lvl::ERROR, "FTP", logstream << "Network error : " << e.what());
 	}
+	__log__(log_lvl::LOG, "FTP", "Thread quit.");
 	return NULL;
 }
 

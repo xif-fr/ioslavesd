@@ -1962,21 +1962,21 @@ void minecraft::stopServer (socketxx::io::simple_socket<socketxx::base_socket> c
 			throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "STOP", MCLOGCLI(servid) << "Failed to send stop command");
 		}
 		cli.o_char((char)ioslaves::answer_code::OK);
-		time_t timeout = ::time(NULL)+15;
+		time_t timeout = ::time(NULL)+25;
 		do {
 			errno = 0;
 			_read_pipe_state_(6);
 			if (_stat == 'S') 
-				timeout += 40;
-			if (timeout > ::time(NULL)) 
+				timeout += 15;
+			if (timeout < ::time(NULL)) 
 				break;
 		} while (_stat == 'S' or _stat == 'l');
 		cli.o_char((char)ioslaves::answer_code::OK);
 		if (_stat != 'g') {
-			throw ioslaves::req_err(ioslaves::answer_code::ERROR, "STOP", MCLOGSCLI(s) << "Didn't received sigchild ack (" << _stat << ")");
+			throw ioslaves::req_err(ioslaves::answer_code::TIMEOUT, "STOP", MCLOGSCLI(s) << "Didn't received sigchild ack (" << _stat << ")");
 		}
 		ReadEarlyStateIfNot('E',6) {
-			throw ioslaves::req_err(ioslaves::answer_code::ERROR, "STOP", MCLOGSCLI(s) << "Didn't received ack of thread exiting");
+			throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "STOP", MCLOGSCLI(s) << "Didn't received ack of thread exiting");
 		}
 		RAII_AT_END_N(del, {
 			delete s;
