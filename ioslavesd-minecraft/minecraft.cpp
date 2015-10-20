@@ -103,7 +103,7 @@ namespace minecraft {
 		bool doneDone;
 	};
 	std::list<serv_stopped> servs_stopped;
-	std::list<minecraft::serv*> openning_servs;
+	std::list<minecraft::serv*> opening_servs;
 	std::map<std::string,minecraft::serv*> servs;
 	pthread_mutex_t servs_mutex = PTHREAD_MUTEX_INITIALIZER;
 	
@@ -313,7 +313,7 @@ extern "C" bool ioslapi_got_sigchld (pid_t pid, int pid_status) {
 	pthread_mutex_handle_lock(minecraft::servs_mutex);
 	for (std::pair<std::string,minecraft::serv*> p : minecraft::servs) 
 		if (test_serv(p.second) == true) return true;
-	for (minecraft::serv* s : minecraft::openning_servs) 
+	for (minecraft::serv* s : minecraft::opening_servs) 
 		if (test_serv(s) == true) return true;
 	return false;
 }
@@ -892,11 +892,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 	int r;
 	minecraft::serv* s = new minecraft::serv;
 	s->s_servid = servid;
-	struct _autorm_openning_state {
-		std::list<minecraft::serv*>::iterator it;
-		bool is_set = false;
-		~_autorm_openning_state () { if (is_set) { pthread_mutex_handle_lock(minecraft::servs_mutex); minecraft::openning_servs.erase(it); } }
-	} __autorm_openning_state;
+	
 		// Auto delete server : delete structure, temp map folder, reset effective uid
 	struct _autodelete_serv {
 		minecraft::serv* s = NULL;
@@ -954,8 +950,14 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			// Delete remaining FTP sessions for server
 		minecraft::ftp_del_sess_for_serv(s->s_servid, 0);
 		
-			// Check things with other servers
+			// Check if the server is not already opened or opening 
 			// Attribute and open port
+		struct _autorm_opening_state {
+			std::list<minecraft::serv*>::iterator it;
+			bool is_set = false;
+			~_autorm_opening_state () { if (is_set) { pthread_mutex_handle_lock(minecraft::servs_mutex); minecraft::opening_servs.erase(it); } }
+		} __autorm_opening_state;
+		
 		{ pthread_mutex_handle_lock(minecraft::servs_mutex);
 			std::string port_descr = _s("minecraft server ",servid);
 			::srand((unsigned int)::time(NULL));
@@ -970,9 +972,9 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 				if (p.second->s_port == s->s_port) 
 					goto __new_port;
 			}
-			for (minecraft::serv* oth_s : minecraft::openning_servs) {
+			for (minecraft::serv* oth_s : minecraft::opening_servs) {
 				if (oth_s->s_servid == servid) 
-					throw ioslaves::req_err(ioslaves::answer_code::BAD_STATE, "SERV", MCLOGSCLI(s) << "Server already openning", log_lvl::OOPS);
+					throw ioslaves::req_err(ioslaves::answer_code::BAD_STATE, "SERV", MCLOGSCLI(s) << "Server already opening", log_lvl::OOPS);
 				if (oth_s->s_port == s->s_port)
 					goto __new_port;
 			}
@@ -984,8 +986,8 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 				throw ioslaves::req_err(ioslaves::answer_code::ERROR, "SERV", MCLOGSCLI(s) << "Failed to open port " << s->s_port << ioslaves::getAnswerCodeDescription(open_port_answ));
 			}
 			__autodelete_serv.close_port = true;
-			__autorm_openning_state.it = minecraft::openning_servs.insert( minecraft::openning_servs.end(), s );
-			__autorm_openning_state.is_set = true;
+			__autorm_opening_state.it = minecraft::opening_servs.insert( minecraft::opening_servs.end(), s );
+			__autorm_opening_state.is_set = true;
 		}
 		cli.o_char((char)ioslaves::answer_code::OK);
 		cli.o_int<uint16_t>(s->s_port);
@@ -1330,18 +1332,6 @@ void* minecraft::serv_thread (void* arg) {
 	stopInfo.why = minecraft::whyStopped::NOT_STARTED;
 	stopInfo.gracefully = false;
 	stopInfo.doneDone = false;
-	
-	{	// Delete old stop report
-		pthread_mutex_handle_lock(minecraft::servs_mutex);
-		for (auto it = minecraft::servs_stopped.begin(); it != minecraft::servs_stopped.end();) {
-			minecraft::serv_stopped& ss = *it;
-			if (s->s_servid == ss.serv) {
-				minecraft::servs_stopped.erase(it);
-				__log__(log_lvl::NOTICE, THLOGSCLI(s), "Deleted old stop report");
-				break;
-			}
-		}
-	}
 	
 		// First error catching level `starting java`
 	try {

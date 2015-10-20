@@ -81,6 +81,13 @@ void xlog::logstream_impl::log (log_lvl lvl, const char* part, std::string msg, 
 				tty_output = ((lvl != le.le_lvl and lvl != log_lvl::LOG) 
 				              ? _S(log_disp.color) + timestr + msg + "\033[0m" 
 				              : timestr + msg);
+				if (log_callback) 
+					log_callback(log_entry {
+						.le_time = now.tv_sec,
+						.le_msg = _S( "... ", msg ),
+						.le_part = part,
+						.le_lvl = lvl
+					});
 			} else {
 				xlog::logstream_impl::log(lvl, le.le_part, _S( "[-",::ixtoa(log_history.size()-*lid),"l] ...",msg ), (m & ~LOG_ADD)|LOG_NO_HISTORY, lid);
 				return;
@@ -91,11 +98,12 @@ void xlog::logstream_impl::log (log_lvl lvl, const char* part, std::string msg, 
 			tty_output = txt_output = "\n";
 			waiting_log = false;
 		}
-		log_entry new_le;
-		new_le.le_time = now.tv_sec;
-		new_le.le_msg = msg;
-		new_le.le_part = part;
-		new_le.le_lvl = lvl;
+		log_entry new_le = {
+			.le_time = now.tv_sec,
+			.le_msg = msg,
+			.le_part = part,
+			.le_lvl = lvl
+		};
 		if (log_callback) 
 			log_callback(new_le);
 		if (not (m & LOG_NO_HISTORY)) {
