@@ -1245,7 +1245,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			switch (s->s_serv_type) {
 				case serv_type::BUKKIT: case serv_type::SPIGOT: line_ack_timeout = 20; break;
 				case serv_type::CAULDRON: case serv_type::FORGE: line_ack_timeout = 40; break;
-				case serv_type::VANILLA: if (s->s_mc_ver <= ioslaves::version(1,7,10)) line_ack_timeout = 8; else line_ack_timeout = 20; break;
+				case serv_type::VANILLA: if (s->s_mc_ver <= ioslaves::version(1,7,10)) line_ack_timeout = 15; else line_ack_timeout = 20; break;
 				case serv_type::CUSTOM: line_ack_timeout = 25; break;
 			}
 			ReadEarlyStateIfNot('l',line_ack_timeout) {
@@ -1766,13 +1766,13 @@ void* minecraft::serv_thread (void* arg) {
 		{ // Delete SRV entry on DNS
 			ioslaves::api::euid_switch(-1,-1);
 			RAII_AT_END_L( ioslaves::api::euid_switch(minecraft::java_user_id, minecraft::java_group_id) );
-			__log__(log_lvl::LOG, "SERV", MCLOGSCLI(s) << "Closing SRV entry...");
+			__log__(log_lvl::LOG, THLOGSCLI(s), logstream << "Closing SRV entry...");
 			(*ioslaves::api::dns_srv_del)("minecraft", XIFNET_MC_DOM, s->s_servid, true);
 		}
 		
 			// Close additional ports
 		if (s->s_oth_ports.size() != 0) 
-			__log__(log_lvl::LOG, "SERV", MCLOGSCLI(s) << "Closing additional ports...");
+			__log__(log_lvl::LOG, THLOGSCLI(s), logstream << "Closing additional ports...");
 		for (in_port_t port : s->s_oth_ports) 
 			(*ioslaves::api::close_port)(port, 1, true);
 		
@@ -1781,6 +1781,9 @@ void* minecraft::serv_thread (void* arg) {
 	} catch (std::runtime_error) {
 		__log__(log_lvl::ERROR, THLOGSCLI(s), logstream << "Fatal error");
 	}
+	
+		// If start method is still waiting us
+	if (s->s_early_pipe != INVALID_HANDLE) { WriteEarlyState('E'); }
 	
 		// Delete server entry and add it in stopped servers list
 	if (not mutex_locked) {
@@ -1797,12 +1800,7 @@ void* minecraft::serv_thread (void* arg) {
 	}
 
 		// Close port
-	try {
-		(*ioslaves::api::close_port)(s->s_port, 1, true);
-	} catch (...) {}
-	
-		// If starter is still waiting us, or for stopper
-	if (s->s_early_pipe != INVALID_HANDLE) { WriteEarlyState('E'); }
+	(*ioslaves::api::close_port)(s->s_port, 1, true);
 	
 		// Delete big-files and jars symlinks
 	std::vector<minecraft::_BigFiles_entry> bigfiles = minecraft::getBigFilesIndex(_S( MINECRAFT_SRV_DIR,"/mc_",s->s_servid,'/',s->s_map ));
@@ -1822,10 +1820,14 @@ void* minecraft::serv_thread (void* arg) {
 		minecraft::deleteMapFolder(s);
 	
 		// Well... bye !
-	__log__(log_lvl::IMPORTANT, "Thread", logstream << "Exit thread of server " << s->s_servid);
-	if (stopInfo.why != minecraft::whyStopped::DESIRED_MASTER) 
+	if (stopInfo.why != minecraft::whyStopped::DESIRED_MASTER) {
+		__log__(log_lvl::IMPORTANT, THLOGSCLI(s), logstream << "-= EXIT =- no stop method");
 		delete s;
-	return NULL;
+		return NULL;
+	} else {
+		__log__(log_lvl::IMPORTANT, THLOGSCLI(s), logstream << "-= EXIT =- relaying to main stop method");
+		return s;
+	}
 }
 
 	// Write command to Minecraft server
@@ -1913,12 +1915,11 @@ std::string MC_log_interpret (const std::string line, minecraft::serv* s, minecr
 }
 
 	/// Stop
-	/* Server mutex IS locked here
-	 * As whyStopped == DESIRED_MASTER, we are shure that server structure will be NOT deleted by server thread after ReadEarlyStateIfNot('s') */
 void minecraft::stopServer (socketxx::io::simple_socket<socketxx::base_socket> cli, minecraft::serv* s) {
 	int r;
 	std::string servid = s->s_servid;
 	
+		// Servers mutex IS locked here
 	try {
 		
 			// Late communication pipe
@@ -1942,7 +1943,7 @@ void minecraft::stopServer (socketxx::io::simple_socket<socketxx::base_socket> c
 				::read(late_pipes[0], &_stat, 1);
 		};
 		
-			// Sending stop command
+			// Sending stop command and release mutex
 		socketxx::io::simple_socket<socketxx::base_fd> s_comm(socketxx::base_fd(s->s_sock_comm, SOCKETXX_MANUAL_FD));
 		s_comm.o_char((char)minecraft::internal_serv_op_code::STOP_SERVER_CLI);
 		::pthread_mutex_unlock(&minecraft::servs_mutex);
@@ -1952,7 +1953,7 @@ void minecraft::stopServer (socketxx::io::simple_socket<socketxx::base_socket> c
 			throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "STOP", MCLOGCLI(servid) << "Failed to send stop command");
 		}
 		cli.o_char((char)ioslaves::answer_code::OK);
-		time_t timeout = ::time(NULL)+25;
+		time_t timeout = ::time(NULL)+35;
 		do {
 			errno = 0;
 			_read_pipe_state_(6);
@@ -1966,9 +1967,16 @@ void minecraft::stopServer (socketxx::io::simple_socket<socketxx::base_socket> c
 			throw ioslaves::req_err(ioslaves::answer_code::TIMEOUT, "STOP", MCLOGSCLI(s) << "Didn't received sigchild ack (" << _stat << ")");
 		}
 		ReadEarlyStateIfNot('E',6) {
-			throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "STOP", MCLOGSCLI(s) << "Didn't received ack of thread exiting");
+			throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "STOP", MCLOGSCLI(s) << "Didn't received ack of thread secondary cleanup");
 		}
-		RAII_AT_END_N(del, {
+		
+			// Wait thread cleanup/exit and get back the thread structure
+		minecraft::serv* s_th = NULL;
+		::pthread_join(s->s_thread, (void**)&s_th);
+		if (s_th == NULL or s_th != s) {
+			throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "STOP", MCLOGCLI(servid) << "Failed to retrieve server structure");
+		}
+		RAII_AT_END_N(del, { // Server structure will be finally deleted by us
 			delete s;
 		});
 		__log__(log_lvl::LOG, "STOP", "Ok, thread is exited");
