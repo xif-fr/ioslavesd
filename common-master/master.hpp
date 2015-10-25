@@ -138,12 +138,13 @@ namespace iosl_dyn_slaves {
 		bool operator< (const slave_info& o) const { return this->sl_total_points > o.sl_total_points; }
 	};
 	
-	std::vector<slave_info> select_slaves (const char* needed_service = NULL, 
-														ram_megs_t needed_ram = 0, proc_power_t needed_power = 0,
-														efficiency_ratio_t eff = REGARDLESS, proc_power_t mean_power = 0, float usable_threads = 1,
-														bool quickly = true, 
-														std::vector<std::string> needed_tags = {},
-														std::function<points_t(const iosl_dyn_slaves::slave_info&)> additional_filter = NULL);
+	std::vector<slave_info> gather_infos (std::vector<std::string> needed_tags = {});
+	void select_slaves (std::vector<slave_info>& slaves_infos,
+	                    const char* needed_service = NULL, 
+	                    ram_megs_t needed_ram = 0, proc_power_t needed_power = 0,
+	                    efficiency_ratio_t eff = REGARDLESS, proc_power_t mean_power = 0, float usable_threads = 1,
+	                    bool quickly = true, 
+	                    std::function<points_t(const iosl_dyn_slaves::slave_info&)> additional_filter = NULL);
 	
 }
 

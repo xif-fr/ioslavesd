@@ -18,12 +18,7 @@ using ioslaves::answer_code;
 #include <socket++/quickdefs.h>
 #include <pthread.h>
 
-std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::select_slaves (const char* needed_service, 
-                                                                         ram_megs_t needed_ram, proc_power_t needed_power, 
-                                                                         efficiency_ratio_t eff, proc_power_t mean_power, float usable_threads, 
-                                                                         bool quickly, 
-                                                                         std::vector<std::string> needed_tags,
-                                                                         std::function<points_t(const iosl_dyn_slaves::slave_info&)> additional_filter) {
+std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::gather_infos (std::vector<std::string> needed_tags) {
 	
 		/// List slaves and open info files
 	std::vector<std::pair<iosl_dyn_slaves::slave_info,libconfig::Config*>> slaves_list_cfg;
@@ -164,7 +159,17 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::select_slaves (const c
 			::pthread_join(thread_ids[i], NULL);
 	}
 	
-		/// Apply criteria : select good slaves and sort ascendingly using points
+	return slaves_list;
+}
+
+	/// Apply criteria : select good slaves and sort ascendingly using points
+void iosl_dyn_slaves::select_slaves (std::vector<slave_info>& slaves_list,
+                                     const char* needed_service, 
+                                     ram_megs_t needed_ram, proc_power_t needed_power,
+                                     efficiency_ratio_t eff, proc_power_t mean_power, float usable_threads,
+                                     bool quickly, 
+                                     std::function<points_t(const iosl_dyn_slaves::slave_info&)> additional_filter) {
+	
 	for (size_t i = 0; i < slaves_list.size(); i++) {
 		iosl_dyn_slaves::slave_info& info = slaves_list[i];
 		points_t pt = 0;
@@ -247,8 +252,6 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::select_slaves (const c
 	}
 		// Sorting
 	std::sort(slaves_list.begin(), slaves_list.end());
-	
-	return slaves_list;
 }
 
 time_t iosl_master::slave_start (std::string slave_id, std::string master_id) {

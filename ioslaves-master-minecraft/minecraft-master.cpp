@@ -1167,6 +1167,8 @@ void MServStart () {
 	__log__ << LOG_ARROW << "Starting server..." << std::flush;
 	int r;
 	bool autoselect_slave = false;
+	std::vector<iosl_dyn_slaves::slave_info> slaves;
+	bool infos_gathered = false;
 	std::vector<std::string> excluded_slaves;
 	socketxx::io::simple_socket<socketxx::base_socket>* sock;
 	goto _try_start;
@@ -1223,12 +1225,16 @@ _try_start:
 				 __log__ << "Last slave who ran this map : " << lastsave_from << std::flush;
 			if ($mean_cpu == 0.f) $mean_cpu = $needed_cpu/2.f;
 			try {
-			std::vector<slave_info> slaves = iosl_dyn_slaves::select_slaves(
+			if (not infos_gathered) {
+				__log__ << LOG_AROBASE << "Gathering slaves status and infos..." << std::flush;
+				slaves = iosl_dyn_slaves::gather_infos({ "dyn-hosting" });
+				infos_gathered = true;
+			}
+			iosl_dyn_slaves::select_slaves(slaves,
 				"minecraft", 
 				$needed_ram, $needed_cpu,
 				$needed_eff, $mean_cpu, $threads_num,
 				false,
-				{ "dyn-hosting" },
 				[&] (const slave_info& info) -> points_t {
 					for (const std::string& sl : excluded_slaves) 
 						if (info.sl_name == sl) return INT32_MIN;
