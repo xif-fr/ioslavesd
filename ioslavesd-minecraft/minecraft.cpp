@@ -1040,7 +1040,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			} 
 				// Permanent map : no folder found
 			else {
-				if (s_lastsavetime != 0 or s_lastsavetime == -1) {
+				if (s_lastsavetime != MC_LASTSAVETIME_NOSAVE) {
 					__log__(log_lvl::LOG, "FILES", MCLOGSCLI(s) << "No server folder found, getting latest from master...");
 					minecraft::transferAndExtract(cli, minecraft::transferWhat::SERVFOLD, s->s_map, global_serv_dir);
 				} else {
@@ -1065,12 +1065,13 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 						throw ioslaves::req_err(ioslaves::answer_code::BAD_STATE, "SERV", MCLOGSCLI(s) << "Server folder contains .lck files : server has crashed or seems to be running");
 				}
 			}
-			if (s_lastsavetime == -1) {
+			if (s_lastsavetime == MC_LASTSAVETIME_FORCE) {
 				__log__(log_lvl::LOG, "FILES", MCLOGSCLI(s) << "Master wants to force sending of server folder. Sending the old one for backup...");
 				cli.o_char((char)ioslaves::answer_code::WANT_SEND);
 				minecraft::compressAndSend(cli, s->s_servid, s->s_map, true);
 				minecraft::transferAndExtract(cli, minecraft::transferWhat::SERVFOLD, s->s_map, _S(MINECRAFT_SRV_DIR,"/mc_",s->s_servid));
-			} else {
+			} else 
+			if (s_lastsavetime != MC_LASTSAVETIME_RESIDENT) {
 				time_t lastsavetime_map = 0;
 				try {
 					lastsavetime_map = lastsaveTimeFile(_S( MINECRAFT_SRV_DIR,"/mc_",s->s_servid,'/',s->s_map ), false);

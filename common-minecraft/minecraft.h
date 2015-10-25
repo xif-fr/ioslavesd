@@ -10,10 +10,14 @@
 	// Ioslaves commons
 #include "common.hpp"
 
+	// Various
 #ifdef XIFNET
 	#define XIFNET_MC_DOM "mc.xif.fr"
 #endif
 #define MC_MAP_PERM 0640
+#define MC_LASTSAVETIME_FORCE (time_t)-1
+#define MC_LASTSAVETIME_NOSAVE (time_t)0
+#define MC_LASTSAVETIME_RESIDENT (time_t)-2
 
 	// Protocol version
 #define IOSLAVES_MINECRAFT_PROTO_VERS 0x22

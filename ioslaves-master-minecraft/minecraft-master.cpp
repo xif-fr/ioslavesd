@@ -49,7 +49,7 @@ int _exit_failure_code = 29;
 #define TIMEOUT_ZIP_DELAY timeval{30,000000}
 #define TIMEOUT_JAVA_ALIVE timeval{40,000000}
 #define TIMEOUT_STOP_SERVER timeval{30,000000}
-#define TIMEOUT_WEBSOCKET (useconds_t)2500000
+#define TIMEOUT_WEBSOCKET (useconds_t)4000000
 
 	// minecraft-master's option variables
 bool $granmaster;
@@ -67,13 +67,13 @@ bool $locked = false;
 in_port_t $websocket_port = 0;
 noPollConn* $websocket_conn = NULL;
 bool $refuse_save = false;
+bool $resident = false;
 iosl_dyn_slaves::ram_megs_t $needed_ram = 1024;
 iosl_dyn_slaves::proc_power_t $needed_cpu = 1.0f;
 iosl_dyn_slaves::proc_power_t $mean_cpu = 0.f;
 float $threads_num = 1.f;
 iosl_dyn_slaves::efficiency_ratio_t $needed_eff = iosl_dyn_slaves::efficiency_ratio_t::REGARDLESS;
 time_t $needed_time = 0;
-bool $need_quickly = false;
 std::string $ftp_user, $ftp_hash_passwd;
 uint8_t $mc_viewdist = 7;
 time_t $autoclose_time = (time_t)-1;
@@ -194,6 +194,7 @@ int main (int argc, char* const argv[]) {
 		{"granmaster", no_argument, NULL, 'G'},
 		{"websocket", required_argument, NULL, 'w'},
 		{"refuse-save", no_argument, NULL, 'r'},
+		{"resident", no_argument, NULL, 'R'},
 		{"server", required_argument, NULL, 'C'},
 			{"start", no_argument, NULL, 's'},
 				{"bukkit", required_argument, NULL, (char)minecraft::serv_type::BUKKIT},
@@ -210,7 +211,6 @@ int main (int argc, char* const argv[]) {
 				{"duration", required_argument, NULL, 'd'},
 				{"autoclose", required_argument, NULL, 'j'},
 				{"viewdist", required_argument, NULL, 'e'},
-				{"quickly", no_argument, NULL, 'q'},
 				{"threads", required_argument, NULL, '#'},
 				{"mean-cpu", required_argument, NULL, '~'},
 				{"additional-ports", required_argument, NULL, '+'},
@@ -226,59 +226,59 @@ int main (int argc, char* const argv[]) {
 	};
 	
 	int opt, opt_charind = 0;
-	while ((opt = ::getopt_long(argc, argv, "-hiGw:r", long_options, &opt_charind)) != -1) {
+	while ((opt = ::getopt_long(argc, argv, "-hiGw:rR", long_options, &opt_charind)) != -1) {
 		switch (opt) {
 			case 'h':
 				::puts("minecraft-master | ioslaves-master warper program for controling Minecraft service\n"
-						 "Usage: minecraft-master MASTER-ID (--granmaster [SLAVE-ID])|(SLAVE-ID) --server=NAME --ACTION\n"
-						 "\n"
-						 "General options :\n"
-						 "  -i, --no-interactive        Enbale HTML log and JSON outputs\n"
-						 "  -G, --granmaster            Manage automagically slaves (start, stop, move...)\n"
-						 "  -w, --websocket=PORT        Wait a websocket client on PORT before executing commands and\n"
-						 "                               output log via this websocket client. Used also for live-console\n"
-						 "  -r, --refuse-save           Refuse incoming requests for saving map\n"
-						 "\n"
-						 "  --server=NAME               Control the Minecraft server named [NAME]. Mandatory.\n"
-						 "      Server Actions :\n"
-						 "        --start PARAMS          Start the server. Jar and map parameters are requiered\n"
-						 "                                and must be each unique.\n"
-						 "            Start Parameters :\n"
-						 "              --[bukkit|vanilla|forge|spigot|cauldron]=VER | --customjar=NAME\n"
-						 "                                  Launch Minecraft with this .jar\n"
-						 "                                  Custom jar must be in server folder\n"
-						 "              --temp-map=NAME | --perm-map=NAME\n"
-						 "                                  Launch temporary map (the server folder will be deleted\n"
-						 "                                   at stop) or permanent map (folder will be updated on\n"
-						 "                                   server or granmaster if older or newer than master's one).\n"
-						 "                  --map-file=PATH   Use this zip for updating slave's server folder or temp map.\n"
-						 "                                     Zipped dir must have the same name than the map.\n"
-						 "                                     Use it for starting server with an old save of a perm map.\n"
-						 "                  --permanentize    After --temp-map. Do not delete temporary map at server stop.\n"
-						 "              --duration=TIME     Server running duration, in seconds. Must be a good estimation.\n"
-						 "            Slave selection :\n"
-						 "              --cpu=CPU           Needed CPU, using CPU unit (1.0 = Core2Duo E4400).\n"
-						 "              --ram=MEGS          Needed memory, in megabytes.\n"
-						 "              --quickly           Select slave for quickness of server startup\n"
-						 "            Optional :\n"
-						 "              --mean-cpu=CPU		Mean CPU power use estimation (≠ max needed CPU).\n"
-						 "              --threads=NUMBER    Non-integer number of threads which can be used by this jar.\n"
-						 "              --autoclose=TIME    Server will close after TIME sec. without players.\n"
-						 "                                   Default = --duration; 0 = disabled\n"
-						 "              --viewdist=CHUNKS   Minecraft view distance. Default = 7\n"
-						 "              --additional-ports=P1,P2…  Open additional TCP ports (for JSONAPI for exemple).\n"
-						 "                                   Should be attributed uniquely across the network.\n"
-						 "        --stop                  Stop the server.\n"
-						 "        --kill                  Kill a buggy server (may corrupt map; no stop report).\n"
-						 "        --status                Refresh status of the server in database\n"
-						 "        --permanentize          Mark map as permanent (will not be deleted at server stop)\n"
-						 "        --del-map=NAME          Delete the folder of the map [NAME] of the server\n"
-						 "        --console               Bind the connection to the server's LiveConsole. If used at\n"
-						 "                                 after server start action, early LiveConsole is activated.\n"
-						 "        --ftp-sess=USER:HASHPW  Create new FTP session for running map for user USER and\n"
-						 "                                 hashed password HASHPW. Returns ADDR:PORT of the FTP server.\n"
-						 "        --create                Create a new server in database\n"
-						 );
+				       "Usage: minecraft-master MASTER-ID (--granmaster [SLAVE-ID])|(SLAVE-ID) --server=NAME --ACTION\n"
+				       "\n"
+				       "General options :\n"
+				       "  -i, --no-interactive        Enbale HTML log and JSON outputs\n"
+				       "  -G, --granmaster            Manage automagically slaves (start, stop, move...)\n"
+				       "  -w, --websocket=PORT        Wait a websocket client on PORT before executing commands and\n"
+				       "                               output log via this websocket client. Used also for live-console\n"
+				       "  -r, --refuse-save           Refuse incoming requests for saving map\n"
+				       "  -R, --resident              Guarantee that the server will stay on the indicated slave; imply -r\n"
+				       "\n"
+				       "  --server=NAME               Control the Minecraft server named [NAME]. Mandatory.\n"
+				       "      Server Actions :\n"
+				       "        --start PARAMS          Start the server. Jar and map parameters are requiered\n"
+				       "                                and must be each unique.\n"
+				       "            Start Parameters :\n"
+				       "              --[bukkit|vanilla|forge|spigot|cauldron]=VER | --customjar=NAME\n"
+				       "                                  Launch Minecraft with this .jar\n"
+				       "                                  Custom jar must be in server folder\n"
+				       "              --temp-map=NAME | --perm-map=NAME\n"
+				       "                                  Launch temporary map (the server folder will be deleted\n"
+				       "                                   at stop) or permanent map (folder will be updated on\n"
+				       "                                   server or granmaster if older or newer than master's one).\n"
+				       "                  --map-file=PATH   Use this zip for updating slave's server folder or temp map.\n"
+				       "                                     Zipped dir must have the same name than the map.\n"
+				       "                                     Use it for starting server with an old save of a perm map.\n"
+				       "                  --permanentize    After --temp-map. Do not delete temporary map at server stop.\n"
+				       "              --duration=TIME     Server running duration, in seconds. Must be a good estimation.\n"
+				       "            Slave selection :\n"
+				       "              --cpu=CPU           Needed CPU, using CPU unit (1.0 = Core2Duo E4400).\n"
+				       "              --ram=MEGS          Needed memory, in megabytes.\n"
+				       "            Optional :\n"
+				       "              --mean-cpu=CPU		Mean CPU power use estimation (≠ max needed CPU).\n"
+				       "              --threads=NUMBER    Non-integer number of threads which can be used by this jar.\n"
+				       "              --autoclose=TIME    Server will close after TIME sec. without players.\n"
+				       "                                   Default = --duration; 0 = disabled\n"
+				       "              --viewdist=CHUNKS   Minecraft view distance. Default = 7\n"
+				       "              --additional-ports=P1,P2…  Open additional TCP ports (for JSONAPI for exemple).\n"
+				       "                                   Should be attributed uniquely across the network.\n"
+				       "        --stop                  Stop the server.\n"
+				       "        --kill                  Kill a buggy server (may corrupt map; no stop report).\n"
+				       "        --status                Refresh status of the server in database\n"
+				       "        --permanentize          Mark map as permanent (will not be deleted at server stop)\n"
+				       "        --del-map=NAME          Delete the folder of the map [NAME] of the server\n"
+				       "        --console               Bind the connection to the server's LiveConsole. If used at\n"
+				       "                                 after server start action, early LiveConsole is activated.\n"
+				       "        --ftp-sess=USER:HASHPW  Create new FTP session for running map for user USER and\n"
+				       "                                 hashed password HASHPW. Returns ADDR:PORT of the FTP server.\n"
+				       "        --create                Create a new server in database\n"
+				);
 				return EXIT_SUCCESS;
 			case 'i':
 				optctx::interactive = false;
@@ -324,6 +324,10 @@ int main (int argc, char* const argv[]) {
 			} break;
 			case 'r':
 				$refuse_save = true;
+				break;
+			case 'R':
+				$refuse_save = true;
+				$resident = true;
 				break;
 			case 'C':
 				::testMasterID();
@@ -436,10 +440,6 @@ int main (int argc, char* const argv[]) {
 				} catch (...) {
 					try_help("--autoclose : invalid time\n");
 				}
-				break;
-			case 'q':
-				optctx::optctx_test("--quickly", optctx::servStart);
-				$need_quickly = true;
 				break;
 			case '~': {
 				optctx::optctx_test("--mean-cpu", optctx::servStart);
@@ -613,10 +613,10 @@ int main (int argc, char* const argv[]) {
 
 	// Save time functions
 time_t getLastSaveTime (std::string serv, std::string map) {
-	time_t lastsavetime = 0;
+	time_t lastsavetime = MC_LASTSAVETIME_NOSAVE;
 	DIR* map_dir = ::opendir( _s(IOSLAVES_MINECRAFT_MASTER_DIR,"/",serv,"/maps/",map) );
 	if (map_dir == NULL) {
-		if (errno == ENOENT) return (time_t)0;
+		if (errno == ENOENT) return MC_LASTSAVETIME_NOSAVE;
 		throw xif::sys_error("can't open server map save folder for listing");
 	}
 	dirent* dp = NULL;
@@ -804,8 +804,8 @@ void handleReportRequest (socketxx::io::simple_socket<socketxx::base_socket> soc
 	bool gracefully_stopped = sock.i_bool();
 	std::string map_to_save = sock.i_str();
 	__log__ << "Server was stopped " << (gracefully_stopped?"":"un") << "gracefully. Reason : " << (char)why_stopped << ".";
-	if (not $granmaster) {
-		__log__ << std::flush << LOG_AROBASE_ERR << "Refusing report request : not granmaster" << std::flush;
+	if (not $granmaster or ($refuse_save and ($start_map.empty() or $start_map != map_to_save))) {
+		__log__ << std::flush << LOG_AROBASE_ERR << "Refusing report request" << std::flush;
 		sock.o_bool(false);
 		return;
 	}
@@ -922,7 +922,7 @@ void verifyMapList (std::string slave_id, std::string server_name, socketxx::io:
 		while (sz --> 0) {
 			std::string map = sock.i_str();
 			time_t lastsave = sock.i_int<uint64_t>();
-			if (not $granmaster) {
+			if (not $granmaster or $refuse_save) {
 				sock.o_char((char)ioslaves::answer_code::OK);
 				continue;
 			}
@@ -948,7 +948,7 @@ void verifyMapList (std::string slave_id, std::string server_name, socketxx::io:
 					want_get = true;
 				}
 			}
-			if (want_get and not $refuse_save) {
+			if (want_get) {
 				__log__ << LOG_AROBASE << "Retrieving map save at " << lastsave << "..." << std::flush;
 				sock.set_read_timeout(TIMEOUT_ZIP_DELAY);
 				sock.o_char((char)ioslaves::answer_code::WANT_GET);
@@ -1215,7 +1215,6 @@ _try_start:
 			autoselect_slave = true;
 			__log__ << LOG_AROBASE << "Looking for a good machine..." << std::flush;
 			__log__ << "Needed RAM : " << $needed_ram << "MB | Needed CPU : " << std::setprecision(1) << $needed_cpu << std::flush;
-			if ($need_quickly) __log__ << "Quickly please !" << std::flush;
 			using namespace iosl_dyn_slaves;
 			std::string lastsave_from = ioslaves::infofile_get(_s( IOSLAVES_MINECRAFT_MASTER_DIR,"/",$server_name,"/maps/",$start_map,"/lastsave_from" ), true);
 			if (!ioslaves::validateSlaveName(lastsave_from)) lastsave_from.clear();
@@ -1228,30 +1227,22 @@ _try_start:
 				"minecraft", 
 				$needed_ram, $needed_cpu,
 				$needed_eff, $mean_cpu, $threads_num,
-				$need_quickly,
+				false,
 				{ "dyn-hosting" },
 				[&] (const slave_info& info) -> points_t {
 					for (const std::string& sl : excluded_slaves) 
 						if (info.sl_name == sl) return INT32_MIN;
-					if (lastsave_from == info.sl_name) return ($need_quickly ? +300 : +200);
+					if (lastsave_from == info.sl_name) return +200;
 					uint32_t net_upload = info.sl_fixed_indices.at("net_upload");
 					#define NET_Frontier 100
-					#define NET_FrontierQuickly 1000
-					if ($need_quickly and net_upload < NET_FrontierQuickly)
-						return INT32_MIN;
-					if (not $need_quickly and net_upload < NET_Frontier) 
+					if (net_upload < NET_Frontier) 
 						return (net_upload - NET_Frontier);
 					#define NET_MaxPoints 100
-					#define NET_MaxPointsQuickly 150
 					#define NET_InvF 61000.f
-					#define NET_InvFQuickly 240000.f
 					#define NET_LinF 0.0023f
-					#define NET_LinFQuickly 0.01f
 					#define NET_StepPTs 100
 					#define NET_InvShift 508.5f
-					#define NET_InvShiftQuickly 1220.f
-					bool q = $need_quickly;
-					return std::max<points_t>( (q?NET_InvFQuickly:NET_InvF)/(-net_upload-(q?NET_InvShiftQuickly:NET_InvShift)) + NET_StepPTs + (q?NET_LinFQuickly:NET_LinF)*net_upload , (q?NET_MaxPointsQuickly:NET_MaxPoints) );
+					return std::max<points_t>( NET_InvF/(-net_upload-NET_InvShift) + NET_StepPTs + NET_LinF*net_upload , NET_MaxPoints );
 				}
 			);
 			{ // Nice html table
@@ -1334,10 +1325,13 @@ _try_start:
 	sock->o_str($start_map);
 	time_t lastsavetime;
 	if (not $forced_file.empty()) {
-		lastsavetime = -1;
+		$refuse_save = false;
+		lastsavetime = MC_LASTSAVETIME_FORCE;
+	} else if ($resident) {
+		lastsavetime = MC_LASTSAVETIME_RESIDENT;
 	} else {
 		if ($granmaster and $start_is_perm) lastsavetime = getLastSaveTime($server_name, $start_map);
-		else lastsavetime = 0;
+		else lastsavetime = MC_LASTSAVETIME_NOSAVE;
 	}
 	__log__ << " - last-save-time : " << lastsavetime << std::flush;
 	sock->o_int<int64_t>(lastsavetime);
