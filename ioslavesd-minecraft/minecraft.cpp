@@ -1605,7 +1605,11 @@ void* minecraft::serv_thread (void* arg) {
 										default: throw ioslaves::req_err(ioslaves::answer_code::OP_NOT_DEF, THLOGSCLI(s), MCLOGSCLI(s) << "Server external request : invalid '" << (char)op << "' operation");
 									}
 								} catch (ioslaves::req_err& re) {
-									cli.o_char((char)re.answ_code);
+									try {
+										cli.o_char((char)re.answ_code);
+									} catch (...) {}
+								} catch (socketxx::error& e) {
+									__log__(log_lvl::OOPS, THLOGSCLI(s), logstream << "Network error with external client : " << e.what());
 								}
 							} break;
 							
@@ -1621,7 +1625,9 @@ void* minecraft::serv_thread (void* arg) {
 										sock->o_char((char)ioslaves::answer_code::OK);
 										sock->o_int<int16_t>(n_players);
 									} catch (std::exception& e) {
-										sock->o_char((char)ioslaves::answer_code::ERROR);
+										try {
+											sock->o_char((char)ioslaves::answer_code::ERROR);
+										} catch (...) {}
 									}
 									return true;
 								};
