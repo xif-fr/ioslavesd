@@ -31,6 +31,7 @@ namespace minecraft {
 	
 	enum class op_code : char {
 		START_SERVER = 'S',
+		REFUSE_OPTION = 'r',
 		STOP_SERVER = 's',
 		KILL_SERVER = 'k',
 		COMM_SERVER = 'C',

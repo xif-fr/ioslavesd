@@ -55,6 +55,8 @@ int _exit_failure_code = 29;
 bool $granmaster;
 std::string $master_id;
 std::string $slave_id;
+bool $refuse_servs;
+
 std::string $server_name;
 minecraft::serv_type $start_serv_type;
 std::string $start_jar_ver;
@@ -100,6 +102,7 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 		void MServFTPSess ();
 		void MServKill();
 	void MServPost(ioslaves::answer_code);
+	void MRefuse();
 void MPost (ioslaves::answer_code);
 
 	// Commmand line arguments
@@ -108,11 +111,11 @@ void MPost (ioslaves::answer_code);
 #define OPTCTX_POSTFNCT_EXCEPT_T ioslaves::answer_code
 #define OPTCTX_POSTFNCT_EXCEPT_DEFAULT (ioslaves::answer_code)0
 
-#define OPTCTX_CTXS                              mcserv                   , servStart        , servStop        , servCreate        , servStatus        , servPerm        , servConsole        , servDelMap        , servFTPSess        , servKill
-#define OPTCTX_PARENTS                           ROOT                     , mcserv           , mcserv          , mcserv            , mcserv            , mcserv          , mcserv             , mcserv            , mcserv             , mcserv
-#define OPTCTX_PARENTS_NAMES  "action"         , "server action"          , NULL             , NULL            , NULL              , NULL              , NULL            , NULL               , NULL              , NULL               , NULL
-#define OPTCTX_PARENTS_FNCTS  CTXFP(NULL,MPost), CTXFP(MServPre,MServPost), CTXFO(MServStart), CTXFO(MServStop), CTXFO(MServCreate), CTXFO(MServStatus), CTXFO(MServPerm), CTXFO(MServConsole), CTXFO(MServDelMap), CTXFO(MServFTPSess), CTXFO(MServKill)
-#define OPTCTX_NAMES                             "--server"               , "--start"        , "--stop"        , "--create"        , "--status"        , "--permanentize", "--console"        , "--del-map"       , "--ftp-sess"       , "--kill"
+#define OPTCTX_CTXS                              refuseServs     , mcserv                   , servStart        , servStop        , servCreate        , servStatus        , servPerm        , servConsole        , servDelMap        , servFTPSess        , servKill
+#define OPTCTX_PARENTS                           ROOT            , ROOT                     , mcserv           , mcserv          , mcserv            , mcserv            , mcserv          , mcserv             , mcserv            , mcserv             , mcserv
+#define OPTCTX_PARENTS_NAMES  "action"         , NULL            , "server action"          , NULL             , NULL            , NULL              , NULL              , NULL            , NULL               , NULL              , NULL               , NULL
+#define OPTCTX_PARENTS_FNCTS  CTXFP(NULL,MPost), CTXFO(MRefuse)  , CTXFP(MServPre,MServPost), CTXFO(MServStart), CTXFO(MServStop), CTXFO(MServCreate), CTXFO(MServStatus), CTXFO(MServPerm), CTXFO(MServConsole), CTXFO(MServDelMap), CTXFO(MServFTPSess), CTXFO(MServKill)
+#define OPTCTX_NAMES                             "--refuse-servs", "--server"               , "--start"        , "--stop"        , "--create"        , "--status"        , "--permanentize", "--console"        , "--del-map"       , "--ftp-sess"       , "--kill"
 
 #define OPTCTX_PROG_NAME "minecraft-master"
 #include <xifutils/optctx.hpp>
@@ -222,6 +225,7 @@ int main (int argc, char* const argv[]) {
 			{"console", no_argument, NULL, 'l'},
 			{"ftp-sess", required_argument, NULL, 'f'},
 			{"create", no_argument, NULL, 'c'},
+		{"refuse-servs", required_argument, NULL, 'x'},
 		{NULL, 0, NULL, 0}
 	};
 	
@@ -230,7 +234,7 @@ int main (int argc, char* const argv[]) {
 		switch (opt) {
 			case 'h':
 				::puts("minecraft-master | ioslaves-master warper program for controling Minecraft service\n"
-				       "Usage: minecraft-master MASTER-ID (--granmaster [SLAVE-ID])|(SLAVE-ID) --server=NAME --ACTION\n"
+				       "Usage: minecraft-master MASTER-ID (--granmaster [SLAVE-ID])|(SLAVE-ID) (--server=NAME) --ACTION\n"
 				       "\n"
 				       "General options :\n"
 				       "  -i, --no-interactive        Enbale HTML log and JSON outputs\n"
@@ -278,6 +282,9 @@ int main (int argc, char* const argv[]) {
 				       "        --ftp-sess=USER:HASHPW  Create new FTP session for running map for user USER and\n"
 				       "                                 hashed password HASHPW. Returns ADDR:PORT of the FTP server.\n"
 				       "        --create                Create a new server in database\n"
+					   "\n"
+					   "Other actions (slave-id mandatory) :\n"
+					   "  --refuse-servs=[y|n]        Make the slave accepting or refusing server start requests.\n"
 				);
 				return EXIT_SUCCESS;
 			case 'i':
@@ -505,6 +512,17 @@ int main (int argc, char* const argv[]) {
 				$verify_serv_exists = false;
 				if (!$granmaster)
 					try_help("--create: only valid in granmaster mode\n");
+				break;
+			case 'x':
+				optctx::optctx_set(optctx::refuseServs);
+				if (_S("y") == optarg) 
+					$refuse_servs = true;
+				else if (_S("y") == optarg) 
+					$refuse_servs = false;
+				else 
+					try_help("--refuse-servs: 'y' or 'n'\n");
+				if ($slave_id.empty()) 
+					try_help("--refuse-servs: slave-id must be defined\n");
 				break;
 			default: 
 				try_help();
@@ -1651,6 +1669,23 @@ void MServCreate () {
 	if (r == -1) 
 		throw xif::sys_error("failed to create maps dir");
 	::setRunningOnSlave($server_name, "");
+}
+
+void MRefuse() {
+	__log__ << LOG_ARROW << "Connecting to '" << $slave_id << "'..." << std::flush;
+	socketxx::io::simple_socket<socketxx::base_netsock> sock = 
+		iosl_master::slave_api_service_connect($slave_id, $master_id, "minecraft", TIMEOUT_CONNECT);
+	sock.i_int<int64_t>();
+	sock.i_int<uint16_t>();
+	sock.o_bool(false);
+	sock.o_str(std::string());
+	__log__ << LOG_ARROW << "Toggling refuse option..." << std::flush;
+	sock.o_char((char)minecraft::op_code::REFUSE_OPTION);
+	sock.o_bool($refuse_servs);
+	ioslaves::answer_code o;
+	o = (ioslaves::answer_code)sock.i_char();
+	if (o != ioslaves::answer_code::OK) 
+		throw o;
 }
 
 void MPost (ioslaves::answer_code e) {

@@ -113,6 +113,7 @@ namespace minecraft {
 	in_port_t servs_port_range_beg = 25566, servs_port_range_sz = 33;
 	uint8_t max_viewdist = 6;
 	bool ignore_shutdown_time = false;
+	bool refuse_mode = false;
 	
 		// Start and Stop Minecraft server
 	void startServer (socketxx::io::simple_socket<socketxx::base_socket> cli, std::string servid);
@@ -333,6 +334,25 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 		bool is_a_gran_master = cli.i_bool();
 		std::string s_servid = cli.i_str();
 		minecraft::op_code opp = (minecraft::op_code)cli.i_char();
+		
+		if (s_servid.empty()) {
+			switch (opp) {
+				
+				case minecraft::op_code::REFUSE_OPTION: {
+					__log__(log_lvl::LOG, "COMM", logstream << "Master wants to toggle refuse option");
+					minecraft::refuse_mode = cli.i_bool();
+					cli.o_char((char)ioslaves::answer_code::OK);
+					__log__(log_lvl::IMPORTANT, NULL, logstream << (minecraft::refuse_mode?"Refusing":"Accepting") << " servers from now.");
+				} break;
+				
+				default:
+					__log__(log_lvl::ERROR, "COMM", logstream << "Bad operation '" << (char)opp << "'");
+					cli.o_char((char)ioslaves::answer_code::OP_NOT_DEF);
+					
+			}
+			return;
+		}
+		
 		if (!ioslaves::validateServiceName(s_servid)) {
 			__log__(log_lvl::ERROR, "PARAM", logstream << "'" << s_servid << "' is not a valid server name");
 			cli.o_char((char)ioslaves::answer_code::SECURITY_ERROR);
@@ -942,6 +962,8 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 		time_t time_rest = *ioslaves::api::common_vars->shutdown_iosl_time - ::iosl_time();
 		if (not minecraft::ignore_shutdown_time and *ioslaves::api::common_vars->shutdown_iosl_time != 0 and time_rest < s_running_time) 
 			throw ioslaves::req_err(ioslaves::answer_code::LACK_RSRC, "SERV", MCLOGSCLI(s) << "Server wants ~" << s_running_time/60 << "min, but slave would shutdown in " << time_rest/60 << "min. " << "Refusing start request.", log_lvl::OOPS);
+		if (minecraft::refuse_mode == true) 
+			throw ioslaves::req_err(ioslaves::answer_code::LACK_RSRC, "SERV", MCLOGSCLI(s) << "Can't start server : refuse option activated.", log_lvl::OOPS);
 		s->s_map = cli.i_str();
 		if (!ioslaves::validateName(s->s_map)) 
 			throw ioslaves::req_err(ioslaves::answer_code::SECURITY_ERROR, "PARAM", MCLOGSCLI(s) << "'" << s->s_map << "' is not a valid map name");
