@@ -126,6 +126,7 @@ namespace minecraft {
 	void deleteMapFolder (minecraft::serv* s);
 	void cpTplDir (const char* tpl_dir, std::string working_dir);
 	time_t lastsaveTimeFile (std::string path, bool set);
+	void deleteLckFiles (std::string in_dir);
 	
 		// Files and templates
 	void processTemplateFile (const char* file, std::map<std::string,std::string> hashlist);
@@ -752,6 +753,19 @@ void minecraft::deleteMapFolder (minecraft::serv* s) {
 	ioslaves::rmdir_recurse(path.c_str());
 }
 
+// Delete lock files
+void minecraft::deleteLckFiles (std::string in_dir) {
+	DIR* dir = ::opendir(in_dir.c_str());
+	RAII_AT_END_L( ::closedir(dir) );
+	if (dir == NULL) 
+		throw xif::sys_error("deleteLckFiles : can't open dir");
+	dirent* dp = NULL;
+	while ((dp = ::readdir(dir)) != NULL) {
+		if (std::string(dp->d_name).find("lck") != std::string::npos) 
+			::unlink(dp->d_name);
+	}
+}
+
 // Copy server template directory
 void minecraft::cpTplDir (const char* tplDir, std::string working_dir) {
 	assert_mcjava();
@@ -1281,6 +1295,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 				__log__(log_lvl::NOTICE, "START", MCLOGCLI(servid) << "Killing java pid " << s->s_java_pid);
 				asroot_block();
 				::kill(s->s_java_pid, SIGKILL); // Killing java is a sufficient sign to the thread, it should NOT be canceled
+				minecraft::deleteLckFiles(working_dir);
 			}
 			throw;
 		}
@@ -1641,6 +1656,7 @@ void* minecraft::serv_thread (void* arg) {
 								{ asroot_block();
 									::kill(s->s_java_pid, SIGKILL);
 								}
+								minecraft::deleteLckFiles(_S( MINECRAFT_SRV_DIR,"/mc_",s->s_servid,'/',s->s_map ));
 								loop = false;
 							} break;
 							
