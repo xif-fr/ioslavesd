@@ -131,12 +131,13 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::gather_infos (std::vec
 			catch (iosl_master::ldns_error&) { info.sl_status = -1; return NULL; }
 			catch (...) { info.sl_status = -3; return NULL; }
 			try { // Fill the info struct with fresh infos from slave
+				info._sl_raw_infos = stat;
 				for (const std::pair<std::string,xif::polyvar>& p : stat["services"].m()) {
 					info.sl_services_status[p.first] = p.second["running"];
 				}
 				stat = stat["system"];
 				info.sl_usable_proc = info.sl_usable_proc * (1.f - ((float)stat["proc_%"])/100.f);
-				info.sl_usable_mem = (ram_megs_t)stat["mem_usable"];
+				info.sl_usable_mem = (ram_megs_t)std::max<int>(0, stat["mem_usable"]);
 			} catch (...) {
 				info.sl_status = -2;
 				return NULL;

@@ -668,7 +668,7 @@ void minecraft::transferAndExtract (socketxx::io::simple_socket<socketxx::base_s
 	else if (what == minecraft::transferWhat::JAR)
 		sock.o_bool(alt);
 	if (!sock.i_bool()) 
-		throw ioslaves::req_err(ioslaves::answer_code::DENY, "FILES", logstream << "Master refused sending file '" << name << "'", log_lvl::OOPS);
+		throw ioslaves::req_err(ioslaves::answer_code::DENY, "FILES", logstream << "Master refused sending file '" << name << "'");
 	std::string tempfile_name;
 	logl_t l;
 	__log__(log_lvl::LOG, "FILES", logstream << "Downloading file '" << name << "' of type '" << (char)what << "' from master...", LOG_WAIT, &l);
@@ -941,8 +941,8 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 		
 			// Check free memory
 		xif::polyvar::map sysinfo = *ioslaves::api::common_vars->system_stat;
-		int16_t usable_mem = sysinfo["mem_usable"];
-		if (s->s_megs_ram < 512) s->s_megs_ram = 512;
+		int16_t usable_mem = (float)(int16_t)sysinfo["mem_usable"] + MC_SWAP_FACTOR*(float)(int16_t)sysinfo["mem_swap"];
+		if (s->s_megs_ram < MC_MIN_SERV_RAM) s->s_megs_ram = MC_MIN_SERV_RAM;
 		if (usable_mem < s->s_megs_ram) 
 			throw ioslaves::req_err(ioslaves::answer_code::LACK_RSRC, "SERV", MCLOGSCLI(s) << "Server needs at least " << s->s_megs_ram << "MB of memory, but only " << usable_mem << "MB of RAM is usable. " << "Refusing start request.", log_lvl::OOPS);
 		if (s->s_megs_ram < 1024) s->s_megs_ram = 1024;

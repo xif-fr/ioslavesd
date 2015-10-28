@@ -37,7 +37,7 @@ xif::polyvar::map ioslaves::system_stat ({
 	{"cpu#", 0},
 	{"mem_tot", 0},
 	{"mem_free", 0},
-	{"mem_usable", 0},
+	{"mem_usable", 0}, // can be negative
 	{"mem_used", 0},
 	{"mem_swap", 0},
 	{"memK", 0},

@@ -1228,6 +1228,11 @@ _try_start:
 			if (not infos_gathered) {
 				__log__ << LOG_AROBASE << "Gathering slaves status and infos..." << std::flush;
 				slaves = iosl_dyn_slaves::gather_infos({ "dyn-hosting" });
+				for (iosl_dyn_slaves::slave_info& slave_info : slaves) {
+					try {
+						slave_info.sl_usable_mem += MC_SWAP_FACTOR*(float)(int16_t)slave_info._sl_raw_infos["system"]["mem_swap"];
+					} catch (...) {}
+				}
 				infos_gathered = true;
 			}
 			iosl_dyn_slaves::select_slaves(slaves,

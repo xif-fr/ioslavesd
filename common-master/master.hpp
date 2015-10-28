@@ -133,6 +133,7 @@ namespace iosl_dyn_slaves {
 		std::map<std::string,float> sl_fixed_indices;
 		points_t sl_total_points = 0;
 		std::vector<std::string> sl_tags;
+		xif::polyvar _sl_raw_infos;
 		std::tuple<off_t,points_t, float,points_t, power_watt_t,points_t, points_t, points_t> _sl_categs_infos;
 					/*    mem            proc                elec. power       wait     custom */
 		bool operator< (const slave_info& o) const { return this->sl_total_points > o.sl_total_points; }
