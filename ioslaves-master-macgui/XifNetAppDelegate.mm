@@ -44,11 +44,11 @@ struct {
 		} \
 	})()
 	{ AppState::StateSevere, false, AppStateLoadImage(@"xif_logo_err"), INFINITY, nil },
-	{ AppState::StateMajor, false, AppStateLoadImage(@"xif_logo_maj"), 300.0, nil },
-	{ AppState::StateError, false, AppStateLoadImage(@"xif_logo_err"), 200.0, nil },
-	{ AppState::StateOops, false, AppStateLoadImage(@"xif_logo_err"), 0.40, nil },
-	{ AppState::StateWarning, false, AppStateLoadImage(@"xif_logo_warn"), 90.0, nil },
-	{ AppState::StateImportant, false, AppStateLoadImage(@"xif_logo_maj"), 120.0, nil },
+	{ AppState::StateMajor, false, AppStateLoadImage(@"xif_logo_maj"), 600.0, nil },
+	{ AppState::StateError, false, AppStateLoadImage(@"xif_logo_err"), 360.0, nil },
+	{ AppState::StateOops, false, AppStateLoadImage(@"xif_logo_err"), 0.80, nil },
+	{ AppState::StateWarning, false, AppStateLoadImage(@"xif_logo_warn"), 120.0, nil },
+	{ AppState::StateImportant, false, AppStateLoadImage(@"xif_logo_maj"), 300.0, nil },
 	{ AppState::StateLogLine, false, AppStateLoadImage(@"xif_logo_log"), 0.40, nil },
 	{ AppState::StateNormal, true, AppStateLoadImage(@"xif_logo"), INFINITY, nil }
 };

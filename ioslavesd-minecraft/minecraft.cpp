@@ -1655,7 +1655,9 @@ void* minecraft::serv_thread (void* arg) {
 								};
 								int_req->req_end = ::time(NULL)+1;
 								int_req->f_expire = [] (decltype(int_req->sock) s, interpret_request* req) {
-									s->o_char((char)ioslaves::answer_code::ERROR);
+									try {
+										s->o_char((char)ioslaves::answer_code::ERROR);
+									} catch (...) {}
 								};
 								interpret_requests.insert(interpret_requests.end(), int_req);
 							} break;

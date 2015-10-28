@@ -920,7 +920,13 @@ int main (int argc, const char* argv[]) {
 	}
 	
 		// Stop services
-	ioslaves::stopAllServices();
+	__log__(log_lvl::IMPORTANT, "IOSLAVES", "Stopping all services...");
+	for (ioslaves::service* s : ioslaves::services_list) {
+		if (s->ss_status_running == true)
+			try {
+				ioslaves::controlService(s, false, NULL);
+			} catch (ioslaves::req_err& e) {}
+	}
 	for (ioslaves::service* s : ioslaves::services_list) {
 		delete s;
 	}
@@ -1290,7 +1296,7 @@ void ioslaves::loadService (std::string name, FILE* service_file) {
 								st = PORT_NEW;
 							}
 						} catch (std::runtime_error& e) {
-							throw std::runtime_error(_S( "port numer : ",e.what() ));
+							throw std::runtime_error(_S( "port number : ",e.what() ));
 						}
 					} else {
 						throw std::runtime_error(logstream << "char '" << str[i] << "' not allowed in port number" << logstr);
@@ -1354,17 +1360,6 @@ ioslaves::service::~service () {
 	if (this->s_type == type::PROG_DAEMON and this->spec.exec.pid_file != NULL) {
 		delete[] this->spec.exec.pid_file;
 		delete[] this->spec.exec.execnam;
-	}
-}
-
-	/// Stop all services
-void ioslaves::stopAllServices () {
-	__log__(log_lvl::IMPORTANT, "IOSLAVES", "Stopping all services...");
-	for (ioslaves::service* s : ioslaves::services_list) {
-		if (s->ss_status_running == true)
-			try {
-				ioslaves::controlService(s, false, NULL);
-			} catch (ioslaves::req_err& e) {}
 	}
 }
 

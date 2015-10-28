@@ -148,7 +148,6 @@ namespace ioslaves {
 	void controlService (ioslaves::service* service_stat, bool start, const char* controlling_master);
 	extern time_t services_lookup_activity_interval;
 	void loadService (std::string name, FILE* service_file);
-	void stopAllServices ();
 	xif::polyvar serviceStatus (const ioslaves::service* s);
 	
 		/// Status and stats
