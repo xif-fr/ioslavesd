@@ -1013,8 +1013,14 @@ void MServStatus () {
 		std::string $local_slave_id = ::getRunningOnSlave($server_name);
 		if (not $local_slave_id.empty()) {
 			__log__ << "Checking on slave '" << $local_slave_id << "' on which server should be running now..." << std::flush;
-			bool $status = checkSlaveStatus($local_slave_id);
-			if ($status) {
+			bool $status;
+			std::function<void(uint)> tryGetStatus = [&] (uint n) -> void {
+				if (n == 0) {
+					$status = false;
+					__log__ << NICE_WARNING << COLOR_YELLOW << "WARNING" << COLOR_RESET << " : Could not connect to '" << $local_slave_id << "' on which server was known to be running on ! " << 
+					           COLOR_YELLOW << " ** Please recheck later !" << COLOR_RESET << std::flush;
+					return;
+				}
 				try {
 					auto sock = getConnection($local_slave_id, $server_name, minecraft::op_code::SERV_STAT, {2,0});
 					std::string $re_local_slave_id = ::getRunningOnSlave($server_name);
@@ -1030,14 +1036,16 @@ void MServStatus () {
 						s_port = sock.i_int<in_port_t>();
 					}
 					verifyMapList($local_slave_id, $server_name, sock);
-				} catch (std::runtime_error& e) {
-					__log__ << NICE_WARNING << "Error while connecting to slave : " << e.what() << std::flush;
-					$status = false;
+				} catch (socketxx::error& e) {
+					__log__ << NICE_WARNING << "Network error while refreshing status : " << e.what() << std::flush;
+					::sleep(3);
+					tryGetStatus(n-1);
 				} catch (...) {
 					__log__ << NICE_WARNING << "Failed to connect to slave ! " << std::flush;
-					$status = false;
+					::sleep(5);
+					tryGetStatus(n-1);
 				}
-			}
+			}; tryGetStatus(20/*trials*/);
 			if ($status) {
 				__log__ << LOG_ARROW_OK << "Yes, server is running on slave '" << $local_slave_id << "'." << std::flush;
 			} else {
