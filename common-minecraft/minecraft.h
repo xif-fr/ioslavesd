@@ -20,6 +20,7 @@
 #define MC_LASTSAVETIME_RESIDENT (time_t)-2
 #define MC_MIN_SERV_RAM 512
 #define MC_SWAP_FACTOR 0.5f
+#define MC_FREE_RAM_FACTOR 0.7f
 
 	// Protocol version
 #define IOSLAVES_MINECRAFT_PROTO_VERS 0x22

@@ -249,7 +249,7 @@ void* minecraft::mc_ftpd_auth_thread (void* arg) {
 							
 							if (it->md5passwd != ioslaves::md5(fields.passwd)) {
 								__log__(log_lvl::NOTICE, "FTP", logstream << "Wrong password for user '" << fields.username << "'");
-								ftp_sessions.erase(it);
+								it->end_validity -= 60;
 								s.o_line("auth_ok:-1");
 								s.o_line("end");
 								return socketxx::POOL_CONTINUE;

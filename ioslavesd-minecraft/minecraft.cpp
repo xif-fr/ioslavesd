@@ -979,7 +979,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 		xif::polyvar::map sysinfo = *ioslaves::api::common_vars->system_stat;
 		int16_t usable_mem = (float)(int16_t)sysinfo["mem_usable"] + MC_SWAP_FACTOR*(float)(int16_t)sysinfo["mem_swap"];
 		if (s->s_megs_ram < MC_MIN_SERV_RAM) s->s_megs_ram = MC_MIN_SERV_RAM;
-		if (usable_mem < s->s_megs_ram) 
+		if (usable_mem < (int16_t)(s->s_megs_ram*MC_FREE_RAM_FACTOR)) 
 			throw ioslaves::req_err(ioslaves::answer_code::LACK_RSRC, "SERV", MCLOGSCLI(s) << "Server needs at least " << s->s_megs_ram << "MB of memory, but only " << usable_mem << "MB of RAM is usable. " << "Refusing start request.", log_lvl::OOPS);
 		if (s->s_megs_ram < 1024) s->s_megs_ram = 1024;
 		
