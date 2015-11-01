@@ -130,7 +130,7 @@ namespace minecraft {
 	void deleteLckFiles (std::string in_dir);
 	
 		// Files and templates
-	void processTemplateFile (const char* file, std::map<std::string,std::string> hashlist);
+	void processTemplateFile (const char* file, std::map<std::string,std::string> hashlist, std::string header);
 	struct _BigFiles_entry { std::string name; std::string final_path; };
 	std::vector<_BigFiles_entry> getBigFilesIndex (std::string serv_path);
 	
@@ -803,7 +803,7 @@ void minecraft::cpTplDir (const char* tplDir, std::string working_dir) {
 }
 
 // Template files : *.xx.in => *.xx replacing %KEY% with value of hashlist["KEY"]
-void minecraft::processTemplateFile (const char* fpath, std::map<std::string,std::string> hashlist) {
+void minecraft::processTemplateFile (const char* fpath, std::map<std::string,std::string> hashlist, std::string header) {
 	std::string fpath_final = fpath;
 	fpath_final = fpath_final.substr(0, fpath_final.find(".in"));
 	FILE* f = ::fopen(fpath, "r");
@@ -815,6 +815,9 @@ void minecraft::processTemplateFile (const char* fpath, std::map<std::string,std
 	std::string keybuf;
 	bool keymode = false;
 	int c;
+	if (not header.empty())
+		if (::fwrite(header.c_str(), header.length(), 1, ff) != 1)
+			goto __werror;
 	while ((c = ::fgetc(f)) != EOF) {
 		if (keymode) {
 			if (c == '%') {
@@ -1145,13 +1148,13 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 		infos_keys["PORT"] = ::ixtoa(s->s_port);
 		infos_keys["VIEWDIST"] = ::ixtoa(s->s_viewdist);
 		infos_keys["CLI"] = s->s_servid;
-		minecraft::processTemplateFile(_s( working_dir,"/server.properties.in" ), infos_keys);
+		minecraft::processTemplateFile(_s( working_dir,"/server.properties.in" ), infos_keys, "# --- MODIFIEZ 'server.properties.in', PAS CE FICHIER ---\n\n");
 		const char* tplsbeg[] = { /*"ops.txt",*/ NULL };
 		for (size_t i = 0; tplsbeg[i] != NULL; ++i) {
 			std::string fpth = _S( working_dir,"/",tplsbeg[i],".in" );
 			r = ::access(fpth.c_str(), R_OK);
 			if (r == 0) {
-				minecraft::processTemplateFile(fpth.c_str(), infos_keys);
+				minecraft::processTemplateFile(fpth.c_str(), infos_keys, "");
 				r = ::unlink(fpth.c_str());
 			}
 		}

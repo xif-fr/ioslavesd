@@ -78,7 +78,7 @@ iosl_dyn_slaves::efficiency_ratio_t $needed_eff = iosl_dyn_slaves::efficiency_ra
 time_t $needed_time = 0;
 std::string $ftp_user, $ftp_hash_passwd;
 uint8_t $mc_viewdist = 7;
-time_t $autoclose_time = (time_t)-1;
+time_t $autoclose_time = 0;
 std::vector<in_port_t> $additional_ports;
 bool $start_temp_perm = false;
 
@@ -268,7 +268,7 @@ int main (int argc, char* const argv[]) {
 				       "              --mean-cpu=CPU		Mean CPU power use estimation (≠ max needed CPU).\n"
 				       "              --threads=NUMBER    Non-integer number of threads which can be used by this jar.\n"
 				       "              --autoclose=TIME    Server will close after TIME sec. without players.\n"
-				       "                                   Default = --duration; 0 = disabled\n"
+				       "                                   Default = 0 = disabled\n"
 				       "              --viewdist=CHUNKS   Minecraft view distance. Default = 7\n"
 				       "              --additional-ports=P1,P2…  Open additional TCP ports (for JSONAPI for exemple).\n"
 				       "                                   Should be attributed uniquely across the network.\n"
@@ -1351,9 +1351,10 @@ _try_start:
 	__log__ << " - " << ($start_is_perm?"permanent":($start_temp_perm?"temporary with save":"temporary")) << " map : " << $start_map << std::flush;
 	if (not $start_is_perm)
 		sock->o_bool($start_temp_perm);
-	if ($autoclose_time == (time_t)-1) $autoclose_time = $needed_time;
 	if ($autoclose_time != 0) 
 		__log__ << " - autoclose time : " << $autoclose_time/60 << "min" << std::flush;
+	else 
+		__log__ << " - no autoclose" << std::flush;
 	sock->o_int<uint32_t>((uint32_t)$autoclose_time);
 	__log__ << " - view distance : " << (int)$mc_viewdist << std::flush;
 	sock->o_int<uint8_t>($mc_viewdist);
