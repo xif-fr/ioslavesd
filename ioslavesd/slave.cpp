@@ -824,6 +824,7 @@ int main (int argc, const char* argv[]) {
 				// Contact XifNet DynDNS server to refresh public IP
 			if (ip_refresh_dyndns_interval >= 0) {
 				static time_t dyndns_last = 0;
+				static size_t dyndns_netfails = 0;
 				if (dyndns_last+ip_refresh_dyndns_interval < ::time(NULL)) {
 					dyndns_last = ::time(NULL);
 					static in_addr_t my_ip_last = 0;
@@ -846,7 +847,7 @@ int main (int argc, const char* argv[]) {
 						sock.o_str("xifnetdyndns");
 						ioslaves::answer_code answ = (ioslaves::answer_code)sock.i_char();
 						if (answ != ioslaves::answer_code::OK) {
-							__log__(log_lvl::ERROR, "DynDNS", logstream << "Failed to connect to  xifnetdyndns service : " << ioslaves::getAnswerCodeDescription(answ));
+							__log__(log_lvl::ERROR, "DynDNS", logstream << "Failed to connect to xifnetdyndns service : " << ioslaves::getAnswerCodeDescription(answ));
 							continue;
 						}
 						sock.o_int<in_port_t>(ioslavesd_listening_port);
@@ -861,9 +862,12 @@ int main (int argc, const char* argv[]) {
 							continue;
 						}
 						sock.o_char((char)ioslaves::answer_code::OK);
+						dyndns_netfails = 0;
 					} catch (socketxx::classic_error& e) {
 						log_lvl lvl = (e.get_errno()==EAGAIN) ? log_lvl::OOPS : log_lvl::ERROR;
-						__log__(lvl, "DynDNS", logstream << "Network error with xifnetdyndns service : " << e.what(), lvl==log_lvl::OOPS?LOG_DEBUG:0);
+						++dyndns_netfails;
+						if (dyndns_netfails >= 5)
+							__log__(lvl, "DynDNS", logstream << "Network error with xifnetdyndns service : " << e.what(), lvl==log_lvl::OOPS?LOG_DEBUG:0);
 					} catch (master_err& e) {
 						__log__(log_lvl::ERROR, "DynDNS", logstream << "Master error while connecting to DynDNS : " << e.what());
 					}
