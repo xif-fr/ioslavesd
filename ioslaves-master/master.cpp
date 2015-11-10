@@ -206,62 +206,62 @@ int main (int argc, char* const argv[]) {
 		switch (opt) {
 			case 'h':
 				::puts("ioslaves-master | ioslaves control program for network masters\n"
-						 "Usage: ioslaves-master MASTER-ID SLAVE-ID [--addr=ADDR] --ACTION [--COMMAND [OPTIONS] ...]\n"
-						 "\n"
-						 "General options :\n"
-						 "      MASTER-ID             The master ID, used for authentication and logging.\n"
-						 "      SLAVE-ID              If only the slave ID is used, IP and port are automatically retrieved.\n"
-						 "  -d, --addr=(HOST|IP)[:PORT] Explicit address : can be an IP or an hostname, with optional :PORT\n"
-						 "  -i, --no-interactive      Disable prompting. Log in HTML.\n"
-						 "\n"
-						 "Actions :\n"
-						 "  -C, --control             Connect to distant ioslaves server. Authentification is optional but\n"
-						 "                             needed for most operations.\n"
-						 "      Options :\n"
-						 "        -f, --auth=(yes|auto|no)  Force authentication or not.\n"
-						 "      Commands :\n"
-						 "        -S, --service=SERVICE   Control slave's services\n"
-						 "            Operations :\n"
-						 "               -s, --start          Start service\n"
-						 "               -o, --stop           Stop service\n"
-						 "               -a, --api-service-co=UNIX_SOCK\n"
-						 "                                    Get connection to an ioslaves API service. Here, ioslaves only\n"
-						 "                                     relays between the distant API service and\n"
-						 "                                     a progam that knows the service's protocol, via unix socket.\n"
-						 "        -P, --open-port=(T|U)PORT[-END] [DESCR]\n"
-						 "                                    Open port(s) (TCP/UDP) on the distant slave's gatway using UPnP.\n"
-						 "        -X, --close-port=(T|U)PORT[-END]\n"
-						 "                                    Close opened port(s) on the distant gateway.\n"
-						 "        -R, --reboot                Reboot distant slave.\n"
-						 "        -D, --shutdown [AUTO_TIME]  Shutdown distant slave. AUTO_TIME param manages automatic\n"
-						 "                                     shutdown. If AUTO_TIME=0, inhibits auto-shutdown. If AUTO_TIME>0,\n"
-						 "                                     sets the automatic shutdown in AUTO_TIME minutes.\n"
-						 "        -G, --status                Report overview status of the slave as JSON.\n"
-						 "        -L, --log [BEGIN[-END]]      Get slave's log line from timestamps BEGIN to END\n"
-						 "                                     (0 for no limit). Returns JSON if not interactive.\n"
-						 "        -k, --auth-key MASTER FOOTPRINT PERMFILE [IP]   Authorize a master for 4 seconds to send it's\n"
-						 "                                     new key with known footprint, which should be transfered with\n"
-						 "                                     integrity guaranty. Master IP verification is optional. Models of\n"
-						 "                                     perms files can be found in " IOSLAVES_MASTER_KEYS_MODELS_DIR "\n"
-						 "        -r, --revoke-key=MASTER     Delete key of given master.\n"
-						 "  -K, --keygen METHOD      Generate (and replace if exists) a key for the slave. The key can be copied\n"
-						 "                            on the slave manually or automatically with the authorization of a master.\n"
-						 "                            If the storage METHOD is 'raw', the key is stored in clear in the key file.\n"
-						 "                            Else, a key storage plugin will be loaded as METHOD.ioslmcext to store the key.\n"
-						 "  -O, --on [METHOD ARG[s]] Power on slave using several methods :\n"
-						 "                            MAGIC_PKT: wake up the slave using a magic packet containing the\n"
-						 "                                        MAC address of its compatible NIC (UDP packet on port 9).\n"
-						 "                                       If the 2nd arg is defined, the packet is sent on represented\n"
-						 "                                        hostname instead of the broadcast addr of the local network.\n"
-						 "                                       If sent to the WAN, the router must support it.\n"
-						 "                            GATEWAY: tell the 'wake-gateway' ioslavesd plugin of a slave on the same\n"
-						 "                                      network to relay the start request (WoL, another relay, PSU...).\n"
-						 "                                      Used if magic packets cannot traverse the NAT, or for\n"
-						 "                                      hierarchical organizations. Takes gateway's name or address.\n"
-						 "                            SERIAL_PSU: command a centralized PSU via serial port using xif PSU's\n"
-						 "                                        protocol. Takes the output ID of the PSU.\n"
-						 "  -J, --to-json            Convert slave info file ~/ioslaves-master/slaves/[slave].conf into JSON.\n"
-						 "\n");
+				       "Usage: ioslaves-master MASTER-ID SLAVE-ID [--addr=ADDR] --ACTION [--COMMAND [OPTIONS] ...]\n"
+				       "\n"
+				       "General options :\n"
+				       "      MASTER-ID             The master ID, used for authentication and logging.\n"
+				       "      SLAVE-ID              If only the slave ID is used, IP and port are automatically retrieved.\n"
+				       "  -d, --addr=(HOST|IP)[:PORT] Explicit address : can be an IP or an hostname, with optional :PORT\n"
+				       "  -i, --no-interactive      Disable prompting. Log in HTML.\n"
+				       "\n"
+				       "Actions :\n"
+				       "  -C, --control             Connect to distant ioslaves server. Authentication is optional but\n"
+				       "                             needed for most operations.\n"
+				       "      Options :\n"
+				       "        -f, --auth=(yes|auto|no)  Force authentication or not.\n"
+				       "      Commands :\n"
+				       "        -S, --service=SERVICE   Control services on the slave\n"
+				       "            Operations :\n"
+				       "               -s, --start          Start service\n"
+				       "               -o, --stop           Stop service\n"
+				       "               -a, --api-service-co=UNIX_SOCK\n"
+				       "                                    Get connection to an ioslaves API service. Here, ioslaves only\n"
+				       "                                     relays between the distant API service and a progam that knows\n"
+				       "                                     the protocol of the service, via an unix socket.\n"
+				       "        -P, --open-port=(T|U)PORT[-END] [DESCR]\n"
+				       "                                    Open port(s) (TCP/UDP) on the gatway of the distant slave via UPnP.\n"
+				       "        -X, --close-port=(T|U)PORT[-END]\n"
+				       "                                    Close opened port(s) on the distant gateway.\n"
+				       "        -R, --reboot                Reboot distant slave.\n"
+				       "        -D, --shutdown [AUTO_TIME]  Shutdown distant slave. AUTO_TIME param manages automatic\n"
+				       "                                     shutdown. If AUTO_TIME=0, inhibits auto-shutdown. If AUTO_TIME>0,\n"
+				       "                                     sets the automatic shutdown in AUTO_TIME minutes.\n"
+				       "        -G, --status                Report overview status of the slave as JSON.\n"
+				       "        -L, --log [BEGIN[-END]]      Get slave log lines from timestamps BEGIN to END\n"
+				       "                                     (0 for no limit). Returns JSON if not interactive.\n"
+				       "        -k, --auth-key MASTER FOOTPRINT PERMFILE [IP]   Authorize a master for 4 seconds to send it's\n"
+				       "                                     new key with known footprint, which should be transfered with\n"
+				       "                                     integrity guaranty. Master IP verification is optional. Models of\n"
+				       "                                     perms files can be found in " IOSLAVES_MASTER_KEYS_MODELS_DIR "\n"
+				       "        -r, --revoke-key=MASTER     Delete key of given master.\n"
+				       "  -K, --keygen METHOD      Generate (and replace if exists) a key for the slave. The key can be copied\n"
+				       "                            on the slave manually or automatically with the authorization of a master.\n"
+				       "                            If the storage METHOD is 'raw', the key is stored in clear in the key file.\n"
+				       "                            Else, a key storage plugin will be loaded as METHOD.ioslmcext to store the key.\n"
+				       "  -O, --on [METHOD ARG[s]] Power on slave using several methods :\n"
+				       "                            MAGIC_PKT: wake up the slave using a magic packet containing the\n"
+				       "                                        MAC address of its compatible NIC (UDP packet on port 9).\n"
+				       "                                       If the 2nd arg is defined, the packet is sent on represented\n"
+				       "                                        hostname instead of the broadcast addr of the local network.\n"
+				       "                                       If sent to the WAN, the router must support it.\n"
+				       "                            GATEWAY: tell the 'wake-gateway' ioslavesd plugin of a slave on the same\n"
+				       "                                      network to relay the start request (WoL, another relay, PSU...).\n"
+				       "                                      Used if magic packets cannot traverse the NAT, or for\n"
+				       "                                      hierarchical organizations. Takes the name or address of the gateway.\n"
+				       "                            SERIAL_PSU: command a centralized PSU via serial port using xif serial PSU\n"
+				       "                                        protocol. Takes the output ID of the PSU.\n"
+				       "  -J, --to-json            Convert slave info file ~/ioslaves-master/slaves/[slave].conf into JSON.\n"
+				       "\n");
 				return EXIT_SUCCESS;
 			case 'i':
 				optctx::interactive = false;
@@ -463,7 +463,7 @@ int main (int argc, char* const argv[]) {
 				else if (on_str_type == "GATEWAY") {
 					$poweron_type = iosl_master::on_type::GATEWAY;
 					if (optind == argc or argv[optind][0] == '-') 
-						try_help("--on=GATEWAY must take gateway's name as argument\n");
+						try_help("--on=GATEWAY must take the name of the gateway as argument\n");
 					$on_gateway = argv[optind++];
 					if (not ioslaves::validateSlaveName($on_gateway))
 						try_help("--on=GATEWAY : invalid gateway name\n"); 
@@ -552,11 +552,11 @@ void IPreSlaveCo () {
 	}
 	try {
 		$slave_sock->o_bool(true);
-			// Authentification
+			// Authentication
 		$slave_sock->o_str($master_id);
 		$slave_sock->o_bool($auth);
 		if ($auth) {
-			std::cerr << "Authentification..." << std::endl;
+			std::cerr << "Authentication..." << std::endl;
 			iosl_master::authenticate(*$slave_sock, _S($master_id,'.',$slave_id));
 		}
 		$slave_sock->set_read_timeout($op_timeout);
@@ -584,7 +584,7 @@ void IPostSlaveCo (ioslaves::answer_code e) {
 	///---- Service managing ----///
 
 void IPreService () {
-	std::cerr << "Managing slave's service '" << $service_name << "'" << std::endl;
+	std::cerr << "Managing service '" << $service_name << "'" << std::endl;
 }
 
 void IServStart () {
@@ -717,7 +717,7 @@ void IStat () {
 
 const char* log_lvl_strs[] = { "FATAL", "ERROR", "OOPS", "SEVERE", "WARNING", "NOTICE", "LOG", "IMP", "MAJOR", "DONE" };
 void ILog () {
-	std::cerr << "Getting slave's log lines from " << $log_begin << " to " << $log_end << "..." << std::endl;
+	std::cerr << "Getting log lines from " << $log_begin << " to " << $log_end << "..." << std::endl;
 	$slave_sock->o_char((char)ioslaves::op_code::LOG_HISTORY);
 	$slave_sock->o_int<uint64_t>($log_begin);
 	$slave_sock->o_int<uint64_t>($log_end);
@@ -753,7 +753,7 @@ void IPowerup () {
 	if ($poweron_type == iosl_master::on_type::_AUTO) {
 		bool up = iosl_master::slave_test($slave_id);
 		if (up) {
-			std::cerr << COLOR_YELLOW << "Slave '" << $slave_id << "' is already up !" << std::endl;
+			std::cerr << COLOR_YELLOW << "Slave '" << $slave_id << "' is already up !" << COLOR_RESET << std::endl;
 			EXIT_FAILURE = EXIT_FAILURE_IOSL;
 			throw EXCEPT_ERROR_IGNORE;
 		}
@@ -998,7 +998,7 @@ void ISlKeyAuth () {
 	o = (ioslaves::answer_code)$slave_sock->i_char();
 	if (o != ioslaves::answer_code::OK)
 		throw o;
-	std::cerr << LOG_ARROW_OK << "Authorization acceped ! Waiting for sender master's connection to slave (max " << IOSLAVES_KEY_SEND_DELAY << " seconds)..." << std::endl;
+	std::cerr << LOG_ARROW_OK << "Authorization acceped ! Waiting for sender master connection to slave (max " << IOSLAVES_KEY_SEND_DELAY << " seconds)..." << std::endl;
 	$slave_sock->set_read_timeout(timeval({IOSLAVES_KEY_SEND_DELAY+1,0}));
 	o = (ioslaves::answer_code)$slave_sock->i_char();
 	if (o == ioslaves::answer_code::OK) {
@@ -1107,7 +1107,7 @@ void IPost (ioslaves::answer_code e) {
 			case ioslaves::answer_code::EXISTS: errstr = "Already exists !"; break;
 			case ioslaves::answer_code::UPNP_ERROR: errstr = "Port mapping error !"; break;
 			case ioslaves::answer_code::DENY: errstr = "Action refused by slave !"; break;
-			case ioslaves::answer_code::BAD_CHALLENGE_ANSWER: errstr = "Authentification failed !"; break;
+			case ioslaves::answer_code::BAD_CHALLENGE_ANSWER: errstr = "Authentication failed !"; break;
 			case ioslaves::answer_code::EXTERNAL_ERROR: errstr = "Slave external error !"; break;
 			case ioslaves::answer_code::INVALID_DATA: errstr = "Invalid data !"; break;
 			case ioslaves::answer_code::LACK_RSRC: errstr = "Lacking ressources !"; break;

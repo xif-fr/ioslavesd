@@ -83,7 +83,7 @@ socketxx::base_netsock iosl_master::slave_connect (std::string slave_id, in_port
 	return sock;
 }
 
-	// Apply operation without authentification
+	// Apply operation without authentication
 void iosl_master::slave_command (socketxx::io::simple_socket<socketxx::base_netsock> sock, std::string master_id, ioslaves::op_code opp) {
 	socketxx::io::simple_socket<socketxx::base_netsock> slave_sock = sock;
 	try {
@@ -99,11 +99,11 @@ void iosl_master::slave_command (socketxx::io::simple_socket<socketxx::base_nets
 
 #ifndef IOSL_MASTER_IMPL_NO_AUTH
 
-	// Authentification
+	// Authentication
 void iosl_master::authenticate (socketxx::io::simple_socket<socketxx::base_netsock> slave_sock, std::string key_id) {
 	ioslaves::answer_code o = (ioslaves::answer_code)slave_sock.i_char();
 	if (o != ioslaves::answer_code::OK) 
-		throw master_err(EXIT_FAILURE_AUTH, logstream << "Slave refused authentification : " << ioslaves::getAnswerCodeDescription(o), o);
+		throw master_err(EXIT_FAILURE_AUTH, logstream << "Slave refused authentication : " << ioslaves::getAnswerCodeDescription(o), o);
 	std::string key_path = _S( IOSLAVES_MASTER_KEYS_DIR,"/",key_id,".key" );
 	FILE* key_f = ::fopen(key_path.c_str(), "r");
 	if (key_f == NULL) {
@@ -184,12 +184,12 @@ void iosl_master::authenticate (socketxx::io::simple_socket<socketxx::base_netso
 	o = (ioslaves::answer_code)slave_sock.i_char();
 	if (o == ioslaves::answer_code::OK) {
 		if (not iosl_master::$silent)
-			__log__(log_lvl::DONE, "AUTH", logstream << "Authentification with key '" << key_id << "' succeded !");
+			__log__(log_lvl::DONE, "AUTH", logstream << "Authentication with key '" << key_id << "' succeded !");
 	} else 
-		throw master_err(EXIT_FAILURE_AUTH, logstream << "Authentification failed : " << ioslaves::getAnswerCodeDescription(o), o);
+		throw master_err(EXIT_FAILURE_AUTH, logstream << "Authentication failed : " << ioslaves::getAnswerCodeDescription(o), o);
 }
 
-	// Apply operation with authentification
+	// Apply operation with authentication
 void iosl_master::slave_command_auth (socketxx::io::simple_socket<socketxx::base_netsock> slave_sock, std::string master_id, ioslaves::op_code opp, std::string key_id) {
 	try {
 		slave_sock.o_bool(true);

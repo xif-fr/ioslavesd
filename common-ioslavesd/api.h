@@ -24,7 +24,7 @@ public:
 };
 #define pthread_mutex_handle_lock(mutex) pthread_mutex_handle _mutex_handle_ (&mutex)
 
-// Signals to block in api service's threads
+// Signals to block in threads of api services
 #include <signal.h>
 extern int sigs_to_block[];
 extern sig_atomic_t* signal_catch_sigchild_p;
@@ -143,7 +143,7 @@ extern "C" {
 	bool ioslapi_start (const char* by_master); // Called at service start, when callbacks are defined (by_master = NULL if autostarted)
 	void ioslapi_net_client_call (socketxx::base_socket&, const char* masterid, ioslaves::api::api_perm_t* perms, in_addr_t); // Network request from a master for the API service (perms = NULL if not authenticated, master ID can be empty)
 	bool ioslapi_got_sigchld (pid_t pid, int pid_status); // Report that a SIGCHILD was catched for this pid with this status. Return true if the API service is the owner of the terminated process.
-	xif::polyvar* ioslapi_status_info (); // Returns a small allocated resumé free format of the service's status
+	xif::polyvar* ioslapi_status_info (); // Returns a small allocated resumé free format of the service status
 	bool ioslapi_shutdown_inhibit (); // Returns if service shutdown should be inhibited
 	void ioslapi_stop (void); // Called at service stop (except when fatal was reported)
 	

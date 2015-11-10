@@ -3,7 +3,7 @@
 pkgname=ioslmaster-keystore
 pkgver=3.6.1
 pkgrel=1
-pkgdesc='Xif Network - ioslaves master authentification key storage extentions'
+pkgdesc='Xif Network - ioslaves master authentication key storage extentions'
 license=('custom')
 arch=('i686' 'x86_64')
 depends=('ioslaves-master')

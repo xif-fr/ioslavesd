@@ -60,7 +60,7 @@ namespace ioslaves {
 		NOP = '-'
 	};
 	
-		// Authentification - Keys - Crypto
+		// Authentication - Keys - Crypto
 	#define HASH_LEN 64
 	#define MD5_HEX_LEN 32
 	#define KEY_LEN 256

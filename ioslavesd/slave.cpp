@@ -448,14 +448,14 @@ int main (int argc, const char* argv[]) {
 				}
 			}
 			
-				// Authentification
+				// Authentication
 			if (auth and not master_id.empty()) {
 				ioslaves::key_t key;
 				try {
 					std::tie (key,perms) = ioslaves::load_master_key(master_id);
 					cli.o_char((char)ioslaves::answer_code::OK);
 				} catch (ioslaves::req_err& e) {
-					__log__(log_lvl::ERROR, "KEY", logstream << "Authentification of " << cli.addr.get_ip_str() << " : Key loading failed : " << e.descr);
+					__log__(log_lvl::ERROR, "KEY", logstream << "Authentication of " << cli.addr.get_ip_str() << " : Key loading failed : " << e.descr);
 					cli.o_char((char)e.answ_code);
 					continue;
 				}
@@ -474,7 +474,7 @@ int main (int argc, const char* argv[]) {
 				for (size_t i = 0; i < HASH_LEN; i++) {
 					if (expected_answer.bin[i] != master_answer.bin[i]) {
 						cli.o_char((char)ioslaves::answer_code::BAD_CHALLENGE_ANSWER);
-						__log__(log_lvl::NOTICE, "AUTH", logstream << "Authentification failed for " << cli.addr.get_ip_str() << " as '" << master_id << "' ! Bad answer to challenge.");
+						__log__(log_lvl::NOTICE, "AUTH", logstream << "Authentication failed for " << cli.addr.get_ip_str() << " as '" << master_id << "' ! Bad answer to challenge.");
 						conn_next_delay[cli.addr.get_ip_addr().s_addr] = ::iosl_time() + IOSL_CLI_DELAY_FAIL_AUTH;
 						goto _abort_connect;
 					}
@@ -483,7 +483,7 @@ int main (int argc, const char* argv[]) {
 				opcode = (ioslaves::op_code)cli.i_char();
 				silent = ioslaves::perms_verify_op(perms, opcode).props["silent"] == "true";
 				if (not silent)
-					__log__(log_lvl::LOG, "AUTH", logstream << "Authentification succeeded for '" << master_id << "' (" << cli.addr.get_ip_str() << ")");
+					__log__(log_lvl::LOG, "AUTH", logstream << "Authentication succeeded for '" << master_id << "' (" << cli.addr.get_ip_str() << ")");
 				conn_next_delay[cli.addr.get_ip_addr().s_addr] = ::iosl_time() + IOSL_CLI_DELAY_AUTH;
 			} else {
 				__log__(log_lvl::LOG, "AUTH", logstream << "Connection of " << cli.addr.get_ip_str() << " as " << (master_id.empty() ? "anonymous" : _S("'",master_id,"' (not verified, no auth)")));
@@ -566,7 +566,7 @@ int main (int argc, const char* argv[]) {
 							std::string slave_footprint = ioslaves::bin_to_hex(hash, MD5_DIGEST_LENGTH);
 							if (slave_footprint != footprint) {
 								clikey.o_char((char)ioslaves::answer_code::DENY);
-								throw ioslaves::req_err(ioslaves::answer_code::DENY, NULL, logstream << "Sent key's footprint (" << slave_footprint << ") does not corresponds to the authorized footprint (" << footprint << ")");
+								throw ioslaves::req_err(ioslaves::answer_code::DENY, NULL, logstream << "Sent key footprint (" << slave_footprint << ") does not corresponds to the authorized footprint (" << footprint << ")");
 							}
 							__log__(log_lvl::IMPORTANT, "KEY", logstream << "Key with footprint " << footprint << " is accepted for master " << of_master << " (" << clikey.addr.get_ip_str() << ")");
 							ioslaves::key_save(of_master, 
@@ -1376,7 +1376,7 @@ ioslaves::service* ioslaves::getServiceByName (std::string name) {
 	throw ioslaves::req_err(ioslaves::answer_code::NOT_FOUND, "SERVICE", logstream << "Service '" << name << "' not found !");
 }
 
-	/// Resumé of the serive's status
+	/// Resumé of the service status
 xif::polyvar ioslaves::serviceStatus (const ioslaves::service* s) {
 	switch (s->s_type) {
 		case ioslaves::service::type::SYSTEMCTL: return xif::polyvar();

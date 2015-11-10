@@ -545,7 +545,7 @@ NSAttributedString* log_master_strs[] = {
 				case ioslaves::answer_code::DENY: 
 					return connectFail( icons::forbidden, logstream << "Operation not authorized" << logstr );
 				case ioslaves::answer_code::BAD_CHALLENGE_ANSWER: 
-					return connectFail( icons::autherr, logstream << "Bad answer to slave " << self->slaveID << "'s challenge" << logstr );
+					return connectFail( icons::autherr, logstream << "Bad answer to the challenge of slave " << self->slaveID << logstr );
 				case ioslaves::answer_code::INTERNAL_ERROR: 
 					return connectFail( icons::syserr, logstream << "System or internal error on slave '" << self->slaveID << "'" << logstr );
 				default: 

@@ -335,7 +335,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 	logl_t l;
 	
 	if (perms == NULL) 
-		throw ioslaves::req_err(ioslaves::answer_code::NOT_AUTHORIZED, "PERMS", logstream << "Minecraft API service requires authentification", log_lvl::OOPS);
+		throw ioslaves::req_err(ioslaves::answer_code::NOT_AUTHORIZED, "PERMS", logstream << "Minecraft API service requires authentication", log_lvl::OOPS);
 	
 	try {
 		socketxx::io::simple_socket<socketxx::base_socket> cli (_cli_sock);
@@ -1148,7 +1148,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 		cli.o_int<uint16_t>(s->s_port);
 		
 			// Great ! We have some work... Now we can send file requests to master
-		__log__(log_lvl::MAJOR, NULL, logstream << "Starting " << s->s_servid << "'s server with " << (s->s_is_perm_map?"permanent":"temporary") << " map '" << s->s_map << "' on port " << s->s_port << " with jar '" << (char)s->s_serv_type << "' " << s->s_mc_ver.str());
+		__log__(log_lvl::MAJOR, NULL, logstream << "Starting '" << s->s_servid << "' server with " << (s->s_is_perm_map?"permanent":"temporary") << " map '" << s->s_map << "' on port " << s->s_port << " with jar '" << (char)s->s_serv_type << "' " << s->s_mc_ver.str());
 		
 			// Server folder and map
 		block_as_mcjava();
@@ -1240,18 +1240,18 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 					else throw;
 				}
 				if (abs((int)(lastsavetime_map-s_lastsavetime)) < MINECRAFT_SERV_MASTER_MAX_DELAY_CONSIDERED_EQUAL) {
-					__log__(log_lvl::LOG, "FILES", MCLOGSCLI(s) << "Server folder is up-to-date with master's saved one");
+					__log__(log_lvl::LOG, "FILES", MCLOGSCLI(s) << "Server folder is up-to-date with saved one on the master");
 				}
 				float diff_hours = (lastsavetime_map-s_lastsavetime)/3600.0f;
 				if (lastsavetime_map < s_lastsavetime) {
-					__log__(log_lvl::LOG, "FILES", MCLOGSCLI(s) << "Server folder is older by " << std::setprecision(2) << std::fixed << diff_hours << "h than master's save, getting latest...");
+					__log__(log_lvl::LOG, "FILES", MCLOGSCLI(s) << "Server folder is older by " << std::setprecision(2) << std::fixed << diff_hours << "h than master save, getting latest...");
 					minecraft::transferAndExtract(cli, minecraft::transferWhat::SERVFOLD, s->s_map, _S(MINECRAFT_SRV_DIR,"/mc_",s->s_servid));
 				}
 				if (lastsavetime_map > s_lastsavetime) {
 					if (s_lastsavetime == 0) 
 						__log__(log_lvl::WARNING, "FILES", MCLOGSCLI(s) << "No save of server folder on master. Sending for backup...");
 					else 
-						__log__(log_lvl::WARNING, "FILES", MCLOGSCLI(s) << "Server folder is newer by " << std::setprecision(2) << std::fixed << diff_hours << "h than master's save (maybe not saved last time or server crashed). Sending for backup...");
+						__log__(log_lvl::WARNING, "FILES", MCLOGSCLI(s) << "Server folder is newer by " << std::setprecision(2) << std::fixed << diff_hours << "h than master save (maybe not saved last time or server crashed). Sending for backup...");
 					cli.o_char((char)ioslaves::answer_code::WANT_SEND);
 					minecraft::compressAndSend(cli, s->s_servid, s->s_map, false);
 				}
@@ -1348,7 +1348,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 		}
 		s->s_jar_path = jar_path;
 		
-			// Changing folder's owner and reset effective uid
+			// Changing directory owner and reset effective uid
 		ioslaves::api::euid_switch(0,0);
 		__log__(log_lvl::LOG, NULL, MCLOGSCLI(s) << "Correcting permissions...");
 		ioslaves::chown_recurse(working_dir.c_str(), minecraft::java_user_id, minecraft::java_group_id);
@@ -1681,7 +1681,7 @@ void* minecraft::serv_thread (void* arg) {
 							}
 						}
 						if (rs == -1)
-							throw xif::sys_error("read from java's stdout failed");
+							throw xif::sys_error("read from java stdout failed");
 						
 						current_line.insert(current_line.length(), lbuf, (size_t)rs);
 						for (size_t i = 0; i < current_line.length(); i++) {

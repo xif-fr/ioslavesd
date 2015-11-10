@@ -22,7 +22,7 @@ namespace libconfig { class Setting; }
 namespace iosl_master {
 	namespace keystore_api {
 		
-			// Storage method plugin's interface
+			// Storage method interface for plugins
 		typedef void (*key_store_f) (std::string key_id, ioslaves::key_t key, libconfig::Setting& data_write);
 		typedef ioslaves::hash_t (*key_answer_challenge_f) (std::string key_id, ioslaves::challenge_t challenge, const libconfig::Setting& data);
 		

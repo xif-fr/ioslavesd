@@ -47,11 +47,11 @@ int _exit_failure_code = 29;
 #define TIMEOUT_CONNECT timeval{2,500000}
 #define TIMEOUT_COMM timeval{10,000000}
 #define TIMEOUT_ZIP_DELAY timeval{130,000000}
-#define TIMEOUT_JAVA_ALIVE timeval{40,000000}
+#define TIMEOUT_JAVA_ALIVE timeval{60,000000}
 #define TIMEOUT_STOP_SERVER timeval{30,000000}
 #define TIMEOUT_WEBSOCKET (useconds_t)4000000
 
-	// minecraft-master's option variables
+	// minecraft-master option variables
 bool $granmaster;
 std::string $master_id;
 std::string $slave_id;
@@ -82,7 +82,7 @@ std::vector<in_port_t> $additional_ports;
 bool $start_temp_perm = false;
 bool $fixmap;
 
-	// minecraft-master's core functionnality functions
+	// minecraft-master core functionnality functions
 time_t getLastSaveTime (std::string serv, std::string map);
 void retreivingProgressionShow (size_t done, size_t totsz);
 void handleReportRequest (socketxx::io::simple_socket<socketxx::base_socket> sock, std::string slave);
@@ -286,7 +286,7 @@ int main (int argc, char* const argv[]) {
 				       "        --del-world=NAME        Delete the folder of the world [NAME] of the server.\n"
 				       "        --fix-world=(y|n),NAME  Guarantee that the world [NAME] will stay on the indicated slave.\n"
 				       "        --save-world=NAME       Force world save retrieval of the world [NAME] of the server.\n"
-				       "        --console               Bind the connection to the server's LiveConsole. If used at\n"
+				       "        --console               Bind the connection to the server LiveConsole. If used at\n"
 				       "                                 after server start action, early LiveConsole is activated.\n"
 				       "        --ftp-sess=USER:HASHPW  Create new FTP session for running world for user USER and\n"
 				       "                                 hashed password HASHPW. Returns ADDR:PORT of the FTP server.\n"
@@ -460,8 +460,6 @@ int main (int argc, char* const argv[]) {
 				break;
 			case '~': {
 				optctx::optctx_test("--mean-cpu", optctx::servStart);
-				if ($needed_cpu == 1.0f) 
-					try_help("--mean-cpu : --cpu must be defined\n");
 				double f = ::atof(optarg);
 				if (f == 0.0 or f <= 0.0 or f > 20.0 or $mean_cpu > $needed_cpu)
 					try_help("--mean-cpu : invalid mean cpu usage estimation\n");
@@ -760,7 +758,6 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 			handleReportRequest(sock, slave);
 		else throw o;
 	}
-	__log__ << "Opp '" << (char)opp << "' accepted by distant minecraft service" << std::flush;
 	sock.set_read_timeout(TIMEOUT_COMM);
 	return sock;
 }
@@ -851,7 +848,7 @@ void acceptFileSave (socketxx::io::simple_socket<socketxx::base_socket> sock, st
 	ioslaves::infofile_set(_s(folder_saves,"/lastsave"), ::ixtoa(lastsavetime_dist));
 	__log__ << LOG_AROBASE_OK << "Retrieval done !";
 	if (truesave) {
-		__log__ << "Save " << lastsavetime_dist << " set as true save from " << slave << std::flush;
+		__log__ << " Save " << lastsavetime_dist << " set as true save from " << slave << std::flush;
 		ioslaves::infofile_set(_s(folder_saves,"/truesave"), "true");
 	} else 
 		__log__ << std::flush;
@@ -946,6 +943,9 @@ std::string getRunningOnSlave (std::string serv) {
 
 void setRunningOnSlave (std::string serv, std::string running_on_slave) {
 	std::string filename = _S( IOSLAVES_MINECRAFT_MASTER_DIR,'/',$server_name,"/running_on" );
+	__log__ << "Marking server '" << serv << "' as ";
+	if (running_on_slave.empty()) __log__ << " closed." << std::flush;
+	else                          __log__ << " opened on slave '" << running_on_slave << "'." << std::flush;
 	ioslaves::infofile_set(filename.c_str(), running_on_slave);
 }
 
@@ -1089,7 +1089,6 @@ void MServStatus () {
 				if (not $slave_id.empty() and $local_slave_id != $slave_id) {
 					goto __check_on_user_slave;
 				} else {
-					__log__ << "Marking as closed..." << std::flush;
 					::setRunningOnSlave($server_name, "");
 					if (not optctx::interactive)
 						std::cout << std::endl << xif::polyvar(xif::polyvar::map({{"running",false}})).to_json() << std::endl;
@@ -1127,10 +1126,8 @@ void MServStatus () {
 			}
 		} else {
 			__log__ << LOG_ARROW_OK << "No, server isn't running on slave '" << $slave_id << "'. You are wrong ^_^ !" << std::flush;
-			if (not $local_slave_id.empty()) {
-				__log__ << "Marking as closed..." << std::flush;
+			if (not $local_slave_id.empty()) 
 				::setRunningOnSlave($server_name, "");
-			}
 			if (not optctx::interactive)
 				std::cout << std::endl << xif::polyvar(xif::polyvar::map({{"running",false}})).to_json() << std::endl;
 		}
@@ -1359,11 +1356,11 @@ _try_start:
 				verifyMapList(running_on_slave, $server_name, sock);
 			}
 			if ($status) {
-				__log__ << LOG_ARROW_ERR << "Yes, server is already running on slave '" << running_on_slave << "' !" << std::flush;
+				__log__ << LOG_ARROW_ERR << "Yes, server is already running on slave '" << running_on_slave << "'." << std::flush;
 				EXIT_FAILURE = EXIT_FAILURE_IOSL;
 				throw EXCEPT_ERROR_IGNORE;
 			} else {
-				__log__ << LOG_ARROW_ERR << "Erm... No, server isn't running on slave '" << running_on_slave << "'. Marking as closed." << std::flush;
+				__log__ << LOG_ARROW_ERR << "Erm... No, server isn't running on slave '" << running_on_slave << "'." << std::flush;
 				::setRunningOnSlave($server_name, "");
 				EXIT_FAILURE = EXIT_FAILURE_IOSL;
 				throw EXCEPT_ERROR_IGNORE;
@@ -1509,7 +1506,7 @@ _try_start:
 	ioslaves::answer_code o;
 	if ((o = (ioslaves::answer_code)sock->i_char()) != ioslaves::answer_code::OK) {
 		if (o == ioslaves::answer_code::BAD_STATE and $granmaster) {
-			__log__ << NICE_WARNING << COLOR_YELLOW << "Server is already opened on distant slave" << COLOR_RESET << " - marking as opened" << std::flush;
+			__log__ << NICE_WARNING << COLOR_YELLOW << "Server is already opened on slave !" << COLOR_RESET << std::flush;
 			::setRunningOnSlave($server_name, $slave_id);
 			EXIT_FAILURE = EXIT_FAILURE_IOSL;
 			throw EXCEPT_ERROR_IGNORE;

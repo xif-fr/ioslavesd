@@ -61,7 +61,7 @@ class master_err : public std::runtime_error {
 };
 #define EXIT_FAILURE_CONN   90  // Connection failure with slave
 #define EXIT_FAILURE_DOWN   91  // Slave seems to be down
-#define EXIT_FAILURE_AUTH   92  // Authentification failure
+#define EXIT_FAILURE_AUTH   92  // Authentication failure
 #define EXIT_FAILURE_COMM   93  // Communication failure with slave
 #define EXIT_FAILURE_IOSL   94  // Distant ioslaves error
 #define EXIT_FAILURE_SYSERR 95  // Local system error
@@ -84,7 +84,7 @@ namespace iosl_master {
 	in_port_t slave_get_port_dns (std::string slave_id);
 	socketxx::base_netsock slave_connect (std::string slave_id, in_port_t default_port = IOSLAVES_MASTER_DEFAULT_PORT, timeval timeout = {1,0}); // Establish a raw connection to slave
 	
-		// Authentification
+		// Authentication
 	void authenticate (socketxx::io::simple_socket<socketxx::base_netsock> slave_sock, std::string key_id); // Authenticate with key_id.key
 	
 		// Opperations

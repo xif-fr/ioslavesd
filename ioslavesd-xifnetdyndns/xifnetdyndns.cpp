@@ -7,7 +7,7 @@
  * This software is under the GNU General Public License
  * *********************************************************
  * This dynamic DNS service use minimal TTLs for minimizing 
- *  the time between the PPP session on the slave's modem is 
+ *  the time between the PPP session on the slave modem is 
  *  renewed (with often a new IP) and the final client see the 
  *  modified IP. This can leave the door opened to DNS spoofing
  \**********************************************************/
@@ -178,10 +178,10 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 		}
 		goto __ok;
 		
-		/* Registered slave : check if slave's IP has changed, and update the DNS if it's the case  */
+		/* Registered slave : check if slave IP has changed, and update the DNS if it's the case  */
 	__slave_found:
 		if (perms == NULL and slave->was_auth) {
-			__log__(log_lvl::SEVERE, "SECURITY", logstream << "Non-authentified client tries to spoof " << slave->slave_name << "'s IP !");
+			__log__(log_lvl::SEVERE, "SECURITY", logstream << "Non-authentified client tries to spoof the IP of slave '" << slave->slave_name << "' !");
 			cli.o_char((char)ioslaves::answer_code::DENY);
 			return;
 		}

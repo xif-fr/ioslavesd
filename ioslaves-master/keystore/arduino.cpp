@@ -1,7 +1,7 @@
 /**********************************************************\
  *               -== Xif Network project ==-
  *             ioslaves-master keystore plugin
- *        Arduino key storage and authentification
+ *          Arduino key storage and authentication
  * *********************************************************
  * Copyright © Félix Faisant 2015. All rights reserved
  * This software is under the GNU General Public License
@@ -54,7 +54,7 @@ bool arduino_reuse_conn;
 
 	// Key storage implentation
 extern "C" void key_store (std::string key_id, ioslaves::key_t key, libconfig::Setting& data_write) {
-	__log__(log_lvl::LOG, "ARDUINO", logstream << "Storing key '" << key_id << "' on arduino authentification module...");
+	__log__(log_lvl::LOG, "ARDUINO", logstream << "Storing key '" << key_id << "' on arduino authentication module...");
 	int r;
 	size_t rs;
 	std::string device = 
