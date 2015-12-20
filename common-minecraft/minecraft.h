@@ -17,13 +17,12 @@
 #define MC_MAP_PERM 0640
 #define MC_LASTSAVETIME_FORCE (time_t)-1
 #define MC_LASTSAVETIME_NOSAVE (time_t)0
-#define MC_LASTSAVETIME_RESIDENT (time_t)-2
 #define MC_MIN_SERV_RAM 512
 #define MC_SWAP_FACTOR 0.5f
 #define MC_FREE_RAM_FACTOR 0.7f
 
 	// Protocol version
-#define IOSLAVES_MINECRAFT_PROTO_VERS 0x22
+#define IOSLAVES_MINECRAFT_PROTO_VERS 0x23
 
 	// Minecraft service
 namespace minecraft {
@@ -38,9 +37,11 @@ namespace minecraft {
 		COMM_SERVER = 'C',
 		SERV_STAT = 't',
 		PERMANENTIZE = 'P',
+		FIX_MAP = 'X',
 		DELETE_MAP = 'D',
 		FTP_SESSION = 'F',
 		ASYNC_TRSF = 'A',
+		SAVE_MAP = 'M',
 	};
 	
 	enum class serv_op_code : char {

@@ -120,7 +120,7 @@ namespace minecraft {
 	void* serv_thread (void* arg);
 	void stopServer (socketxx::io::simple_socket<socketxx::base_socket> cli, minecraft::serv* s);
 	
-		// Transfer, files, and map functions
+		// Transfer, files, and world functions
 	void transferAndExtract (socketxx::io::simple_socket<socketxx::base_socket> sock, minecraft::transferWhat what, std::string name, std::string parent_dir, bool alt = false);
 	void compressAndSend (socketxx::io::simple_socket<socketxx::base_socket> sock, std::string servname, std::string mapname, bool async);
 	void unzip (const char* file, const char* in_dir, const char* expected_dir_name);
@@ -248,7 +248,7 @@ extern "C" void ioslapi_stop (void) {
 		libconfig::Config savereports;
 		libconfig::Setting& replist = savereports.getRoot();
 		for (auto it = minecraft::servs_stopped.begin(); it != minecraft::servs_stopped.end(); it++) {
-			minecraft::serv_stopped& ss = *it;
+			minecraft::serv_stopped ss = *it;
 			__log__(log_lvl::LOG, NULL, ss.serv, LOG_ADD|LOG_WAIT, &l);
 			libconfig::Setting& report = replist.add(ss.serv, libconfig::Setting::TypeGroup);
 			report.add("gracefully", libconfig::Setting::TypeBoolean) = ss.gracefully;
@@ -322,6 +322,7 @@ extern "C" bool ioslapi_got_sigchld (pid_t pid, int pid_status) {
 
 extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const char* masterid, ioslaves::api::api_perm_t* perms, in_addr_t) {
 	int r;
+	logl_t l;
 	
 	if (perms == NULL) 
 		throw ioslaves::req_err(ioslaves::answer_code::NOT_AUTHORIZED, "PERMS", logstream << "Minecraft API service requires authentification", log_lvl::OOPS);
@@ -361,8 +362,9 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 		
 			// Report server stop-reports to master, if able to handle it
 		pthread_mutex_handle_lock(minecraft::servs_mutex);
+		if (opp != minecraft::op_code::FIX_MAP) 
 		for (auto it = minecraft::servs_stopped.begin(); it != minecraft::servs_stopped.end();) {
-			minecraft::serv_stopped& ss = *it;
+			minecraft::serv_stopped ss = *it;
 			if (s_servid == ss.serv or is_a_gran_master) {
 				__log__(log_lvl::IMPORTANT, "COMM", logstream << "Reporting stop of server '" << ss.serv << "' to master");
 				cli.o_char((char)ioslaves::answer_code::WANT_REPORT);
@@ -433,6 +435,50 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 					__log__(log_lvl::ERROR, "COMM", logstream << "Server '" << s_servid << "' not found");
 					cli.o_char((char)ioslaves::answer_code::NOT_FOUND);
 				}
+			} break;
+			
+			case minecraft::op_code::FIX_MAP: {
+				std::string map = cli.i_str();
+				bool want_fixed = cli.i_bool();
+				__log__(log_lvl::LOG, "COMM", logstream << "Master wants to " << (want_fixed?"enable":"disable") << " fix option for map '" << map << "' for server '" << s_servid << "'");
+				try {
+					block_as_mcjava();
+					std::string dir = _S( MINECRAFT_SRV_DIR,"/mc_",s_servid );
+					r = ::access(dir.c_str(), X_OK);
+					if (r == -1) {
+						__log__(log_lvl::ERROR, "COMM", logstream << "Server '" << s_servid << "' not found in filesystem");
+						cli.o_char((char)ioslaves::answer_code::NOT_FOUND);
+						break;
+					}
+					dir = _S( dir,'/',map );
+					r = ::access(dir.c_str(), X_OK);
+					if (r == -1) {
+						__log__(log_lvl::ERROR, "COMM", logstream << "Map '" << map << "' on server '" << s_servid << "' not found");
+						cli.o_char((char)ioslaves::answer_code::NOT_FOUND);
+						break;
+					}
+					std::string fixed_map_file = _S( dir,"/fixed_map" );
+					bool currently_fixed = not ( ioslaves::infofile_get(fixed_map_file.c_str(), true).empty() );
+					if (currently_fixed == want_fixed) {
+						__log__(log_lvl::NOTICE, "SERV", logstream << "Fix option : no change needed");
+						cli.o_char((char)ioslaves::answer_code::OK);
+						break;
+					}
+					if (want_fixed == true) {
+						__log__(log_lvl::IMPORTANT, "SERV", logstream << "Fixing map '" << map << "' of server '" << s_servid << "'...", LOG_WAIT, &l);
+						#warning TO DO
+						ioslaves::infofile_set(fixed_map_file.c_str(), "do not delete");
+						
+					} else {
+						__log__(log_lvl::IMPORTANT, "SERV", logstream << "Unfixing map '" << map << "' of server '" << s_servid << "'...", LOG_WAIT, &l);
+						#warning TO DO : server must be closed; close ftp sessions; ...; transfer map save ABSOLUTLY
+						ioslaves::infofile_set(fixed_map_file.c_str(), "");
+					}
+					__log__(log_lvl::DONE, "SERV", "Done", LOG_ADD, &l);
+				} catch (std::exception& e) {
+					#warning TO DO
+				}
+				cli.o_char((char)ioslaves::answer_code::OK);
 			} break;
 			
 				// Send stats to client (status, running map, start time, players, port, list of server maps)
@@ -563,6 +609,28 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 				} catch (xif::sys_error& e) {
 					__log__(log_lvl::ERROR, NULL, logstream << "Failed to delete map folder : " << e.what());
 					cli.o_char((char)ioslaves::answer_code::INTERNAL_ERROR);
+				}
+			} break;
+				
+				// Send world save
+			case minecraft::op_code::SAVE_MAP: {
+				cli.o_char((char)ioslaves::answer_code::OK);
+				std::string map = cli.i_str();
+				logl_t l;
+				__log__(log_lvl::LOG, "COMM", logstream << "Master wants to retrieve save of world '" << map << "' of server '" << s_servid << "'.", LOG_WAIT, &l);
+				std::string folder_path = _S( MINECRAFT_SRV_DIR,"/mc_",s_servid,'/',map );
+				if (::access(folder_path.c_str(), F_OK) == -1) {
+					__log__(log_lvl::ERROR, "COMM", logstream << "Folder not found");
+					cli.o_char((char)ioslaves::answer_code::NOT_FOUND);
+					return;
+				}
+				cli.o_char((char)ioslaves::answer_code::OK);
+				try {
+					block_as_mcjava();
+					minecraft::compressAndSend(cli, s_servid, map, false);
+				} catch (std::exception& e) {
+					__log__(log_lvl::ERROR, "COMM", logstream << "World save sending has failed : " << e.what());
+					try { cli.o_char((char)ioslaves::answer_code::INTERNAL_ERROR); } catch (...) {}
 				}
 			} break;
 			
@@ -1127,14 +1195,14 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 				}
 				float diff_hours = (lastsavetime_map-s_lastsavetime)/3600.0f;
 				if (lastsavetime_map < s_lastsavetime) {
-					__log__(log_lvl::LOG, "FILES", MCLOGSCLI(s) << "Server folder is older of " << std::setprecision(2) << diff_hours << "h than master's save, getting latest...");
+					__log__(log_lvl::LOG, "FILES", MCLOGSCLI(s) << "Server folder is older by " << std::setprecision(2) << std::fixed << diff_hours << "h than master's save, getting latest...");
 					minecraft::transferAndExtract(cli, minecraft::transferWhat::SERVFOLD, s->s_map, _S(MINECRAFT_SRV_DIR,"/mc_",s->s_servid));
 				}
 				if (lastsavetime_map > s_lastsavetime) {
 					if (s_lastsavetime == 0) 
 						__log__(log_lvl::WARNING, "FILES", MCLOGSCLI(s) << "No save of server folder on master. Sending for backup...");
 					else 
-						__log__(log_lvl::WARNING, "FILES", MCLOGSCLI(s) << "Server folder is newer of " << std::setprecision(2) << diff_hours << "h than master's save (maybe not saved last time or server crashed). Sending for backup...");
+						__log__(log_lvl::WARNING, "FILES", MCLOGSCLI(s) << "Server folder is newer by " << std::setprecision(2) << std::fixed << diff_hours << "h than master's save (maybe not saved last time or server crashed). Sending for backup...");
 					cli.o_char((char)ioslaves::answer_code::WANT_SEND);
 					minecraft::compressAndSend(cli, s->s_servid, s->s_map, false);
 				}

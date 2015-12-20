@@ -46,7 +46,7 @@ int _exit_failure_code = 29;
 	// Timeouts
 #define TIMEOUT_CONNECT timeval{2,500000}
 #define TIMEOUT_COMM timeval{10,000000}
-#define TIMEOUT_ZIP_DELAY timeval{30,000000}
+#define TIMEOUT_ZIP_DELAY timeval{130,000000}
 #define TIMEOUT_JAVA_ALIVE timeval{40,000000}
 #define TIMEOUT_STOP_SERVER timeval{30,000000}
 #define TIMEOUT_WEBSOCKET (useconds_t)4000000
@@ -56,12 +56,11 @@ bool $granmaster;
 std::string $master_id;
 std::string $slave_id;
 bool $refuse_servs;
-
 std::string $server_name;
 minecraft::serv_type $start_serv_type;
 std::string $start_jar_ver;
 bool $start_is_perm;
-std::string $start_map;
+std::string $worldname;
 bool $start_earlyconsole = false;
 std::string $forced_file;
 bool $verify_serv_exists = true;
@@ -69,34 +68,37 @@ bool $locked = false;
 in_port_t $websocket_port = 0;
 noPollConn* $websocket_conn = NULL;
 bool $refuse_save = false;
-bool $resident = false;
 iosl_dyn_slaves::ram_megs_t $needed_ram = 1024;
 iosl_dyn_slaves::proc_power_t $needed_cpu = 1.0f;
 iosl_dyn_slaves::proc_power_t $mean_cpu = 0.f;
 float $threads_num = 1.f;
 iosl_dyn_slaves::efficiency_ratio_t $needed_eff = iosl_dyn_slaves::efficiency_ratio_t::REGARDLESS;
+bool $hint = false;
 time_t $needed_time = 0;
 std::string $ftp_user, $ftp_hash_passwd;
 uint8_t $mc_viewdist = 7;
 time_t $autoclose_time = 0;
 std::vector<in_port_t> $additional_ports;
 bool $start_temp_perm = false;
+bool $fixmap;
 
 	// minecraft-master's core functionnality functions
 time_t getLastSaveTime (std::string serv, std::string map);
 void retreivingProgressionShow (size_t done, size_t totsz);
 void handleReportRequest (socketxx::io::simple_socket<socketxx::base_socket> sock, std::string slave);
-void acceptFileSave (socketxx::io::simple_socket<socketxx::base_socket> sock, std::string servname, std::string mapname, std::string slave);
+void acceptFileSave (socketxx::io::simple_socket<socketxx::base_socket> sock, std::string servname, std::string mapname, std::string slave, bool truesave);
 std::string getRunningOnSlave (std::string server);
 void setRunningOnSlave (std::string server, std::string running_on_slave);
 void verifyMapList (std::string slave_id, std::string server_name, socketxx::io::simple_socket<socketxx::base_socket> sock);
-socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string slave, std::string servname, minecraft::op_code opp, timeval timeout, bool autostart = false);
+socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string slave, std::string servname, minecraft::op_code opp, timeval timeout, bool autostart = false, bool autoservice = true);
 	void MServPre ();
 		void MServStart ();
 		void MServStop ();
 		void MServStatus ();
 		void MServPerm ();
 		void MServDelMap ();
+		void MServFixMap ();
+		void MServSaveMap ();
 		void MServCreate ();
 		void MServConsole ();
 		void MServFTPSess ();
@@ -111,11 +113,11 @@ void MPost (ioslaves::answer_code);
 #define OPTCTX_POSTFNCT_EXCEPT_T ioslaves::answer_code
 #define OPTCTX_POSTFNCT_EXCEPT_DEFAULT (ioslaves::answer_code)0
 
-#define OPTCTX_CTXS                              refuseServs     , mcserv                   , servStart        , servStop        , servCreate        , servStatus        , servPerm        , servConsole        , servDelMap        , servFTPSess        , servKill
-#define OPTCTX_PARENTS                           ROOT            , ROOT                     , mcserv           , mcserv          , mcserv            , mcserv            , mcserv          , mcserv             , mcserv            , mcserv             , mcserv
-#define OPTCTX_PARENTS_NAMES  "action"         , NULL            , "server action"          , NULL             , NULL            , NULL              , NULL              , NULL            , NULL               , NULL              , NULL               , NULL
-#define OPTCTX_PARENTS_FNCTS  CTXFP(NULL,MPost), CTXFO(MRefuse)  , CTXFP(MServPre,MServPost), CTXFO(MServStart), CTXFO(MServStop), CTXFO(MServCreate), CTXFO(MServStatus), CTXFO(MServPerm), CTXFO(MServConsole), CTXFO(MServDelMap), CTXFO(MServFTPSess), CTXFO(MServKill)
-#define OPTCTX_NAMES                             "--refuse-servs", "--server"               , "--start"        , "--stop"        , "--create"        , "--status"        , "--permanentize", "--console"        , "--del-map"       , "--ftp-sess"       , "--kill"
+#define OPTCTX_CTXS                              refuseServs     , mcserv                   , servStart        , servStop        , servCreate        , servStatus        , servPerm        , servConsole        , servDelMap        , servFixMap        , servSaveMap        , servFTPSess        , servKill
+#define OPTCTX_PARENTS                           ROOT            , ROOT                     , mcserv           , mcserv          , mcserv            , mcserv            , mcserv          , mcserv             , mcserv            , mcserv            , mcserv             , mcserv             , mcserv
+#define OPTCTX_PARENTS_NAMES  "action"         , NULL            , "server action"          , NULL             , NULL            , NULL              , NULL              , NULL            , NULL               , NULL              , NULL              , NULL               , NULL               , NULL
+#define OPTCTX_PARENTS_FNCTS  CTXFP(NULL,MPost), CTXFO(MRefuse)  , CTXFP(MServPre,MServPost), CTXFO(MServStart), CTXFO(MServStop), CTXFO(MServCreate), CTXFO(MServStatus), CTXFO(MServPerm), CTXFO(MServConsole), CTXFO(MServDelMap), CTXFO(MServFixMap), CTXFO(MServSaveMap), CTXFO(MServFTPSess), CTXFO(MServKill)
+#define OPTCTX_NAMES                             "--refuse-servs", "--server"               , "--start"        , "--stop"        , "--create"        , "--status"        , "--permanentize", "--console"        , "--del-world"     , "--fix-world"     , "--save-world"     , "--ftp-sess"       , "--kill"
 
 #define OPTCTX_PROG_NAME "minecraft-master"
 #include <xifutils/optctx.hpp>
@@ -197,7 +199,6 @@ int main (int argc, char* const argv[]) {
 		{"granmaster", no_argument, NULL, 'G'},
 		{"websocket", required_argument, NULL, 'w'},
 		{"refuse-save", no_argument, NULL, 'r'},
-		{"resident", no_argument, NULL, 'R'},
 		{"server", required_argument, NULL, 'C'},
 			{"start", no_argument, NULL, 's'},
 				{"bukkit", required_argument, NULL, (char)minecraft::serv_type::BUKKIT},
@@ -217,11 +218,14 @@ int main (int argc, char* const argv[]) {
 				{"threads", required_argument, NULL, '#'},
 				{"mean-cpu", required_argument, NULL, '~'},
 				{"additional-ports", required_argument, NULL, '+'},
+				{"hint", no_argument, NULL, '`'},
 			{"stop", no_argument, NULL, 'o'},
 			{"kill", no_argument, NULL, 'k'},
 			{"status", no_argument, NULL, 't'},
 			{"permanentize", no_argument, NULL, 'P'},
-			{"del-map", required_argument, NULL, 'D'},
+			{"del-world", required_argument, NULL, 'D'},
+			{"fix-world", required_argument, NULL, '-'},
+			{"save-world", required_argument, NULL, 'v'},
 			{"console", no_argument, NULL, 'l'},
 			{"ftp-sess", required_argument, NULL, 'f'},
 			{"create", no_argument, NULL, 'c'},
@@ -230,7 +234,7 @@ int main (int argc, char* const argv[]) {
 	};
 	
 	int opt, opt_charind = 0;
-	while ((opt = ::getopt_long(argc, argv, "-hiGw:rR", long_options, &opt_charind)) != -1) {
+	while ((opt = ::getopt_long(argc, argv, "-hiGw:r", long_options, &opt_charind)) != -1) {
 		switch (opt) {
 			case 'h':
 				::puts("minecraft-master | ioslaves-master warper program for controling Minecraft service\n"
@@ -241,8 +245,7 @@ int main (int argc, char* const argv[]) {
 				       "  -G, --granmaster            Manage automagically slaves (start, stop, move...)\n"
 				       "  -w, --websocket=PORT        Wait a websocket client on PORT before executing commands and\n"
 				       "                               output log via this websocket client. Used also for live-console\n"
-				       "  -r, --refuse-save           Refuse incoming requests for saving map\n"
-				       "  -R, --resident              Guarantee that the server will stay on the indicated slave; imply -r\n"
+				       "  -r, --refuse-save           Refuse incoming requests to save a world folder.\n"
 				       "\n"
 				       "  --server=NAME               Control the Minecraft server named [NAME]. Mandatory.\n"
 				       "      Server Actions :\n"
@@ -254,37 +257,40 @@ int main (int argc, char* const argv[]) {
 				       "                                  Custom jar must be in server folder\n"
 				       "              --temp-map=NAME | --perm-map=NAME\n"
 				       "                                  Launch temporary map (the server folder will be deleted\n"
-				       "                                   at stop) or permanent map (folder will be updated on\n"
-				       "                                   server or granmaster if older or newer than master's one).\n"
-				       "                  --map-file=PATH   Use this zip for updating slave's server folder or temp map.\n"
-				       "                                     Zipped dir must have the same name than the map.\n"
-				       "                                     Use it for starting server with an old save of a perm map.\n"
-				       "                  --permanentize    After --temp-map. Do not delete temporary map at server stop.\n"
+				       "                                   at stop) or permanent world (folder will be updated on\n"
+				       "                                   server/granmaster if older/newer than master's one).\n"
+				       "                  --map-file=PATH   Use zip archive to send temp map or to to overwrite world folder\n"
+				       "                                     on the slave, for example to start server with an old save of\n"
+				       "                                     the world. Zipped dir must have the same name than the world.\n"
+				       "                  --permanentize    Prevent the current temp map from being deleted at server stop.\n"
 				       "              --duration=TIME     Server running duration, in seconds. Must be a good estimation.\n"
 				       "            Slave selection :\n"
 				       "              --cpu=CPU           Needed CPU, using CPU unit (1.0 = Core2Duo E4400).\n"
 				       "              --ram=MEGS          Needed memory, in megabytes.\n"
 				       "            Optional :\n"
-				       "              --mean-cpu=CPU		Mean CPU power use estimation (≠ max needed CPU).\n"
+				       "              --mean-cpu=CPU      Mean CPU power use estimation (≠ max needed CPU).\n"
 				       "              --threads=NUMBER    Non-integer number of threads which can be used by this jar.\n"
 				       "              --autoclose=TIME    Server will close after TIME sec. without players.\n"
 				       "                                   Default = 0 = disabled\n"
 				       "              --viewdist=CHUNKS   Minecraft view distance. Default = 7\n"
 				       "              --additional-ports=P1,P2…  Open additional TCP ports (for JSONAPI for exemple).\n"
 				       "                                   Should be attributed uniquely across the network.\n"
+				       "              --hint              Take [SALVE-ID] only as a hint for slave selection.\n"
 				       "        --stop                  Stop the server.\n"
 				       "        --kill                  Kill a buggy server (may corrupt map; no stop report).\n"
-				       "        --status                Refresh status of the server in database\n"
-				       "        --permanentize          Mark map as permanent (will not be deleted at server stop)\n"
-				       "        --del-map=NAME          Delete the folder of the map [NAME] of the server\n"
+				       "        --status                Refresh status of the server and updates local status.\n"
+				       "        --permanentize          Mark current world as permanent (will not be deleted at server stop).\n"
+				       "        --del-world=NAME        Delete the folder of the world [NAME] of the server.\n"
+				       "        --fix-world=(y|n),NAME  Guarantee that the world [NAME] will stay on the indicated slave.\n"
+				       "        --save-world=NAME       Force world save retrieval of the world [NAME] of the server.\n"
 				       "        --console               Bind the connection to the server's LiveConsole. If used at\n"
 				       "                                 after server start action, early LiveConsole is activated.\n"
-				       "        --ftp-sess=USER:HASHPW  Create new FTP session for running map for user USER and\n"
+				       "        --ftp-sess=USER:HASHPW  Create new FTP session for running world for user USER and\n"
 				       "                                 hashed password HASHPW. Returns ADDR:PORT of the FTP server.\n"
-				       "        --create                Create a new server in database\n"
-					   "\n"
-					   "Other actions (slave-id mandatory) :\n"
-					   "  --refuse-servs=[y|n]        Make the slave accepting or refusing server start requests.\n"
+				       "        --create                Create a new server in database.\n"
+				       "\n"
+				       "Other actions (slave-id mandatory) :\n"
+				       "  --refuse-servs=[y|n]        Make the slave accepting or refusing server start requests.\n"
 				);
 				return EXIT_SUCCESS;
 			case 'i':
@@ -332,10 +338,6 @@ int main (int argc, char* const argv[]) {
 			case 'r':
 				$refuse_save = true;
 				break;
-			case 'R':
-				$refuse_save = true;
-				$resident = true;
-				break;
 			case 'C':
 				::testMasterID();
 				if (not $granmaster and $slave_id.empty()) 
@@ -368,15 +370,15 @@ int main (int argc, char* const argv[]) {
 			case 'm':
 				optctx::optctx_test("--temp-map", optctx::servStart);
 				$start_is_perm = false;
-				$start_map = optarg;
-				if (!ioslaves::validateName($start_map))
+				$worldname = optarg;
+				if (!ioslaves::validateName($worldname))
 					try_help("--temp-map: invalid map name\n");
 				break;
 			case 'p':
 				optctx::optctx_test("--perm-map", optctx::servStart);
 				$start_is_perm = true;
-				$start_map = optarg;
-				if (!ioslaves::validateName($start_map))
+				$worldname = optarg;
+				if (!ioslaves::validateName($worldname))
 					try_help("--perm-map: invalid map name\n");
 				break;
 			case 'z':
@@ -440,6 +442,10 @@ int main (int argc, char* const argv[]) {
 					try_help(_s("--additional-ports : invalid port list : ",e.what(),"\n"));
 				}
 				break;
+			case '`':
+				optctx::optctx_test("--hint", optctx::servStart);
+				$hint = true;
+				break;
 			case 'j':
 				optctx::optctx_test("--autoclose", optctx::servStart);
 				try {
@@ -495,10 +501,29 @@ int main (int argc, char* const argv[]) {
 			} break;
 			case 'D':
 				optctx::optctx_set(optctx::servDelMap);
-				$start_map = optarg;
-				if (!ioslaves::validateName($start_map))
-					try_help("--del-map: invalid map name\n");
+				$worldname = optarg;
+				if (!ioslaves::validateName($worldname))
+					try_help("--del-world: invalid world name\n");
 				break;
+			case 'v':
+				optctx::optctx_set(optctx::servSaveMap);
+				$worldname = optarg;
+				if (!ioslaves::validateName($worldname))
+					try_help("--save-world: invalid world name\n");
+				break;
+			case '-': {
+				optctx::optctx_set(optctx::servFixMap);
+				std::string arg = _S( optarg );
+				if (arg.substr(0,2) == "y,") 
+					$fixmap = true;
+				else if (arg.substr(0,2) == "n,") 
+					$fixmap = false;
+				else 
+					try_help("--fix-world: 'y,[WORLD]' or 'n,[WORLD]'\n");
+				$worldname = arg.substr(2, std::string::npos);
+				if (!ioslaves::validateName($worldname))
+					try_help("--fix-world: invalid world name\n");
+			} break;
 			case 'l':
 				if (optctx::optctx == optctx::servStart) {
 					if ($websocket_port == 0) 
@@ -517,7 +542,7 @@ int main (int argc, char* const argv[]) {
 				optctx::optctx_set(optctx::refuseServs);
 				if (_S("y") == optarg) 
 					$refuse_servs = true;
-				else if (_S("y") == optarg) 
+				else if (_S("n") == optarg) 
 					$refuse_servs = false;
 				else 
 					try_help("--refuse-servs: 'y' or 'n'\n");
@@ -530,8 +555,8 @@ int main (int argc, char* const argv[]) {
 	}
 	optctx::optctx_end();
 	if (optctx::optctx == optctx::servStart) {
-		if ($start_map.empty()) 
-			try_help("--start : a map parameter (--perm-map or --temp-map) must be defined\n");
+		if ($worldname.empty()) 
+			try_help("--start : a world parameter (--perm-map or --temp-map) must be defined\n");
 		if ($start_jar_ver.empty()) 
 			try_help("--start : a jar parameter (--bukkit, --vanilla, ...) must be defined\n");
 		if ($needed_time == 0) 
@@ -635,7 +660,7 @@ time_t getLastSaveTime (std::string serv, std::string map) {
 	DIR* map_dir = ::opendir( _s(IOSLAVES_MINECRAFT_MASTER_DIR,"/",serv,"/maps/",map) );
 	if (map_dir == NULL) {
 		if (errno == ENOENT) return MC_LASTSAVETIME_NOSAVE;
-		throw xif::sys_error("can't open server map save folder for listing");
+		throw xif::sys_error("can't open server world save folder to list saves");
 	}
 	dirent* dp = NULL;
 	while ((dp = ::readdir(map_dir)) != NULL) {
@@ -660,7 +685,7 @@ time_t getLastSaveTime (std::string serv, std::string map) {
 }
 
 	// Launch ioslaves-master and connect
-socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string slave, std::string servname, minecraft::op_code opp, timeval timeout, bool autostart) {
+socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string slave, std::string servname, minecraft::op_code opp, timeval timeout, bool autostart, bool autoservice) {
 	bool secondtry = false;
 	std::function<socketxx::io::simple_socket<socketxx::base_socket>(void)> get_sock = [&]() -> socketxx::io::simple_socket<socketxx::base_socket> {
 		try {
@@ -668,7 +693,7 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 				__log__ << LOG_ARROW << "Connecting to '" << slave << "'..." << std::flush;
 				return iosl_master::slave_api_service_connect(slave, $master_id, "minecraft", TIMEOUT_CONNECT);
 			} catch (master_err& e) {
-				if (e.is_ioslaves_err() and e.o == ioslaves::answer_code::BAD_STATE and $granmaster) {
+				if (e.is_ioslaves_err() and e.o == ioslaves::answer_code::BAD_STATE and $granmaster and autoservice) {
 					__log__ << LOG_ARROW << "Minecraft service seems to be off. Starting it..." << std::flush;
 					socketxx::io::simple_socket<socketxx::base_netsock> sock = iosl_master::slave_connect(slave, 0);
 					iosl_master::slave_command_auth(sock, $master_id, ioslaves::op_code::SERVICE_START, _S($master_id,'.',slave));
@@ -772,13 +797,12 @@ void retreivingProgressionShow (size_t done, size_t totsz) {
 }
 
 	// Retrieve server folder save
-void acceptFileSave (socketxx::io::simple_socket<socketxx::base_socket> sock, std::string servname, std::string mapname, std::string slave) {
-	__log__ << LOG_AROBASE << "Accepting server folder save of map '" << mapname << "' for server '" << servname << "'" << std::flush;
-	std::string folder_saves = _S( IOSLAVES_MINECRAFT_MASTER_DIR,"/",servname,"/maps/",mapname );
+void acceptFileSave (socketxx::io::simple_socket<socketxx::base_socket> sock, std::string servname, std::string mapname, std::string slave, bool truesave) {
+	__log__ << LOG_AROBASE << "Retrieving world save '" << mapname << "' of server '" << servname << "'" << std::flush;
 	int r;
 	time_t lastsavetime_dist = sock.i_int<int64_t>();
 	time_t lastsavetime_local = getLastSaveTime(servname, mapname);
-	if ($refuse_save and $forced_file.empty()) {
+	if ($refuse_save) {
 		__log__ << LOG_AROBASE_ERR << "Won't accept save : refuse option activated" << std::flush;
 		sock.o_bool(false);
 		return;
@@ -788,25 +812,35 @@ void acceptFileSave (socketxx::io::simple_socket<socketxx::base_socket> sock, st
 		sock.o_bool(false);
 		return;
 	}
-	std::string finalpath = _S( folder_saves,'/',mapname,'_',::ixtoa(lastsavetime_dist,IX_HEX_MAJ),".zip" );
-	if (::access(finalpath.c_str(), F_OK) == 0) {
+	std::string folder_saves = _S( IOSLAVES_MINECRAFT_MASTER_DIR,"/",servname,"/maps/",mapname );
+	r = ::mkdir(folder_saves.c_str(), S_IRWXU|S_IRWXG);
+	if (r == -1 and errno != EEXIST and errno != EISDIR) {
+		__log__ << LOG_AROBASE_ERR << " Can't create folder for saves of world " << mapname << " to retrieve save : " << ::strerror(errno) << std::flush;
+		sock.o_bool(false);
+		return;
+	}
+	std::string savepath = _S( folder_saves,'/',mapname,'_',::ixtoa(lastsavetime_dist,IX_HEX_MAJ),".zip" );
+	if (::access(savepath.c_str(), F_OK) == 0) {
 		__log__ << LOG_AROBASE_ERR << "Won't accept save : already exists for " << lastsavetime_local << std::flush;
 		sock.o_bool(false);
 		return;
 	}
 	sock.o_bool(true);
 	sock.set_read_timeout(TIMEOUT_ZIP_DELAY);
-	std::string tmpfn;
-	                                                                                      retreivingProgressionShow(0,0);
-	tmpfn = sock.i_file(_S( IOSLAVES_MASTER_DIR,"/ioslaves-mc-master-getmap" ), std::bind(retreivingProgressionShow, std::placeholders::_1,std::placeholders::_2));
-	                                                                                      retreivingProgressionShow(1,0);
+	fd_t save_f = ::open(savepath.c_str(), O_CREAT|O_EXCL|O_WRONLY|O_NOFOLLOW, MC_MAP_PERM);
+	if (save_f == -1)
+		throw xif::sys_error("can't open map save file");
+	RAII_AT_END_L( ::close(save_f) );
+	try {
+	                              retreivingProgressionShow(0,0);
+	sock.i_file(save_f, std::bind(retreivingProgressionShow, std::placeholders::_1,std::placeholders::_2));
+	                              retreivingProgressionShow(1,0);
+	} catch (socketxx::error&) {
+		::close(save_f);
+		::unlink(savepath.c_str());
+		throw;
+	}
 	sock.set_read_timeout(TIMEOUT_COMM);
-	r = ::mkdir(folder_saves.c_str(), S_IRWXU|S_IRWXG);
-	if (r == -1 and errno != EEXIST and errno != EISDIR) 
-		throw xif::sys_error("can't create server map dir");
-	r = ::rename(tmpfn.c_str(), finalpath.c_str());
-	if (r == -1) 
-		throw xif::sys_error("can't move save to server maps dir");
 	ioslaves::infofile_set(_s(folder_saves,"/lastsave_from"), slave);
 	ioslaves::infofile_set(_s(folder_saves,"/lastsave"), ::ixtoa(lastsavetime_dist));
 	ioslaves::infofile_set(_s(folder_saves,"/truesave"), "true");
@@ -822,15 +856,14 @@ void handleReportRequest (socketxx::io::simple_socket<socketxx::base_socket> soc
 	bool gracefully_stopped = sock.i_bool();
 	std::string map_to_save = sock.i_str();
 	__log__ << "Server was stopped " << (gracefully_stopped?"":"un") << "gracefully. Reason : " << (char)why_stopped << ".";
-	if (not $granmaster or ($refuse_save and ($start_map.empty() or $start_map != map_to_save))) {
+	if (not $granmaster or ($refuse_save and ($worldname.empty() or $worldname != map_to_save))) {
 		__log__ << std::flush << LOG_AROBASE_ERR << "Refusing report request" << std::flush;
 		sock.o_bool(false);
 		return;
 	}
 	if (not map_to_save.empty()) 
-		__log__ << " Saving map '" << map_to_save << "'..." << std::flush;
+		__log__ << " Saving world '" << map_to_save << "'..." << std::flush;
 	else __log__ << std::flush;
-	std::string map_path = _S( IOSLAVES_MINECRAFT_MASTER_DIR,'/',servname,"/maps/",map_to_save );
 	r = ::access( _s(IOSLAVES_MINECRAFT_MASTER_DIR,'/',servname), X_OK);
 	if (r == -1) {
 		__log__ << LOG_AROBASE_ERR << "Can't accept report request : unable to access server folder" << std::flush;
@@ -840,19 +873,11 @@ void handleReportRequest (socketxx::io::simple_socket<socketxx::base_socket> soc
 	if (::getRunningOnSlave(servname).empty())
 		__log__ << COLOR_YELLOW << "Warning ! Locally, server was stopped. Maybe an another master started this server. " << COLOR_RESET << std::flush;
 	::setRunningOnSlave(servname, "");
+	sock.o_bool(true);
 	if (not map_to_save.empty()) {
-		r = ::mkdir(map_path.c_str(), S_IRWXU|S_IRWXG);
-		if (r == -1 && errno != EEXIST) {
-			__log__ << NICE_WARNING << COLOR_YELLOW << "Warning !" << COLOR_RESET << " Can't create map folder " << map_to_save << " for retrieving map save : " << ::strerror(errno) << std::flush;
-			sock.o_bool(false);
-			return;
-		}
-		ioslaves::infofile_set(_s(map_path,"/truesave"), "false");
-		__log__ << "True save : false" << std::flush;
-		sock.o_bool(true);
-		acceptFileSave(sock, servname, map_to_save, slave);
-	} else 
-		sock.o_bool(true);
+		acceptFileSave(sock, servname, map_to_save, slave, true);
+		#warning Is it reasonable to consider the save as a last-save ?
+	}
 	__log__ << LOG_AROBASE_OK << "Report request : Done" << std::flush;
 }
 
@@ -948,54 +973,32 @@ void verifyMapList (std::string slave_id, std::string server_name, socketxx::io:
 			bool want_get = false;
 			r = ::access(map_folder.c_str(), F_OK);
 			if (r == -1) {
-				__log__ << COLOR_YELLOW << "Warning !" << COLOR_RESET << " Map '" << map << "' for server '" << server_name << "' on slave '" << slave_id << "' doesn't exist locally !" << std::flush;
+				__log__ << COLOR_YELLOW << "Warning !" << COLOR_RESET << " World '" << map << "' of server '" << server_name << "' on slave '" << slave_id << "' doesn't exist locally !" << std::flush;
 				r = ::mkdir(map_folder.c_str(), S_IRWXU|S_IRWXG);
 				if (r == -1) {
-					__log__ << NICE_WARNING << COLOR_YELLOW << "Warning !" << COLOR_RESET << " Can't create map folder '" << map << "' : " << ::strerror(errno) << std::flush;
+					__log__ << NICE_WARNING << COLOR_YELLOW << "Warning !" << COLOR_RESET << " Can't create folder for saves of world " << map << " to retrieve save : " << ::strerror(errno) << std::flush;
 					continue;
 				}
 				ioslaves::infofile_set(_s(map_folder,"/truesave"), "false");
 				ioslaves::infofile_set(_s(map_folder,"/lastsave_from"), slave_id);
-				__log__ << LOG_AROBASE_OK << "Map folder '" << map << "' created." << std::flush;
+				__log__ << LOG_AROBASE_OK << "Saves folder of world '" << map << "' created." << std::flush;
 				if (lastsave != 0)
 					want_get = true;
 			} else {
 				time_t lastsave_local = getLastSaveTime(server_name, map);
 				if (lastsave_local < lastsave) {
-					__log__ << COLOR_YELLOW << "Warning !" << COLOR_RESET << " Slave '" << slave_id << "' have a more recent version of map '" << map << "'." << std::flush;
+					__log__ << COLOR_YELLOW << "Warning !" << COLOR_RESET << " Slave '" << slave_id << "' have a more recent version of world '" << map << "'." << std::flush;
 					want_get = true;
 				}
 			}
 			if (want_get) {
-				__log__ << LOG_AROBASE << "Retrieving map save at " << lastsave << "..." << std::flush;
-				sock.set_read_timeout(TIMEOUT_ZIP_DELAY);
 				sock.o_char((char)ioslaves::answer_code::WANT_GET);
-				lastsave = sock.i_int<int64_t>();
-				sock.o_bool(true);
-				std::string savepath = _S( map_folder,'/',map,'_',::ixtoa(lastsave,IX_HEX_MAJ),".zip" );
-				fd_t save_f = ::open(savepath.c_str(), O_CREAT|O_EXCL|O_WRONLY|O_NOFOLLOW, MC_MAP_PERM);
-				if (save_f == -1)
-					throw xif::sys_error("can't open map save file");
-				RAII_AT_END_L( ::close(save_f) );
-				try {
-				                              retreivingProgressionShow(0,0);
-				sock.i_file(save_f, std::bind(retreivingProgressionShow, std::placeholders::_1,std::placeholders::_2));
-				                              retreivingProgressionShow(1,0);
-				} catch (socketxx::error&) {
-					::close(save_f);
-					::unlink(savepath.c_str());
-					throw;
-				}
-				ioslaves::infofile_set(_s(map_folder,"/lastsave"), ::ixtoa(lastsave));
-				ioslaves::infofile_set(_s(map_folder,"/truesave"), "false");
-				ioslaves::infofile_set(_s(map_folder,"/lastsave_from"), slave_id);
-				__log__ << LOG_AROBASE_OK << "Retrieving done !" << std::flush;
-				sock.set_read_timeout(TIMEOUT_COMM);
+				acceptFileSave(sock, server_name, map, slave_id, false);
 			} else
 				sock.o_char((char)ioslaves::answer_code::OK);
 		}
 	} catch (socketxx::error& e) {
-		__log__ << LOG_AROBASE_ERR << "Net error while getting map list for server " << server_name << " : " << e.what() << std::flush;
+		__log__ << LOG_AROBASE_ERR << "Network error while getting world list for server " << server_name << " : " << e.what() << std::flush;
 		return;
 	}
 }
@@ -1022,7 +1025,7 @@ void MServStatus () {
 					return;
 				}
 				try {
-					auto sock = getConnection($local_slave_id, $server_name, minecraft::op_code::SERV_STAT, {2,0});
+					auto sock = getConnection($local_slave_id, $server_name, minecraft::op_code::SERV_STAT, {2,0}, false, true);
 					std::string $re_local_slave_id = ::getRunningOnSlave($server_name);
 					if ($local_slave_id != $re_local_slave_id) 
 						__log__ << "After report, the server is now closed" << std::flush;
@@ -1072,7 +1075,7 @@ void MServStatus () {
 		bool $status = checkSlaveStatus($slave_id);
 		if ($status) {
 			try {
-				auto sock = getConnection($slave_id, $server_name, minecraft::op_code::SERV_STAT, {2,0});
+				auto sock = getConnection($slave_id, $server_name, minecraft::op_code::SERV_STAT, {2,0}, false, true);
 				$status = sock.i_bool();
 				if ($status) {
 					sock.o_bool(true);
@@ -1108,7 +1111,7 @@ void MServStatus () {
 		if (not optctx::interactive)
 			std::cout << std::endl << xif::polyvar(xif::polyvar::map({{"running",$status},{"slave",$slave_id},{"players",n_players},{"port",s_port},{"is_perm_map",s_is_perm_map},{"map",s_map},{"start_time",s_time_start}})).to_json() << std::endl;
 	} else {
-		auto sock = getConnection($slave_id, $server_name, minecraft::op_code::SERV_STAT, {2,0});
+		auto sock = getConnection($slave_id, $server_name, minecraft::op_code::SERV_STAT, {2,0}, false, false);
 		bool $status = sock.i_bool();
 		if ($status) {
 			sock.o_bool(true);
@@ -1133,7 +1136,7 @@ void MServStatus () {
 void MServPerm () {
 	__log__ << LOG_ARROW << "Permanentize map on server " << $server_name << "..." << std::flush;
 	granmasterSlaveSet();
-	auto sock = getConnection($slave_id, $server_name, minecraft::op_code::PERMANENTIZE, {2,0});
+	auto sock = getConnection($slave_id, $server_name, minecraft::op_code::PERMANENTIZE, {2,0}, false, false);
 	std::string map = sock.i_str();
 	ioslaves::answer_code o;
 	if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) 
@@ -1143,16 +1146,16 @@ void MServPerm () {
 		return;
 	std::string folder_saves = _S( IOSLAVES_MINECRAFT_MASTER_DIR,"/",$server_name,"/maps/",map );
 	if (::access(folder_saves.c_str(), F_OK) == 0) {
-		__log__ << COLOR_YELLOW << "Map folder '" << map << "' already exists." << COLOR_RESET << " Map will be saved inside !" << std::flush;
+		__log__ << COLOR_YELLOW << "World folder '" << map << "' already exists." << COLOR_RESET << " Map will be saved inside !" << std::flush;
 	}
 }
 
 /** ---------------------------- NEW FTP SESSION ---------------------------- **/
 
 void MServFTPSess () {
-	__log__ << LOG_ARROW << "Create FTP session for user '" << $ftp_user << "' on server " << $server_name << " for current running map..." << std::flush;
+	__log__ << LOG_ARROW << "Create FTP session for user '" << $ftp_user << "' on server " << $server_name << " for current running world..." << std::flush;
 	granmasterSlaveSet();
-	auto sock = getConnection($slave_id, $server_name, minecraft::op_code::FTP_SESSION, {2,0});
+	auto sock = getConnection($slave_id, $server_name, minecraft::op_code::FTP_SESSION, {2,0}, false, false);
 	sock.o_str($ftp_user);
 	sock.o_str($ftp_hash_passwd);
 	uint16_t sess_validity = 60*15;
@@ -1169,30 +1172,58 @@ void MServFTPSess () {
 /** ---------------------------- DELETE MAP ---------------------------- **/
 
 void MServDelMap () {
-	__log__ << LOG_ARROW << "Delete map '" << $start_map << "' on server " << $server_name << "..." << std::flush;
+	__log__ << LOG_ARROW << "Delete world '" << $worldname << "' on server " << $server_name << "..." << std::flush;
 	if ($slave_id.empty()) {
-		std::string lastsave_from = ioslaves::infofile_get(_s( IOSLAVES_MINECRAFT_MASTER_DIR,"/",$server_name,"/maps/",$start_map,"/lastsave_from" ), true);
+		std::string lastsave_from = ioslaves::infofile_get(_s( IOSLAVES_MINECRAFT_MASTER_DIR,"/",$server_name,"/maps/",$worldname,"/lastsave_from" ), true);
 		if (lastsave_from.empty() or !ioslaves::validateSlaveName(lastsave_from)) {
-			__log__ << LOG_ARROW_ERR << "No info about slave which would have the map on." << std::flush;
+			__log__ << LOG_ARROW_ERR << "No info about slave which would have the world on." << std::flush;
 			return;
 		}
 		$slave_id = lastsave_from;
 	}
 	__log__ << "Trying on " << $slave_id << "..." << std::flush;
-	auto sock = getConnection($slave_id, $server_name, minecraft::op_code::DELETE_MAP, {1,0});
-	sock.o_str($start_map);
+	auto sock = getConnection($slave_id, $server_name, minecraft::op_code::DELETE_MAP, {1,0}, false, true);
+	sock.o_str($worldname);
 	ioslaves::answer_code o;
 	if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) 
 		throw o;
 	__log__ << LOG_ARROW_OK << "Done !" << std::flush;
 }
 
+/** ---------------------------- FIX/UNFIX WORLD ---------------------------- **/
+
+void MServFixMap () {
+	#warning TO DO : retrieving mandatory to remove fixed status; set time(NULL) as save date for file name
+}
+
+/** ---------------------------- FORCE WORLD SAVING ---------------------------- **/
+
+void MServSaveMap () {
+	__log__ << LOG_ARROW << "Saving world '" << $worldname << "' of server " << $server_name << "..." << std::flush;
+	if ($slave_id.empty()) {
+		std::string lastsave_from = ioslaves::infofile_get(_s( IOSLAVES_MINECRAFT_MASTER_DIR,"/",$server_name,"/maps/",$worldname,"/lastsave_from" ), true);
+		if (lastsave_from.empty() or !ioslaves::validateSlaveName(lastsave_from)) {
+			__log__ << LOG_ARROW_ERR << "No info about slave which would have the world on." << std::flush;
+			return;
+		}
+		$slave_id = lastsave_from;
+	}
+	__log__ << "Retrieving save from slave " << $slave_id << "..." << std::flush;
+	auto sock = getConnection($slave_id, $server_name, minecraft::op_code::SAVE_MAP, {4,0}, true, true);
+	sock.o_str($worldname);
+	ioslaves::answer_code o;
+	if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) 
+		throw o;
+	acceptFileSave(sock, $server_name, $worldname, $slave_id, false);
+	__log__ << LOG_ARROW_OK << "Done !" << std::flush;
+}
+
 /** ---------------------------- START ---------------------------- **/
 
 void MServStart () {
-	__log__ << LOG_ARROW << "Starting server..." << std::flush;
+	__log__ << LOG_ARROW << "Starting server '" << $server_name << "'..." << std::flush;
 	int r;
-	bool autoselect_slave = false;
+	bool autoselect_slave = $hint;
 	std::vector<iosl_dyn_slaves::slave_info> slaves;
 	bool infos_gathered = false;
 	std::vector<std::string> excluded_slaves;
@@ -1211,14 +1242,12 @@ _retry_start:
 _try_start:
 	if ($granmaster) {
 		std::string running_on_slave = ::getRunningOnSlave($server_name);
-		if (autoselect_slave)
-			goto _continue_launch;
 		if (not running_on_slave.empty()) {
 			__log__ << LOG_ARROW_ERR << "Server '" << $server_name << "' is probably running on slave '" << running_on_slave << "'" << std::flush;
 			__log__ << "Checking on slave '" << running_on_slave << "' on which server should be running now..." << std::flush;
 			bool $status = checkSlaveStatus(running_on_slave);
 			if ($status) {
-				auto sock = getConnection(running_on_slave, $server_name, minecraft::op_code::SERV_STAT, {2,0});
+				auto sock = getConnection(running_on_slave, $server_name, minecraft::op_code::SERV_STAT, {2,0}, false, true);
 				if (running_on_slave != ::getRunningOnSlave($server_name)) {
 					__log__ << LOG_ARROW << "Well... After report, server is now closed. Launching server..." << std::flush;
 					goto _continue_launch;
@@ -1244,7 +1273,7 @@ _try_start:
 			__log__ << LOG_AROBASE << "Looking for a good machine..." << std::flush;
 			__log__ << "Needed RAM : " << $needed_ram << "MB | Needed CPU : " << std::setprecision(1) << $needed_cpu << std::flush;
 			using namespace iosl_dyn_slaves;
-			std::string lastsave_from = ioslaves::infofile_get(_s( IOSLAVES_MINECRAFT_MASTER_DIR,"/",$server_name,"/maps/",$start_map,"/lastsave_from" ), true);
+			std::string lastsave_from = ioslaves::infofile_get(_s( IOSLAVES_MINECRAFT_MASTER_DIR,"/",$server_name,"/maps/",$worldname,"/lastsave_from" ), true);
 			if (!ioslaves::validateSlaveName(lastsave_from)) lastsave_from.clear();
 			if (not $forced_file.empty()) lastsave_from.clear();
 			if (not lastsave_from.empty())
@@ -1337,7 +1366,7 @@ _try_start:
 	}
 	try {
 		sock = new socketxx::io::simple_socket<socketxx::base_socket> (
-			getConnection($slave_id, $server_name, minecraft::op_code::START_SERVER, {2,0}, !autoselect_slave)
+			getConnection($slave_id, $server_name, minecraft::op_code::START_SERVER, {2,0}, !autoselect_slave or $hint, true)
 		);
 	} catch (ioslaves::answer_code) {
 		if (not $granmaster) throw;
@@ -1348,7 +1377,7 @@ _try_start:
 	sock->o_str($start_jar_ver);
 	sock->o_int<uint16_t>($needed_ram);
 	sock->o_bool($start_is_perm);
-	__log__ << " - " << ($start_is_perm?"permanent":($start_temp_perm?"temporary with save":"temporary")) << " map : " << $start_map << std::flush;
+	__log__ << " - " << ($start_is_perm?"permanent":($start_temp_perm?"temporary with save":"temporary")) << " map : " << $worldname << std::flush;
 	if (not $start_is_perm)
 		sock->o_bool($start_temp_perm);
 	if ($autoclose_time != 0) 
@@ -1360,15 +1389,13 @@ _try_start:
 	sock->o_int<uint8_t>($mc_viewdist);
 	__log__ << " - time estimation : " << $needed_time/60 << "min" << std::flush;
 	sock->o_int<uint32_t>((uint32_t)$needed_time);
-	sock->o_str($start_map);
+	sock->o_str($worldname);
 	time_t lastsavetime;
 	if (not $forced_file.empty()) {
 		$refuse_save = false;
 		lastsavetime = MC_LASTSAVETIME_FORCE;
-	} else if ($resident) {
-		lastsavetime = MC_LASTSAVETIME_RESIDENT;
 	} else {
-		if ($granmaster and $start_is_perm) lastsavetime = getLastSaveTime($server_name, $start_map);
+		if ($granmaster and $start_is_perm) lastsavetime = getLastSaveTime($server_name, $worldname);
 		else lastsavetime = MC_LASTSAVETIME_NOSAVE;
 	}
 	__log__ << " - last-save-time : " << lastsavetime << std::flush;
@@ -1395,10 +1422,10 @@ _try_start:
 	__log__ << LOG_AROBASE << "Waiting queries or ack from minecraft service" << std::flush;
 	while ((o = (ioslaves::answer_code)sock->i_char()) != ioslaves::answer_code::OK) {
 		if (o == ioslaves::answer_code::EXISTS and not $start_is_perm) {
-			__log__ << LOG_ARROW_ERR << "A permanent map named '" << $start_map << "' already exists on slave " << NICE_WARNING << " Delete it if wanted." << std::flush;
+			__log__ << LOG_ARROW_ERR << "A permanent map named '" << $worldname << "' already exists on slave " << NICE_WARNING << " Delete it if wanted." << std::flush;
 			if (not $granmaster) throw o;
 			__log__ << LOG_AROBASE << "Refreshing status..." << std::flush;
-			auto sock = getConnection($slave_id, $server_name, minecraft::op_code::SERV_STAT, {1,0});
+			auto sock = getConnection($slave_id, $server_name, minecraft::op_code::SERV_STAT, {1,0}, false, false);
 			bool stat = sock.i_bool();
 			if (stat) sock.o_bool(false);
 			verifyMapList($slave_id, $server_name, sock);
@@ -1451,37 +1478,37 @@ _try_start:
 			} else if ($granmaster) {
 				__log__ << LOG_AROBASE << " Want get map (" << (char)what << ") : ";
 				if (not $start_is_perm) {
-					__log__ << "sending temporary map " << $start_map << std::flush;
+					__log__ << "sending temporary map " << $worldname << std::flush;
 					if (what != minecraft::transferWhat::MAP) { sock->o_bool(false); continue; }
-					std::string tempmap_path = _S( IOSLAVES_MINECRAFT_MASTER_TEMPAMP_DIR,'/',$start_map,".zip" );
+					std::string tempmap_path = _S( IOSLAVES_MINECRAFT_MASTER_TEMPAMP_DIR,'/',$worldname,".zip" );
 					r = ::access(tempmap_path.c_str() , R_OK);
 					sock->o_bool(r == 0);
 					if (r == -1) {
-						__log__ << LOG_ARROW_ERR << "Temporary map '" << $start_map << "' doesn't exist here" << std::flush;
+						__log__ << LOG_ARROW_ERR << "Temporary map '" << $worldname << "' doesn't exist here" << std::flush;
 						EXIT_FAILURE = EXIT_FAILURE_EXTERR;
 						throw EXCEPT_ERROR_IGNORE;
 					}
 					sock->o_file(tempmap_path.c_str());
 				} else {
-					std::string mapfold = _S( IOSLAVES_MINECRAFT_MASTER_DIR,'/',$server_name,"/maps/",$start_map );
+					std::string mapfold = _S( IOSLAVES_MINECRAFT_MASTER_DIR,'/',$server_name,"/maps/",$worldname );
 					if (what != minecraft::transferWhat::SERVFOLD) {
 						__log__ << NICE_WARNING << "master wants other than a perm save !" << std::flush;
 						sock->o_bool(false);
 						continue;
 					}
 					if (lastsavetime == 0) {
-						__log__ << NICE_WARNING << "no save for map " << $start_map << " available !" << std::flush;
+						__log__ << NICE_WARNING << "no save for world " << $worldname << " available !" << std::flush;
 						sock->o_bool(false);
 						continue;
 					}
 					if (ioslaves::infofile_get( _s(mapfold,"/truesave"), true) != "true") {
-						__log__ << NICE_WARNING << "local save " << $start_map << " could be not the last save !" << std::flush;
+						__log__ << NICE_WARNING << "local save " << $worldname << " could be not the last save !" << std::flush;
 						sock->o_bool(false);
 						continue;
 					}
-					__log__ << "sending server folder save " << $start_map << std::flush;
+					__log__ << "sending server folder save " << $worldname << std::flush;
 					sock->o_bool(true);
-					std::string map_path = _S( mapfold,'/',$start_map,'_',::ixtoa(lastsavetime,IX_HEX_MAJ),".zip" );
+					std::string map_path = _S( mapfold,'/',$worldname,'_',::ixtoa(lastsavetime,IX_HEX_MAJ),".zip" );
 					sock->o_file(map_path.c_str());
 				}
 			} else {
@@ -1490,7 +1517,7 @@ _try_start:
 			}
 		} else if (o == ioslaves::answer_code::WANT_SEND) {
 			if ($granmaster) 
-				acceptFileSave(*sock, $server_name, $start_map, $slave_id);
+				acceptFileSave(*sock, $server_name, $worldname, $slave_id, false);
 			else {
 				sock->i_int<int64_t>();
 				sock->o_bool(false);
@@ -1500,13 +1527,13 @@ _try_start:
 			throw o;
 	}
 	if ($start_is_perm and $granmaster) {
-		std::string map_folder = _S( IOSLAVES_MINECRAFT_MASTER_DIR,'/',$server_name,"/maps/",$start_map );
+		std::string map_folder = _S( IOSLAVES_MINECRAFT_MASTER_DIR,'/',$server_name,"/maps/",$worldname );
 		r = ::mkdir(map_folder.c_str(), S_IRWXU|S_IRWXG);
 		if (r == -1 and errno != EEXIST) {
-			__log__ << LOG_AROBASE_ERR << "Can't create map folder '" << $start_map << "' : " << ::strerror(errno) << std::flush;
+			__log__ << LOG_AROBASE_ERR << "Can't create map folder '" << $worldname << "' : " << ::strerror(errno) << std::flush;
 			throw EXCEPT_ERROR_IGNORE;
 		}
-		ioslaves::infofile_set(_s(IOSLAVES_MINECRAFT_MASTER_DIR,'/',$server_name,"/maps/",$start_map,"/truesave"), "false");
+		ioslaves::infofile_set(_s(IOSLAVES_MINECRAFT_MASTER_DIR,'/',$server_name,"/maps/",$worldname,"/truesave"), "false");
 	}
 	__log__ << LOG_AROBASE_OK << "End of requests, starting of server on port " << port << " can now start..." << std::flush;
 	if ((o = (ioslaves::answer_code)sock->i_char()) != ioslaves::answer_code::OK) 
@@ -1538,7 +1565,7 @@ void MServStop () {
 	__log__ << LOG_ARROW << "Stopping server..." << std::flush;
 	granmasterSlaveSet();
 	ioslaves::answer_code o;
-	auto sock = getConnection($slave_id, $server_name, minecraft::op_code::STOP_SERVER, {2,0});
+	auto sock = getConnection($slave_id, $server_name, minecraft::op_code::STOP_SERVER, {2,0}, false, true);
 	if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) {
 		if (o == ioslaves::answer_code::NOT_FOUND and $granmaster) {
 			__log__ << NICE_WARNING << COLOR_RED << "Server is not running on slave '" << $slave_id << "'" << COLOR_RESET << std::flush;
@@ -1552,8 +1579,14 @@ void MServStop () {
 		throw o;
 	__log__ << LOG_ARROW_OK << "Server is stopping..." << std::flush;
 	sock.set_read_timeout(TIMEOUT_STOP_SERVER);
-	if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) 
+	if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) {
+		if (o == ioslaves::answer_code::TIMEOUT) {
+			__log__ << LOG_ARROW_ERR << "Java did not exit : " << COLOR_RED << "server seems to have crashed" << COLOR_RESET << ". Try to kill it." << std::flush;
+			EXIT_FAILURE = EXIT_FAILURE_EXTERR;
+			throw EXCEPT_ERROR_IGNORE;
+		}
 		throw o;
+	}
 	__log__ << LOG_ARROW_OK << "Thread and java exited" << std::flush;
 	sock.set_read_timeout(TIMEOUT_COMM);
 	while ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) {
@@ -1572,7 +1605,7 @@ void MServKill() {
 	__log__ << LOG_ARROW << "Killing server..." << std::flush;
 	granmasterSlaveSet();
 	ioslaves::answer_code o;
-	auto sock = getConnection($slave_id, $server_name, minecraft::op_code::KILL_SERVER, {2,0});
+	auto sock = getConnection($slave_id, $server_name, minecraft::op_code::KILL_SERVER, {2,0}, false, false);
 	if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK)
 		throw o;
 	__log__ << LOG_ARROW_OK << "Kill order sent." << std::flush;
@@ -1588,7 +1621,7 @@ void MServConsole () {
 	}
 	granmasterSlaveSet();
 	ioslaves::answer_code o;
-	auto sock = getConnection($slave_id, $server_name, minecraft::op_code::COMM_SERVER, {6,0});
+	auto sock = getConnection($slave_id, $server_name, minecraft::op_code::COMM_SERVER, {6,0}, false, false);
 	if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) 
 		throw o;
 	__log__ << "Connected to thread" << std::flush;
