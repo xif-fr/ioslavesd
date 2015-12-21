@@ -1304,6 +1304,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 					throw xif::sys_error("failed to create symlink to minecraft_server.jar");
 			}
 			else if (s->s_serv_type == minecraft::serv_type::SPIGOT) jar_prefix = "mc_spigot_";
+			else if (s->s_serv_type == minecraft::serv_type::BUNGEECORD) jar_prefix = "mc_bungeecord_";
 			else  
 				throw xif::sys_error("Minecraft .JAR type", "invalid value");
 				// Get jar if needed and link in server directory
@@ -1375,7 +1376,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			}
 			time_t line_ack_timeout = 10;
 			switch (s->s_serv_type) {
-				case serv_type::BUKKIT: case serv_type::SPIGOT: line_ack_timeout = 20; break;
+				case serv_type::BUKKIT: case serv_type::SPIGOT: case serv_type::BUNGEECORD: line_ack_timeout = 20; break;
 				case serv_type::CAULDRON: case serv_type::FORGE: line_ack_timeout = 40; break;
 				case serv_type::VANILLA: if (s->s_mc_ver <= ioslaves::version(1,7,10)) line_ack_timeout = 15; else line_ack_timeout = 20; break;
 				case serv_type::CUSTOM: line_ack_timeout = 25; break;

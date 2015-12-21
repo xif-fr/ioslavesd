@@ -207,6 +207,7 @@ int main (int argc, char* const argv[]) {
 				{"cauldron", required_argument, NULL, (char)minecraft::serv_type::CAULDRON},
 				{"spigot", required_argument, NULL, (char)minecraft::serv_type::SPIGOT},
 				{"customjar", required_argument, NULL, (char)minecraft::serv_type::CUSTOM},
+				{"bungeecord", required_argument, NULL, (char)minecraft::serv_type::BUNGEECORD},
 				{"temp-map", required_argument, NULL, 'm'},
 				{"perm-map", required_argument, NULL, 'p'},
 				{"map-file", required_argument, NULL, 'z'},
@@ -252,7 +253,7 @@ int main (int argc, char* const argv[]) {
 				       "        --start PARAMS          Start the server. Jar and map parameters are requiered\n"
 				       "                                and must be each unique.\n"
 				       "            Start Parameters :\n"
-				       "              --[bukkit|vanilla|forge|spigot|cauldron]=VER | --customjar=NAME\n"
+				       "              --[bukkit|vanilla|forge|spigot|cauldron|bungeecord]=VER | --customjar=NAME\n"
 				       "                                  Launch Minecraft with this .jar\n"
 				       "                                  Custom jar must be in server folder\n"
 				       "              --temp-map=NAME | --perm-map=NAME\n"
@@ -356,6 +357,7 @@ int main (int argc, char* const argv[]) {
 			case (char)minecraft::serv_type::SPIGOT:
 			case (char)minecraft::serv_type::CAULDRON:
 			case (char)minecraft::serv_type::CUSTOM:
+			case (char)minecraft::serv_type::BUNGEECORD:
 			{	const char* servtype = NULL;
 				for (size_t i = 0; long_options[i].name != NULL; i++) 
 					if (long_options[i].val == opt) 
@@ -1159,6 +1161,7 @@ void MServFTPSess () {
 	sock.o_str($ftp_user);
 	sock.o_str($ftp_hash_passwd);
 	uint16_t sess_validity = 60*15;
+	#error bigger is fixed world
 	sock.o_int<uint16_t>(sess_validity);
 	ioslaves::answer_code o;
 	if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) 
@@ -1449,6 +1452,7 @@ _try_start:
 				else if ($start_serv_type == minecraft::serv_type::FORGE) jar_prefix = "mc_forge_";
 				else if ($start_serv_type == minecraft::serv_type::CAULDRON) jar_prefix = "mc_cauldron_";
 				else if ($start_serv_type == minecraft::serv_type::SPIGOT) jar_prefix = "mc_spigot_";
+				else if ($start_serv_type == minecraft::serv_type::BUNGEECORD) jar_prefix = "mc_bungeecord_";
 				else { sock->o_bool(false); continue; }
 				std::string jar_name, jar_path = _s( IOSLAVES_MINECRAFT_MASTER_JAR_DIR,'/',(jar_name=_s(jar_prefix,jar_ver,".jar")) );
 				r = ::access(jar_path.c_str(), R_OK);

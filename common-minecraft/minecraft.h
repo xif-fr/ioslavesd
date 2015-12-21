@@ -27,7 +27,7 @@
 	// Minecraft service
 namespace minecraft {
 	
-	enum class serv_type : char { VANILLA = 'V', BUKKIT = 'B', FORGE = 'F', CAULDRON = 'L', SPIGOT = 'S', CUSTOM = 'J' };
+	enum class serv_type : char { VANILLA = 'V', BUKKIT = 'B', FORGE = 'F', CAULDRON = 'L', SPIGOT = 'S', CUSTOM = 'J', BUNGEECORD = 'U' };
 	
 	enum class op_code : char {
 		START_SERVER = 'S',

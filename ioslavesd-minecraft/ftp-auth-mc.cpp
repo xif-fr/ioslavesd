@@ -200,17 +200,17 @@ void* minecraft::mc_ftpd_auth_thread (void* arg) {
 		pure_ftpd_pid = 
 		ioslaves::fork_exec("pure-ftpd", 
 		                    {
-									  _S("--login=extauth:",PURE_AUTHD_AUTH_SOCK_PATH), 
-									  "--bind", ::ixtoa(ftp_port), 
-									  "--chrooteveryone", 
-									  _S("--maxclientsnumber=",::ixtoa(PURE_FTPD_MAX_CLI)), 
-									  "--noanonymous", 
-									  _S("--forcepassiveip=",ioslaves::api::slave_name,'.',XIFNET_SLAVES_DOM), 
-									  _S("--passiveportrange=",::ixtoa(ftp_ports_pasv_beg),':',::ixtoa(ftp_ports_pasv_beg+PURE_FTPD_PASV_RANGE_SZ-1)),
-									  "--nochmod",
-									  _S("--minuid=",::ixtoa(java_user_id))
-								  }, 
-								  false, NULL, true, 0, 0, true).first;
+		                    	_S("--login=extauth:",PURE_AUTHD_AUTH_SOCK_PATH), 
+		                    	"--bind", ::ixtoa(ftp_port), 
+		                    	"--chrooteveryone", 
+		                    	_S("--maxclientsnumber=",::ixtoa(PURE_FTPD_MAX_CLI)), 
+		                    	"--noanonymous", 
+		                    	_S("--forcepassiveip=",ioslaves::api::slave_name,'.',XIFNET_SLAVES_DOM), 
+		                    	_S("--passiveportrange=",::ixtoa(ftp_ports_pasv_beg),':',::ixtoa(ftp_ports_pasv_beg+PURE_FTPD_PASV_RANGE_SZ-1)),
+		                    	"--nochmod",
+		                    	_S("--minuid=",::ixtoa(java_user_id))
+		                    }, 
+		                    false, NULL, true, 0, 0, true).first;
 		}
 		__log__(log_lvl::DONE, "FTP", "Done", LOG_ADD, &l);
 
