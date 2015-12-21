@@ -146,6 +146,7 @@ NSAttributedString* log_master_strs[] = {
 		[slaveReconnectButton setTarget:self]; [slaveReconnectButton setAction:@selector(reconnect:)];
 		[slaveSSHButton setTarget:self]; [slaveSSHButton setAction:@selector(connectSSH:)];
 		[slaveSSHFSButton setTarget:self]; [slaveSSHFSButton setAction:@selector(connectSSHFS:)];
+		[clearLogButton setTarget:self]; [clearLogButton setAction:@selector(clearLog:)];
 		lastLogSeen = ::time(NULL);
 		[self logSeen];
 		NSUserDefaults* prefs = [NSUserDefaults standardUserDefaults];
@@ -371,6 +372,10 @@ NSAttributedString* log_master_strs[] = {
 	if (isConnected or isConnecting) 
 		return;
 	[self slaveConnect];
+}
+
+- (IBAction)clearLog:(id)sender {
+	[[logTextView textStorage] replaceCharactersInRange:NSMakeRange(0, [[logTextView textStorage] length]) withString:@""];
 }
 
 - (void)setMenuItem:(NSMenuItem*)menuItem {

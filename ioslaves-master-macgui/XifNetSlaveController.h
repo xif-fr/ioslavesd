@@ -42,6 +42,7 @@
 	IBOutlet NSSegmentedControl* slaveSshPresets;
 	IBOutlet NSButton* shutUpCheckBox;
 	IBOutlet NSButton* noVerboseLogCheckBox;
+	IBOutlet NSButton* clearLogButton;
 }
 
 - (id)initWithSlaveID:(std::string)slaveId fullName:(NSString*)fullName;
@@ -54,6 +55,7 @@
 - (IBAction)connectSSH:(id)sender;
 - (IBAction)connectSSHFS:(id)sender;
 - (IBAction)reconnect:(id)sender;
+- (IBAction)clearLog:(id)sender;
 
 - (NSView*)slaveMenuView;
 - (void)menuWillOpen;
