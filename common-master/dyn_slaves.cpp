@@ -18,6 +18,9 @@ using ioslaves::answer_code;
 #include <socket++/quickdefs.h>
 #include <pthread.h>
 
+#define DYNSL_GATHER_INFO_CONN_TIMEOUT timeval{1,0}
+#define DYNSL_GATHER_INFO_STATWAIT_TIMEOUT timeval{4,0}
+
 std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::gather_infos (std::vector<std::string> needed_tags) {
 	
 		/// List slaves and open info files
@@ -117,11 +120,12 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::gather_infos (std::vec
 			iosl_dyn_slaves::slave_info& info = *((iosl_dyn_slaves::slave_info*)data);
 			xif::polyvar stat;
 			try {
-				socketxx::io::simple_socket<socketxx::base_netsock> sock = iosl_master::slave_connect(info.sl_name, 0, timeval{1,0});
+				socketxx::io::simple_socket<socketxx::base_netsock> sock = iosl_master::slave_connect(info.sl_name, 0, DYNSL_GATHER_INFO_CONN_TIMEOUT);
 				sock.o_bool(true);
 				sock.o_str(""); // No auth, no identification
 				sock.o_bool(false);
 				sock.o_char((char)ioslaves::op_code::GET_STATUS);
+				sock.set_read_timeout(DYNSL_GATHER_INFO_STATWAIT_TIMEOUT);
 				stat = sock.i_var(); // Get system infos
 				sock.i_char();
 			} 
