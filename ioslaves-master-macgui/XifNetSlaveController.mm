@@ -203,6 +203,7 @@ NSAttributedString* log_master_strs[] = {
 			[view->usernameField setStringValue:@""];
 			[view->sshfsPathField setStringValue:@""];
 			[view->addArgsField setStringValue:@""];
+			[view->sshKeyField setStringValue:@""];
 			[alert setAccessoryView:view];
 			NSInteger button = [alert runModal];
 			if (button == NSAlertDefaultReturn) {
@@ -212,6 +213,9 @@ NSAttributedString* log_master_strs[] = {
 					return newPresetBlock();
 				[view->sshfsPathField validateEditing];
 				[view->addArgsField validateEditing];
+				[view->sshKeyField validateEditing];
+				if ([[view->sshKeyField stringValue] length] != 0) 
+					[view->addArgsField setStringValue:[NSString stringWithFormat:@"%@ -o \"IdentityFile=~/.ssh/%@\"", [view->addArgsField stringValue], [view->sshKeyField stringValue]]];
 				NSUserDefaults* prefs = [NSUserDefaults standardUserDefaults];
 				NSMutableDictionary* prefsSlaves = [NSMutableDictionary dictionaryWithDictionary:[prefs dictionaryForKey:@"slaves"]];
 				NSMutableDictionary* slavePrefs = [NSMutableDictionary dictionaryWithDictionary:[prefsSlaves objectForKey:[NSString stringWithStdString:self->slaveID]]];
@@ -285,6 +289,7 @@ NSAttributedString* log_master_strs[] = {
 }
 - (void)SSHSessionThread:(NSString*)shellScript {
 	thread_controllers[::pthread_self()] = self;
+	bool stop_ssh_after = true;
 	std::string master_id, script;
 	@autoreleasepool {
 		script = [shellScript UTF8String];
@@ -312,6 +317,8 @@ NSAttributedString* log_master_strs[] = {
 			__log__(log_lvl::ERROR, "SSH", logstream << "Failed to start ssh service : " << ioslaves::getAnswerCodeDescription(o));
 			if (o != ioslaves::answer_code::BAD_STATE)
 				return;
+			else 
+				stop_ssh_after = false;
 		}
 	} catch (std::exception& e) {
 		return __log__(log_lvl::ERROR, "SSH", logstream << "Error while starting service : " << e.what());
@@ -355,6 +362,8 @@ NSAttributedString* log_master_strs[] = {
 			[subMenu cancelTracking];
 		});
 	}
+	if (not stop_ssh_after)
+		return;
     ::sleep(4);
 	try {
 		__log__(log_lvl::IMPORTANT, "SSH", logstream << "Stopping sshd on slave '" << self->slaveID << "'...");

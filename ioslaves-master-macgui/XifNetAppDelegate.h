@@ -18,6 +18,7 @@ enum AppState {
 	IBOutlet NSTextField* usernameField;
 	IBOutlet NSTextField* sshfsPathField;
 	IBOutlet NSTextField* addArgsField;
+	IBOutlet NSTextField* sshKeyField;
 	IBOutlet NSTextField* slaveLabel;
 }
 @end
