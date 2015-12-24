@@ -423,7 +423,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 				}
 			} break;
 				
-					// Kill server
+				// Kill server
 			case minecraft::op_code::KILL_SERVER: {
 				__log__(log_lvl::LOG, "COMM", logstream << "Master wants to kill server '" << s_servid << "'");
 				try {
@@ -439,7 +439,9 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 				}
 			} break;
 			
+				// Fix / Unfix a world
 			case minecraft::op_code::FIX_MAP: {
+				cli.o_char((char)ioslaves::answer_code::OK);
 				std::string map = cli.i_str();
 				bool want_fixed = cli.i_bool();
 				__log__(log_lvl::LOG, "COMM", logstream << "Master wants to " << (want_fixed?"enable":"disable") << " fix option for world '" << map << "' for server '" << s_servid << "'");
@@ -462,12 +464,19 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 					std::string fixed_map_file = _S( dir,"/fixed_map" );
 					bool currently_fixed = not ( ioslaves::infofile_get(fixed_map_file.c_str(), true).empty() );
 					if (currently_fixed == want_fixed) {
-						__log__(log_lvl::NOTICE, "SERV", logstream << "Fix option : no change needed");
-						cli.o_char((char)ioslaves::answer_code::OK);
+						__log__(log_lvl::SEVERE, "SERV", logstream << "Fix order contradictory with local fix state ! Manual intervention needed.");
+						cli.o_char((char)ioslaves::answer_code::BAD_TYPE);
 						break;
 					}
 					if (want_fixed == true) {
 						__log__(log_lvl::IMPORTANT, "SERV", logstream << "Fixing world '" << map << "' of server '" << s_servid << "'...", LOG_WAIT, &l);
+						time_t lastsavetime = lastsaveTimeFile(_S( MINECRAFT_SRV_DIR,"/mc_",s_servid,'/',map ), false);
+						cli.o_char((char)ioslaves::answer_code::OK);
+						cli.o_int<uint64_t>(lastsavetime);
+						if ((ioslaves::answer_code)cli.i_char() != ioslaves::answer_code::OK) {
+							__log__(log_lvl::ERROR, "SERV", "Master has invalidated fix order !");
+							break;
+						}
 						ioslaves::infofile_set(fixed_map_file.c_str(), "DO NOT DELETE");
 						cli.o_char((char)ioslaves::answer_code::OK);
 					} else {

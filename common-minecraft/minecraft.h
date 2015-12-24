@@ -20,6 +20,7 @@
 #define MC_MIN_SERV_RAM 512
 #define MC_SWAP_FACTOR 0.5f
 #define MC_FREE_RAM_FACTOR 0.7f
+#define MINECRAFT_SERV_MASTER_MAX_DELAY_CONSIDERED_EQUAL 4
 
 	// Protocol version
 #define IOSLAVES_MINECRAFT_PROTO_VERS 0x23
@@ -74,7 +75,6 @@ namespace minecraft {
 	#ifndef MINECRAFT_BIGFILES_DIR
 		#define MINECRAFT_BIGFILES_DIR MINECRAFT_SRV_DIR"/_bigfiles"
 	#endif
-	#define MINECRAFT_SERV_MASTER_MAX_DELAY_CONSIDERED_EQUAL 4
 	#define MINECRAFT_JAVA_USER "mcjava"
 	
 	extern uid_t java_user_id;

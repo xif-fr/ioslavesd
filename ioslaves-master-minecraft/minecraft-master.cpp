@@ -209,7 +209,7 @@ int main (int argc, char* const argv[]) {
 				{"customjar", required_argument, NULL, (char)minecraft::serv_type::CUSTOM},
 				{"bungeecord", required_argument, NULL, (char)minecraft::serv_type::BUNGEECORD},
 				{"temp-map", required_argument, NULL, 'm'},
-				{"perm-map", required_argument, NULL, 'p'},
+				{"perm-world", required_argument, NULL, 'p'},
 				{"map-file", required_argument, NULL, 'z'},
 				{"ram", required_argument, NULL, 'a'},
 				{"cpu", required_argument, NULL, 'u'},
@@ -256,7 +256,7 @@ int main (int argc, char* const argv[]) {
 				       "              --[bukkit|vanilla|forge|spigot|cauldron|bungeecord]=VER | --customjar=NAME\n"
 				       "                                  Launch Minecraft with this .jar\n"
 				       "                                  Custom jar must be in server folder\n"
-				       "              --temp-map=NAME | --perm-map=NAME\n"
+				       "              --temp-map=NAME | --perm-world=NAME\n"
 				       "                                  Launch temporary map (the server folder will be deleted\n"
 				       "                                   at stop) or permanent world (folder will be updated on\n"
 				       "                                   server/granmaster if older/newer than master's one).\n"
@@ -377,11 +377,11 @@ int main (int argc, char* const argv[]) {
 					try_help("--temp-map: invalid map name\n");
 				break;
 			case 'p':
-				optctx::optctx_test("--perm-map", optctx::servStart);
+				optctx::optctx_test("--perm-world", optctx::servStart);
 				$start_is_perm = true;
 				$worldname = optarg;
 				if (!ioslaves::validateName($worldname))
-					try_help("--perm-map: invalid map name\n");
+					try_help("--perm-world: invalid world name\n");
 				break;
 			case 'z':
 				$forced_file = optarg;
@@ -558,7 +558,7 @@ int main (int argc, char* const argv[]) {
 	optctx::optctx_end();
 	if (optctx::optctx == optctx::servStart) {
 		if ($worldname.empty()) 
-			try_help("--start : a world parameter (--perm-map or --temp-map) must be defined\n");
+			try_help("--start : a world parameter (--perm-world or --temp-map) must be defined\n");
 		if ($start_jar_ver.empty()) 
 			try_help("--start : a jar parameter (--bukkit, --vanilla, ...) must be defined\n");
 		if ($needed_time == 0) 
@@ -1161,7 +1161,7 @@ void MServFTPSess () {
 	sock.o_str($ftp_user);
 	sock.o_str($ftp_hash_passwd);
 	uint16_t sess_validity = 60*15;
-	#error bigger is fixed world
+	#warning TO DO : infinity if fixed world
 	sock.o_int<uint16_t>(sess_validity);
 	ioslaves::answer_code o;
 	if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) 
@@ -1196,7 +1196,55 @@ void MServDelMap () {
 /** ---------------------------- FIX/UNFIX WORLD ---------------------------- **/
 
 void MServFixMap () {
-	#warning TO DO : retrieving mandatory to remove fixed status; set time(NULL) as save date for file name
+	ioslaves::answer_code o;
+	std::string fixed_on = ioslaves::infofile_get(_s( IOSLAVES_MINECRAFT_MASTER_DIR,"/",$server_name,"/maps/",$worldname,"/fixed_on" ), true);
+	if (fixed_on.empty() and $fixmap == false) {
+		__log__ << LOG_ARROW_ERR << "World '" << $worldname << "' of server '" << $server_name << "' is not fixed." << std::flush;
+		throw EXCEPT_ERROR_IGNORE;
+	}
+	if (not fixed_on.empty() and $fixmap == true) {
+		__log__ << LOG_ARROW_ERR << "World '" << $worldname << "' of server '" << $server_name << "' is already fixed on slave '" << fixed_on << "'." << std::flush;
+		throw EXCEPT_ERROR_IGNORE;
+	}
+	if ($fixmap == true) {
+		std::string running_on_slave = ::getRunningOnSlave($server_name);
+		if ($slave_id.empty()) {
+			if (not $granmaster) 
+				try_help("--fix-world : slave ID must be defined\n");
+			if (running_on_slave.empty()) {
+				__log__ << LOG_ARROW_ERR << "Fixing world '" << $worldname << "' of server '" << $server_name << "' : can't choose a slave for you !" << std::flush;
+				throw EXCEPT_ERROR_IGNORE;
+			}
+			$slave_id = running_on_slave;
+		} else
+			if (not running_on_slave.empty() and running_on_slave != $slave_id) {
+				__log__ << LOG_ARROW_ERR << "Server '" << $server_name << "' is running on slave '" << running_on_slave << "' : world can't be fixed on slave '" << $slave_id << "'." << std::flush;
+				EXIT_FAILURE = EXIT_FAILURE_IOSL;
+				throw EXCEPT_ERROR_IGNORE;
+			}
+		__log__ << LOG_ARROW << "Fixing world '" << $worldname << "' of server " << $server_name << " on slave '" << $slave_id << "'..." << std::flush;
+		auto sock = getConnection($slave_id, $server_name, minecraft::op_code::FIX_MAP, {2,0}, false, true);
+		sock.o_str($worldname);
+		sock.o_bool($fixmap);
+		if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) 
+			throw o;
+		time_t lastsavetime_distant = (time_t)sock.i_int<uint64_t>();
+		time_t lastsavetime_local = getLastSaveTime($server_name, $worldname);
+		if (lastsavetime_distant - lastsavetime_local < -MINECRAFT_SERV_MASTER_MAX_DELAY_CONSIDERED_EQUAL) {
+			sock.o_char((char)ioslaves::answer_code::WANT_SEND);
+			__log__ << LOG_ARROW_ERR << "World '" << $worldname << "' is older on slave '" << $slave_id << "' than locally." << std::flush;
+			EXIT_FAILURE = EXIT_FAILURE_IOSL;
+			throw EXCEPT_ERROR_IGNORE;
+		}
+		sock.o_char((char)ioslaves::answer_code::OK);
+		if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) 
+			throw o;
+		ioslaves::infofile_set(_s( IOSLAVES_MINECRAFT_MASTER_DIR,"/",$server_name,"/maps/",$worldname,"/fixed_on" ), $slave_id);
+		__log__ << LOG_ARROW_OK << "World '" << $worldname << "' is fixed on slave '" << $slave_id << "'." << std::flush;
+	} else
+	if ($fixmap == false) {
+		#warning TO DO : retrieving mandatory to remove fixed status; set time(NULL) as save date for file name
+	}
 }
 
 /** ---------------------------- FORCE WORLD SAVING ---------------------------- **/
@@ -1280,7 +1328,7 @@ _try_start:
 			if (!ioslaves::validateSlaveName(lastsave_from)) lastsave_from.clear();
 			if (not $forced_file.empty()) lastsave_from.clear();
 			if (not lastsave_from.empty())
-				 __log__ << "Last slave who ran this map : " << lastsave_from << std::flush;
+				 __log__ << "Last slave who ran this world : " << lastsave_from << std::flush;
 			if ($mean_cpu == 0.f) $mean_cpu = $needed_cpu/2.f;
 			try {
 			if (not infos_gathered) {
@@ -1380,7 +1428,7 @@ _try_start:
 	sock->o_str($start_jar_ver);
 	sock->o_int<uint16_t>($needed_ram);
 	sock->o_bool($start_is_perm);
-	__log__ << " - " << ($start_is_perm?"permanent":($start_temp_perm?"temporary with save":"temporary")) << " map : " << $worldname << std::flush;
+	__log__ << " - " << ($start_is_perm?"permanent world ":($start_temp_perm?"temporary map with world save":"temporary map")) << " : " << $worldname << std::flush;
 	if (not $start_is_perm)
 		sock->o_bool($start_temp_perm);
 	if ($autoclose_time != 0) 
@@ -1425,7 +1473,7 @@ _try_start:
 	__log__ << LOG_AROBASE << "Waiting queries or ack from minecraft service" << std::flush;
 	while ((o = (ioslaves::answer_code)sock->i_char()) != ioslaves::answer_code::OK) {
 		if (o == ioslaves::answer_code::EXISTS and not $start_is_perm) {
-			__log__ << LOG_ARROW_ERR << "A permanent map named '" << $worldname << "' already exists on slave " << NICE_WARNING << " Delete it if wanted." << std::flush;
+			__log__ << LOG_ARROW_ERR << "A permanent world named '" << $worldname << "' already exists on slave " << NICE_WARNING << " Delete it if wanted." << std::flush;
 			if (not $granmaster) throw o;
 			__log__ << LOG_AROBASE << "Refreshing status..." << std::flush;
 			auto sock = getConnection($slave_id, $server_name, minecraft::op_code::SERV_STAT, {1,0}, false, false);
@@ -1440,7 +1488,7 @@ _try_start:
 				__log__ << LOG_AROBASE << " Want get map : sending forced file" << std::flush;
 				sock->o_bool(true);
 				sock->o_file($forced_file.c_str());
-			} 
+			}
 			else if ($granmaster and what == minecraft::transferWhat::JAR) {
 				__log__ << LOG_AROBASE << " Want get jar" << std::flush;
 				bool vanilla = sock->i_bool();
