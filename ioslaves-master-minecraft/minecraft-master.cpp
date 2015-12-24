@@ -845,8 +845,12 @@ void acceptFileSave (socketxx::io::simple_socket<socketxx::base_socket> sock, st
 	sock.set_read_timeout(TIMEOUT_COMM);
 	ioslaves::infofile_set(_s(folder_saves,"/lastsave_from"), slave);
 	ioslaves::infofile_set(_s(folder_saves,"/lastsave"), ::ixtoa(lastsavetime_dist));
-	ioslaves::infofile_set(_s(folder_saves,"/truesave"), "true");
-	__log__ << LOG_AROBASE_OK << "Retrieval done ! Save " << lastsavetime_dist << " set as true save from " << slave << std::flush;
+	__log__ << LOG_AROBASE_OK << "Retrieval done !";
+	if (truesave) {
+		__log__ << "Save " << lastsavetime_dist << " set as true save from " << slave << std::flush;
+		ioslaves::infofile_set(_s(folder_saves,"/truesave"), "true");
+	} else 
+		__log__ << std::flush;
 }
 
 	// Process a report request (stopping, crashing...) of slave
@@ -1243,7 +1247,26 @@ void MServFixMap () {
 		__log__ << LOG_ARROW_OK << "World '" << $worldname << "' is fixed on slave '" << $slave_id << "'." << std::flush;
 	} else
 	if ($fixmap == false) {
-		#warning TO DO : retrieving mandatory to remove fixed status; set time(NULL) as save date for file name
+		if (not $slave_id.empty() and fixed_on != $slave_id) {
+			__log__ << LOG_ARROW_ERR << "World '" << $worldname << "' is fixed on slave '" << fixed_on << "', not on slave '" << $slave_id << "' !" << std::flush;
+			EXIT_FAILURE = EXIT_FAILURE_IOSL;
+			throw EXCEPT_ERROR_IGNORE;
+		}
+		__log__ << LOG_ARROW << "Unfixing world '" << $worldname << "' of server " << $server_name << " from slave '" << fixed_on << "'..." << std::flush;
+		auto sock = getConnection($slave_id, $server_name, minecraft::op_code::FIX_MAP, {2,0}, false, true);
+		sock.o_str($worldname);
+		sock.o_bool($fixmap);
+		if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) 
+			throw o;
+		__log__ << "Unfixing proceeds..." << std::flush;
+		if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) 
+			throw o;
+		acceptFileSave(sock, $server_name, $worldname, $slave_id, true);
+		ioslaves::infofile_set(_s( IOSLAVES_MINECRAFT_MASTER_DIR,"/",$server_name,"/maps/",$worldname,"/lastsave" ), ::ixtoa(::time(NULL)));
+		if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) 
+			throw o;
+		ioslaves::infofile_set(_s( IOSLAVES_MINECRAFT_MASTER_DIR,"/",$server_name,"/maps/",$worldname,"/fixed_on" ), std::string());
+		__log__ << LOG_ARROW_OK << "World '" << $worldname << "' is no more fixed." << std::flush;
 	}
 }
 

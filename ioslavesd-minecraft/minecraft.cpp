@@ -486,8 +486,10 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 							cli.o_char((char)ioslaves::answer_code::BAD_STATE);
 							return;
 						}
+						cli.o_char((char)ioslaves::answer_code::OK);
 						__log__(log_lvl::LOG, NULL, logstream << "Invalidate FTP sessions for server '" << s_servid << "'");
 						minecraft::ftp_del_sess_for_serv(s_servid, 0);
+						cli.o_char((char)ioslaves::answer_code::OK);
 						__log__(log_lvl::IMPORTANT, NULL, logstream << "Saving world '" << map << "' of server '" << s_servid << "'...");
 						bool sent = minecraft::compressAndSend(cli, s_servid, map, false);
 						if (not sent) {
