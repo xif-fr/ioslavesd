@@ -162,6 +162,8 @@
 		AAC3C95E1B88AB2B009F5090 /* sshfs_icon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; name = sshfs_icon.icns; path = "ioslaves-master-macgui/sshfs_icon.icns"; sourceTree = SOURCE_ROOT; };
 		AAC7F7A81861FEA600033009 /* ioslaves-master */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "ioslaves-master"; sourceTree = BUILT_PRODUCTS_DIR; };
 		AAD214831AE971C50062A678 /* wake-gateway.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = "wake-gateway.dylib"; sourceTree = BUILT_PRODUCTS_DIR; };
+		AADE2C541C2D910600017CC8 /* arduino-Makefile */ = {isa = PBXFileReference; lastKnownFileType = text; name = "arduino-Makefile"; path = "keystore/arduino-Makefile"; sourceTree = "<group>"; };
+		AADE2C551C2D910600017CC8 /* PKGBUILD */ = {isa = PBXFileReference; lastKnownFileType = text; name = PKGBUILD; path = keystore/PKGBUILD; sourceTree = "<group>"; };
 		AADFEA661B63F53D00163432 /* keystore.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = keystore.hpp; path = "common-master/keystore.hpp"; sourceTree = SOURCE_ROOT; };
 		AADFEA701B64FCDE00163432 /* Makefile */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.make; name = Makefile; path = "ioslavesd-wake-gateway/Makefile"; sourceTree = "<group>"; };
 		AADFEA721B64FCE900163432 /* Makefile */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.make; name = Makefile; path = "ioslavesd-xifnetdyndns/Makefile"; sourceTree = "<group>"; };
@@ -170,6 +172,7 @@
 		AAF5EBB41B63F02400E445C3 /* libarduino.ioslmcext */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = libarduino.ioslmcext; sourceTree = BUILT_PRODUCTS_DIR; };
 		AAF5EBB91B63F1F000E445C3 /* iosl_master_keystore.ino */ = {isa = PBXFileReference; lastKnownFileType = text; name = iosl_master_keystore.ino; path = keystore/iosl_master_keystore/iosl_master_keystore.ino; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
 		AAFED1201B7F5F0000FC0297 /* stat_cross.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = stat_cross.png; path = "ioslaves-master-macgui/stat_cross.png"; sourceTree = SOURCE_ROOT; };
+		AAFF57D01C2DEA1000F27788 /* Makefile */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.make; name = Makefile; path = ioslavesd/Makefile; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -399,6 +402,7 @@
 				AA41B74A1ADEC34500B369BE /* upnp.cpp */,
 				AA41B7491ADEC34500B369BE /* status.cpp */,
 				AA99F1B0184C65DD00BB6836 /* ioslavesd */,
+				AAFF57D01C2DEA1000F27788 /* Makefile */,
 				AA23339A1AE06F7A009433E3 /* PKGBUILD */,
 			);
 			name = slave;
@@ -422,6 +426,8 @@
 				AAF5EBB91B63F1F000E445C3 /* iosl_master_keystore.ino */,
 				AAF5EBAE1B63EF9100E445C3 /* arduino.cpp */,
 				AAF5EBB41B63F02400E445C3 /* libarduino.ioslmcext */,
+				AADE2C541C2D910600017CC8 /* arduino-Makefile */,
+				AADE2C551C2D910600017CC8 /* PKGBUILD */,
 			);
 			name = "Keysore methods";
 			sourceTree = "<group>";
@@ -871,7 +877,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				GCC_PREPROCESSOR_DEFINITIONS = (
-					IOSL_MASTER_KEYSTORE_EXT_METHODS,
+					"IOSLAVES_MASTER_KEYSTORE_EXT_METHODS=\"/usr/lib/ioslaves-master/keystore\"",
 					"$(inherited)",
 				);
 				INFOPLIST_FILE = "ioslaves-master-macgui/Info.plist";
@@ -951,7 +957,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				GCC_PREPROCESSOR_DEFINITIONS = (
-					IOSL_MASTER_KEYSTORE_EXT_METHODS,
+					"IOSLAVES_MASTER_KEYSTORE_EXT_METHODS=\"/usr/lib/ioslaves-master/keystore\"",
 					"$(inherited)",
 				);
 				HEADER_SEARCH_PATHS = (
@@ -972,7 +978,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				GCC_PREPROCESSOR_DEFINITIONS = (
-					IOSL_MASTER_KEYSTORE_EXT_METHODS,
+					"IOSLAVES_MASTER_KEYSTORE_EXT_METHODS=\"/usr/lib/ioslaves-master/keystore\"",
 					"$(inherited)",
 				);
 				OTHER_LDFLAGS = (
@@ -1006,6 +1012,7 @@
 					"IOSL_MASTER_KEYSTORE_ARDUINO_DEVICE_PATH_FILE=\"\\\"/var/ioslaves/master/arduino_device\\\"\"",
 					"$(inherited)",
 				);
+				OTHER_LDFLAGS = "-lcrypto";
 				PRODUCT_NAME = arduino.ioslmcext;
 			};
 			name = Debug;

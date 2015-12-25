@@ -1,6 +1,6 @@
 CXX = clang++
 CXX_FLAGS = $(CXXFLAGS) -Wall -Wno-dollar-in-identifier-extension -std=c++0x
-LD_FLAGS = $(LDFLAGS) $(shell pkg-config --libs-only-l socketxx) -lldns -lconfig++
+LD_FLAGS = $(LDFLAGS) $(shell pkg-config --libs-only-l socketxx) -lldns -lconfig++ -ldl
 
 ifndef $(LD)
 	LD=$(CXX)

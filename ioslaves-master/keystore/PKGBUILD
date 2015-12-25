@@ -1,0 +1,30 @@
+# Maintainer: Félix Faisant <xcodexif@xif.fr>
+
+pkgname=ioslmaster-keystore
+pkgver=3.6.0
+pkgrel=1
+pkgdesc='Xif Network - ioslaves master authentification key storage extentions'
+license=('custom')
+arch=('i686' 'x86_64')
+depends=('ioslaves-master')
+makedepends=('xifutils')
+optdepends=()
+backup=()
+options=()
+install=''
+
+source=('../../common/common.hpp' '../../common/common.cpp' '../../common/log.h'  '../../common/log_defimpl.h'
+        '../../common-master/keystore.hpp'
+        'arduino-Makefile' 'arduino_comm.h' 'arduino.cpp')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP'
+            'SKIP'
+            'SKIP' 'SKIP' 'SKIP')
+
+build() {
+	export CXXFLAGS="${CXXFLAGS} -DXIFNET -DIOSL_MASTER_KEYSTORE_ARDUINO_DEVICE_PATH_FILE=\"__get_homedir__()+\\\"/ioslaves-master/arduino_device\\\"\" "
+	make --file=arduino-Makefile
+}
+
+package() {
+	install -D -m644 $srcdir/arduino.ioslmcext $pkgdir/usr/lib/ioslaves-master/keystore/arduino.ioslmcext
+}

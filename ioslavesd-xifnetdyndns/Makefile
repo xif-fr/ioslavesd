@@ -1,5 +1,5 @@
 CXX=clang++
-CXX_FLAGS = $(CXXFLAGS) -Wall -std=c++0x -fPIC -g
+CXX_FLAGS = $(CXXFLAGS) -Wall -std=c++0x -fPIC
 LDFLAGS = $(shell pkg-config --libs-only-l socketxx)
 
 ifndef $(LD)

@@ -215,7 +215,7 @@ NSAttributedString* log_master_strs[] = {
 				[view->addArgsField validateEditing];
 				[view->sshKeyField validateEditing];
 				if ([[view->sshKeyField stringValue] length] != 0) 
-					[view->addArgsField setStringValue:[NSString stringWithFormat:@"%@ -o \"IdentityFile=~/.ssh/%@\"", [view->addArgsField stringValue], [view->sshKeyField stringValue]]];
+					[view->addArgsField setStringValue:[NSString stringWithFormat:@"%@ -o CheckHostIP=no -o \"IdentityFile=~/.ssh/%@\"", [view->addArgsField stringValue], [view->sshKeyField stringValue]]];
 				NSUserDefaults* prefs = [NSUserDefaults standardUserDefaults];
 				NSMutableDictionary* prefsSlaves = [NSMutableDictionary dictionaryWithDictionary:[prefs dictionaryForKey:@"slaves"]];
 				NSMutableDictionary* slavePrefs = [NSMutableDictionary dictionaryWithDictionary:[prefsSlaves objectForKey:[NSString stringWithStdString:self->slaveID]]];

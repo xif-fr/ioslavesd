@@ -58,7 +58,7 @@ extern "C" void key_store (std::string key_id, ioslaves::key_t key, libconfig::S
 	int r;
 	size_t rs;
 	std::string device = 
-		ioslaves::infofile_get(IOSL_MASTER_KEYSTORE_ARDUINO_DEVICE_PATH_FILE, true);
+		ioslaves::infofile_get(_s(IOSL_MASTER_KEYSTORE_ARDUINO_DEVICE_PATH_FILE), true);
 	if (device.empty()) {
 		if (not ::isatty(STDOUT_FILENO)) 
 			throw std::runtime_error("arduino device path file doesn't exist");
@@ -72,7 +72,7 @@ extern "C" void key_store (std::string key_id, ioslaves::key_t key, libconfig::S
 				throw xif::sys_error("entered path is not valid");
 			if (not S_ISCHR(devinfo.st_mode)) 
 				throw xif::sys_error("entered file is not a serial device");
-			ioslaves::infofile_set(IOSL_MASTER_KEYSTORE_ARDUINO_DEVICE_PATH_FILE, device);
+			ioslaves::infofile_set(_s(IOSL_MASTER_KEYSTORE_ARDUINO_DEVICE_PATH_FILE), device);
 		}
 	}
 	fd_t serial;
@@ -112,7 +112,7 @@ extern "C" void key_store (std::string key_id, ioslaves::key_t key, libconfig::S
 extern "C" ioslaves::hash_t key_answer_challenge (std::string key_id, ioslaves::challenge_t challenge, const libconfig::Setting& data) {
 	fd_t serial;
 	try {
-		serial = ::arduino_get_connection( ioslaves::infofile_get(IOSL_MASTER_KEYSTORE_ARDUINO_DEVICE_PATH_FILE, false).c_str(), 
+		serial = ::arduino_get_connection( ioslaves::infofile_get(_s(IOSL_MASTER_KEYSTORE_ARDUINO_DEVICE_PATH_FILE), false).c_str(), 
 		                                   arduino_auth_opcode::OP_CHALLENGE);
 	} catch (std::runtime_error& e) {
 		throw std::runtime_error(logstream << "failed to connect to arduino : " << e.what() << logstr);

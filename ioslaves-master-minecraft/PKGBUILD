@@ -10,18 +10,20 @@ depends=('zip' 'unzip' 'libconfig' 'nopoll' 'ioslaves-master')
 makedepends=('xifutils')
 
 source=('../common/common.hpp' '../common/common.cpp' '../common/log.h'  '../common/log_defimpl.h'
-        '../common-master/master.hpp' '../common-master/dyn_slaves.cpp' '../common-master/master-impl.cpp' '../common-master/wol.cpp'
+        '../common-master/master.hpp' '../common-master/dyn_slaves.cpp' '../common-master/master-impl.cpp' '../common-master/keystore.hpp' '../common-master/wol.cpp'
         '../common-minecraft/minecraft.h' 'minecraft-master.cpp'
         'Makefile'
         'minecraft-master.key.tpl')
 sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP'
-            'SKIP' 'SKIP' 'SKIP' 'SKIP'
+            'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
             'SKIP' 'SKIP'
             'SKIP'
             'SKIP')
 
 build() {
-	make CXXFLAGS="${CXXFLAGS} -DXIFNET -DIOSLAVES_MASTER_DIR=\"__get_homedir__()+\\\"/ioslaves-master\\\"\" "
+	export CXXFLAGS="${CXXFLAGS} -DXIFNET -DIOSLAVES_MASTER_DIR=\"__get_homedir__()+\\\"/ioslaves-master\\\"\" "
+	export CXXFLAGS="${CXXFLAGS} -DIOSLAVES_MASTER_KEYSTORE_EXT_METHODS=\"\\\"/usr/lib/ioslaves-master/keystore\\\"\" "
+	make
 }
 
 package() {

@@ -1,0 +1,23 @@
+CXX = clang++
+CXX_FLAGS = $(CXXFLAGS) -Wall -std=c++0x -fPIC
+LD_FLAGS = $(LDFLAGS) -lcrypto
+
+ifndef $(LD)
+	LD=$(CXX)
+endif
+
+all: arduino.ioslmcext
+
+arduino.ioslmcext: arduino.o common.o
+	$(LD) -o $@ $^ $(LD_FLAGS) -shared
+
+common.o: common.cpp common.hpp
+arduino.o: arduino.cpp arduino_comm.h
+
+%.o: %.cpp
+	$(CXX) -o $@ -c $< $(CXX_FLAGS)
+
+.PHONY: clean
+
+clean:
+	rm -rf *.o

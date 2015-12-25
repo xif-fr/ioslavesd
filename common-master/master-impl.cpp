@@ -16,7 +16,7 @@ bool iosl_master::$silent = false;
 #ifndef IOSL_MASTER_IMPL_NO_AUTH
 
 	// Key storage plugins
-#ifdef IOSL_MASTER_KEYSTORE_EXT_METHODS
+#ifdef IOSLAVES_MASTER_KEYSTORE_EXT_METHODS
 #include "keystore.hpp"
 #include <dlfcn.h>
 typedef void* dl_t;
@@ -131,7 +131,7 @@ void iosl_master::authenticate (socketxx::io::simple_socket<socketxx::base_netso
 			ioslaves::hex_to_bin(key_str, buf+CHALLENGE_LEN);
 			::WHIRLPOOL(buf, CHALLENGE_LEN+KEY_LEN, answer.bin);
 		} else {
-	#ifdef IOSL_MASTER_KEYSTORE_EXT_METHODS
+	#ifdef IOSLAVES_MASTER_KEYSTORE_EXT_METHODS
 			int r;
 			if (not ioslaves::validateName(store_method)) 
 				throw master_err(EXIT_FAILURE_AUTH, logstream << "Storage method '" << store_method << "' is invalid");

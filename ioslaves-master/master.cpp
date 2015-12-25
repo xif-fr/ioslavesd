@@ -27,7 +27,7 @@
 #include <openssl/md5.h>
 
 	// Key storage plugins
-#ifdef IOSL_MASTER_KEYSTORE_EXT_METHODS
+#ifdef IOSLAVES_MASTER_KEYSTORE_EXT_METHODS
 #include "keystore.hpp"
 #include <dlfcn.h>
 typedef void* dl_t;
@@ -838,7 +838,7 @@ void IKeygen () {
 			std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 		}
 	}
-#ifdef IOSL_MASTER_KEYSTORE_EXT_METHODS
+#ifdef IOSLAVES_MASTER_KEYSTORE_EXT_METHODS
 	dl_t pl_handle = NULL;
 	iosl_master::keystore_api::key_store_f key_store_func = NULL;
 		// Load key store method plugin
@@ -901,7 +901,7 @@ void IKeygen () {
 		libconfig::Config key_c;
 		key_c.getRoot().add("method", libconfig::Setting::TypeString) = $key_storage_method;
 		libconfig::Setting& data_c = key_c.getRoot().add("data", libconfig::Setting::TypeGroup);
-#ifdef IOSL_MASTER_KEYSTORE_EXT_METHODS
+#ifdef IOSLAVES_MASTER_KEYSTORE_EXT_METHODS
 		if (pl_handle != NULL) {
 			try {
 			(*key_store_func)($master_id+'.'+$slave_id,
