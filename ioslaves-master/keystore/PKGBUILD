@@ -1,7 +1,7 @@
 # Maintainer: Félix Faisant <xcodexif@xif.fr>
 
 pkgname=ioslmaster-keystore
-pkgver=3.6.0
+pkgver=3.6.1
 pkgrel=1
 pkgdesc='Xif Network - ioslaves master authentification key storage extentions'
 license=('custom')
