@@ -470,7 +470,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 					}
 					if (want_fixed == true) {
 						__log__(log_lvl::IMPORTANT, "SERV", logstream << "Fixing world '" << map << "' of server '" << s_servid << "'...", LOG_WAIT, &l);
-						time_t lastsavetime = lastsaveTimeFile(_S( MINECRAFT_SRV_DIR,"/mc_",s_servid,'/',map ), false);
+						time_t lastsavetime = minecraft::lastsaveTimeFile(_S( MINECRAFT_SRV_DIR,"/mc_",s_servid,'/',map ), false);
 						cli.o_char((char)ioslaves::answer_code::OK);
 						cli.o_int<uint64_t>(lastsavetime);
 						if ((ioslaves::answer_code)cli.i_char() != ioslaves::answer_code::OK) {
@@ -540,7 +540,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 				}
 					// Send map list (without running map) with their last-save-time for master syncing, and send map save if needed
 				__log__(log_lvl::LOG, "FILES", logstream << "List maps...", LOG_WAIT, &l);
-				std::map<std::string,time_t> serv_maps;
+				std::vector<std::tuple<std::string,time_t,bool>> serv_maps;
 				try {
 					block_as_mcjava();
 					std::string global_serv_dir = _S( MINECRAFT_SRV_DIR,"/mc_",s_servid );
@@ -568,8 +568,9 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 							time_t lastsave = 0;
 							if (r == 0) 
 								lastsave = minecraft::lastsaveTimeFile(lastsavetime_path.c_str(), false);
-							__log__(log_lvl::LOG, "FILES", logstream << map << ":" << lastsave, LOG_ADD|LOG_WAIT, &l);
-							serv_maps.insert({map,lastsave});
+							bool fixed = not ioslaves::infofile_get(_s( MINECRAFT_SRV_DIR,"/mc_",s_servid,'/',map,"/fixed_map" ), true).empty();
+							__log__(log_lvl::LOG, "FILES", logstream << map << ":" << lastsave << (fixed?" (fix)":""), LOG_ADD|LOG_WAIT, &l);
+							serv_maps.push_back(std::make_tuple(map,lastsave,fixed));
 						}
 					}
 					if (rr == -1)
@@ -578,13 +579,14 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 					__log__(log_lvl::ERROR, "FILES", logstream << "Error while listing maps of server : " << e.what());
 				}
 				cli.o_int<uint32_t>((uint32_t)serv_maps.size());
-				for (decltype(serv_maps)::const_reference p : serv_maps) {
-					cli.o_str(p.first);
-					cli.o_int<uint64_t>(p.second);
+				for (decltype(serv_maps)::const_reference t : serv_maps) {
+					cli.o_str(std::get<0>(t));
+					cli.o_int<uint64_t>(std::get<1>(t));
+					cli.o_bool(std::get<2>(t));
 					ioslaves::answer_code o = (ioslaves::answer_code)cli.i_char();
 					if (o == ioslaves::answer_code::WANT_GET) {
 						block_as_mcjava();
-						minecraft::compressAndSend(cli, s_servid, p.first, true);
+						minecraft::compressAndSend(cli, s_servid, std::get<0>(t), true);
 					}
 				}
 			} break;
@@ -673,9 +675,10 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 				try {
 					minecraft::serv* s = minecraft::servs.at(s_servid);
 					cli.o_char((char)ioslaves::answer_code::OK);
+					cli.o_str(s->s_map);
 					std::string username = cli.i_str();
 					std::string md5passwd = cli.i_str();
-					uint16_t validity = cli.i_int<uint16_t>();
+					time_t validity = cli.i_int<uint32_t>();
 					try {
 						minecraft::ftp_register_user(username, md5passwd, s_servid, s->s_map, validity);
 						cli.o_char((char)ioslaves::answer_code::OK);

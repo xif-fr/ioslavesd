@@ -242,11 +242,13 @@ int main (int argc, char* const argv[]) {
 				       "Usage: minecraft-master MASTER-ID (--granmaster [SLAVE-ID])|(SLAVE-ID) (--server=NAME) --ACTION\n"
 				       "\n"
 				       "General options :\n"
-				       "  -i, --no-interactive        Enbale HTML log and JSON outputs\n"
-				       "  -G, --granmaster            Manage automagically slaves (start, stop, move...)\n"
-				       "  -w, --websocket=PORT        Wait a websocket client on PORT before executing commands and\n"
-				       "                               output log via this websocket client. Used also for live-console\n"
-				       "  -r, --refuse-save           Refuse incoming requests to save a world folder.\n"
+				       "  -i, --no-interactive     Enbale HTML log and JSON outputs\n"
+				       "  -G, --granmaster         The real and principal purpose of minecraft-master : manage automagically\n"
+					   "                            slaves, servers and worlds : world saves, status tracking, fixed mode...\n"
+					   "                            Here minecraft-master supposes that it is the unique granmaster-mode master.\n"
+				       "  -w, --websocket=PORT     Wait a websocket client on PORT before executing commands and\n"
+				       "                            output log via this websocket client. Used also for live-console\n"
+				       "  -r, --refuse-save        Refuse incoming requests to save a world folder.\n"
 				       "\n"
 				       "  --server=NAME               Control the Minecraft server named [NAME]. Mandatory.\n"
 				       "      Server Actions :\n"
@@ -514,6 +516,8 @@ int main (int argc, char* const argv[]) {
 					try_help("--save-world: invalid world name\n");
 				break;
 			case '-': {
+				if (not $granmaster) 
+					try_help("--fix-world : meaningful only in granmaster mode");
 				optctx::optctx_set(optctx::servFixMap);
 				std::string arg = _S( optarg );
 				if (arg.substr(0,2) == "y,") 
@@ -971,6 +975,7 @@ void verifyMapList (std::string slave_id, std::string server_name, socketxx::io:
 		while (sz --> 0) {
 			std::string map = sock.i_str();
 			time_t lastsave = sock.i_int<uint64_t>();
+			bool fixed = sock.i_bool();
 			if (not $granmaster or $refuse_save) {
 				sock.o_char((char)ioslaves::answer_code::OK);
 				continue;
@@ -996,6 +1001,12 @@ void verifyMapList (std::string slave_id, std::string server_name, socketxx::io:
 					__log__ << COLOR_YELLOW << "Warning !" << COLOR_RESET << " Slave '" << slave_id << "' have a more recent version of world '" << map << "'." << std::flush;
 					want_get = true;
 				}
+			}
+			std::string fixed_on = ioslaves::infofile_get(_s( map_folder,"/fixed_on" ), true);
+			if ((not fixed_on.empty() and fixed_on == slave_id and not fixed) or (fixed and fixed_on.empty())) {
+				__log__ << COLOR_RED << "SEVERE : World '" << map << "' is not of the same fixiness on slave '" << slave_id << "' !" << COLOR_RESET << std::flush;
+				sock.o_char((char)ioslaves::answer_code::OK);
+				continue;
 			}
 			if (want_get) {
 				sock.o_char((char)ioslaves::answer_code::WANT_GET);
@@ -1059,6 +1070,7 @@ void MServStatus () {
 				__log__ << LOG_ARROW_OK << "Yes, server is running on slave '" << $local_slave_id << "'." << std::flush;
 			} else {
 				__log__ << LOG_ARROW_ERR << "Erm... No, server isn't running on slave '" << $local_slave_id << "'." << std::flush;
+				
 				if (not $slave_id.empty() and $local_slave_id != $slave_id) {
 					goto __check_on_user_slave;
 				} else {
@@ -1162,16 +1174,18 @@ void MServFTPSess () {
 	__log__ << LOG_ARROW << "Create FTP session for user '" << $ftp_user << "' on server " << $server_name << " for current running world..." << std::flush;
 	granmasterSlaveSet();
 	auto sock = getConnection($slave_id, $server_name, minecraft::op_code::FTP_SESSION, {2,0}, false, false);
+	std::string worldname = sock.i_str();
 	sock.o_str($ftp_user);
 	sock.o_str($ftp_hash_passwd);
-	uint16_t sess_validity = 60*15;
-	#warning TO DO : infinity if fixed world
-	sock.o_int<uint16_t>(sess_validity);
+	bool fixed = not ioslaves::infofile_get(_s( IOSLAVES_MINECRAFT_MASTER_DIR,"/",$server_name,"/maps/",worldname,"/fixed_on" ), true).empty();
+	uint32_t sess_validity = fixed ? 60*60*24 : 60*15;
+	sock.o_int<uint32_t>(sess_validity);
 	ioslaves::answer_code o;
 	if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) 
 		throw o;
 	std::string addrstr = sock.i_str();
-	__log__ << LOG_ARROW_OK << "FTP session created for " << sess_validity << "s. FTP server address : " << addrstr << std::flush;
+	__log__ << LOG_ARROW_OK << "FTP session created for " << sess_validity << "s on map " << worldname << "." << std::flush;
+	__log__ << "FTP server address : " << addrstr << std::flush;
 	if (not optctx::interactive)
 	std::cout << std::endl << addrstr;
 }
@@ -1298,6 +1312,18 @@ void MServStart () {
 	__log__ << LOG_ARROW << "Starting server '" << $server_name << "'..." << std::flush;
 	int r;
 	bool autoselect_slave = $hint;
+	std::string fixed_on = ioslaves::infofile_get(_s( IOSLAVES_MINECRAFT_MASTER_DIR,"/",$server_name,"/maps/",$worldname,"/fixed_on" ), true);
+	if (not fixed_on.empty()) {
+		autoselect_slave = false;
+		if ($slave_id.empty()) 
+			$slave_id = fixed_on;
+		else if ($slave_id != fixed_on) {
+			__log__ << LOG_AROBASE_ERR << "Can't start world '" << $worldname << "' on slave '" << $slave_id << "' : world is fixed on slave '" << fixed_on << "'." << std::flush;
+			EXIT_FAILURE = EXIT_FAILURE_IOSL;
+			throw EXCEPT_ERROR_IGNORE;
+		}
+		__log__ << "Chose slave '" << fixed_on << "' on which world '" << $worldname << "' is fixed." << std::flush;
+	}
 	std::vector<iosl_dyn_slaves::slave_info> slaves;
 	bool infos_gathered = false;
 	std::vector<std::string> excluded_slaves;
@@ -1310,7 +1336,10 @@ _retry_start:
 		$slave_id.clear();
 		goto _try_start;
 	} else {
-		__log__ << LOG_AROBASE_ERR << "Try an another slave or let the slave selection do its job" << std::flush;
+		if (fixed_on.empty()) 
+			__log__ << LOG_AROBASE_ERR << "Try an another slave or let the slave selection do its job." << std::flush;
+		else 
+			__log__ << LOG_AROBASE_ERR << "Sorry, slave '" << $slave_id << "' is not available." << std::flush;
 		throw EXCEPT_ERROR_IGNORE;
 	}
 _try_start:
@@ -1487,7 +1516,7 @@ _try_start:
 			throw EXCEPT_ERROR_IGNORE;
 		} else if (o == ioslaves::answer_code::LACK_RSRC) {
 			__log__ << LOG_AROBASE_ERR << "Lacking ressources on slave '" << $slave_id << "' : can't start server !" << std::flush;
-			if (not $granmaster) EXCEPT_ERROR_IGNORE;
+			if (not $granmaster) throw EXCEPT_ERROR_IGNORE;
 			goto _retry_start;
 		} else
 			throw o;

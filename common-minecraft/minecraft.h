@@ -23,7 +23,7 @@
 #define MINECRAFT_SERV_MASTER_MAX_DELAY_CONSIDERED_EQUAL 4
 
 	// Protocol version
-#define IOSLAVES_MINECRAFT_PROTO_VERS 0x23
+#define IOSLAVES_MINECRAFT_PROTO_VERS 0x24
 
 	// Minecraft service
 namespace minecraft {
