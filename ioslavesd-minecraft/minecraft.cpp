@@ -106,6 +106,7 @@ namespace minecraft {
 	std::list<minecraft::serv*> opening_servs;
 	std::map<std::string,minecraft::serv*> servs;
 	pthread_mutex_t servs_mutex = PTHREAD_MUTEX_INITIALIZER;
+		/* Note : the mutex MUST be acquired on access of these lists, including when getting minecraft::serv*, and retained as long as the serv* is used */
 	
 		// Vars
 	uid_t java_user_id = 0;
@@ -118,7 +119,7 @@ namespace minecraft {
 		// Start and Stop Minecraft server
 	void startServer (socketxx::io::simple_socket<socketxx::base_socket> cli, std::string servid);
 	void* serv_thread (void* arg);
-	void stopServer (socketxx::io::simple_socket<socketxx::base_socket> cli, minecraft::serv* s);
+	void stopServer (socketxx::io::simple_socket<socketxx::base_socket> cli, minecraft::serv* s, pthread_mutex_handle&);
 	
 		// Transfer, files, and world functions
 	void transferAndExtract (socketxx::io::simple_socket<socketxx::base_socket> sock, minecraft::transferWhat what, std::string name, std::string parent_dir, bool alt = false);
@@ -237,7 +238,7 @@ extern "C" void ioslapi_stop (void) {
 		}
 		__log__(log_lvl::DONE, NULL, logstream << "Done !", LOG_ADD, &l);
 	}
-	::pthread_mutex_unlock(&minecraft::servs_mutex);
+	::pthread_mutex_unlock(&minecraft::servs_mutex); // We are now free
 	
 		// Stop FTP server
 	minecraft::ftp_stop_thead(INT32_MAX);
@@ -247,8 +248,7 @@ extern "C" void ioslapi_stop (void) {
 		__log__(log_lvl::NOTICE, NULL, logstream << "Saving " << minecraft::servs_stopped.size() << " stop reports...", LOG_WAIT, &l);
 		libconfig::Config savereports;
 		libconfig::Setting& replist = savereports.getRoot();
-		for (auto it = minecraft::servs_stopped.begin(); it != minecraft::servs_stopped.end(); it++) {
-			minecraft::serv_stopped ss = *it;
+		for (minecraft::serv_stopped& ss : minecraft::servs_stopped) {
 			__log__(log_lvl::LOG, NULL, ss.serv, LOG_ADD|LOG_WAIT, &l);
 			libconfig::Setting& report = replist.add(ss.serv, libconfig::Setting::TypeGroup);
 			report.add("gracefully", libconfig::Setting::TypeBoolean) = ss.gracefully;
@@ -272,25 +272,31 @@ extern "C" bool ioslapi_shutdown_inhibit () {
 
 	// Returns a small resumé of the Minecraft service
 extern "C" xif::polyvar* ioslapi_status_info () {
-	pthread_mutex_handle_lock(minecraft::servs_mutex);
-	xif::polyvar servers = std::vector<xif::polyvar>();
+	std::map<std::string, socketxx::io::simple_socket<socketxx::base_fd>> pending_requests;
+	std::map<std::string, bool> servs_fixed;
+	::pthread_mutex_lock(&minecraft::servs_mutex);
 	for (std::pair<std::string,minecraft::serv*> p : minecraft::servs) {
-		RAII_AT_END_L( ::pthread_mutex_lock(&minecraft::servs_mutex) );
 		try {
 			socketxx::io::simple_socket<socketxx::base_fd> s_comm(socketxx::base_fd(p.second->s_sock_comm, SOCKETXX_MANUAL_FD));
 			s_comm.o_char((char)minecraft::internal_serv_op_code::GET_PLAYER_LIST);
-			::pthread_mutex_unlock(&minecraft::servs_mutex);
-			if ((ioslaves::answer_code)s_comm.i_char() == ioslaves::answer_code::OK) {
-				servers.v().push_back(_S( p.first," (",::ixtoa(s_comm.i_int<int16_t>()),")" ));
-				continue;
-			}
-		} catch (...) { ::pthread_mutex_unlock(&minecraft::servs_mutex); }
+			pending_requests.insert({p.first, s_comm});
+			servs_fixed[p.first] = not 
+				ioslaves::infofile_get(_s( MINECRAFT_SRV_DIR,"/mc_",p.first,'/',p.second->s_map,"/fixed_map" ), true).empty();
+		} catch (...) {}
+	}
+	::pthread_mutex_unlock(&minecraft::servs_mutex);
+	xif::polyvar servers = std::vector<xif::polyvar>();
+	for (auto p : pending_requests) {
 		servers.v().push_back(p.first);
-		if (not ioslaves::infofile_get(_s( MINECRAFT_SRV_DIR,"/mc_",p.first,'/',p.second->s_map,"/fixed_map" ), true).empty() ) 
+		try {
+			if ((ioslaves::answer_code)p.second.i_char() == ioslaves::answer_code::OK) 
+				servers.v().back().s() += _S( " (",::ixtoa(p.second.i_int<int16_t>()),")" );
+		} catch (...) {}
+		if (servs_fixed[p.first] == true) 
 			servers.v().back().s() += " fix";
 	}
 	xif::polyvar* info = new xif::polyvar(xif::polyvar::map({
-		{"#", minecraft::servs.size()}, 
+		{"#", servers.v().size()}, 
 		{"servers", servers}}
 	));
 	return info;
@@ -302,6 +308,7 @@ extern "C" bool ioslapi_got_sigchld (pid_t pid, int pid_status) {
 		minecraft::ftp_stop_thead(pid_status);
 		return true;
 	}
+	pthread_mutex_handle_lock(minecraft::servs_mutex);
 	std::function<bool(minecraft::serv*)> test_serv = [&] (minecraft::serv* s) -> bool {
 		if (s->s_java_pid == pid) {
 			try {
@@ -314,7 +321,6 @@ extern "C" bool ioslapi_got_sigchld (pid_t pid, int pid_status) {
 			return true;
 		} return false;
 	};
-	pthread_mutex_handle_lock(minecraft::servs_mutex);
 	for (std::pair<std::string,minecraft::serv*> p : minecraft::servs) 
 		if (test_serv(p.second) == true) return true;
 	for (minecraft::serv* s : minecraft::opening_servs) 
@@ -362,11 +368,12 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 			return;
 		}
 		
+		pthread_mutex_handle _mutex_handle_ (&minecraft::servs_mutex);
+		
 			// Report server stop-reports to master, if able to handle it
-		pthread_mutex_handle_lock(minecraft::servs_mutex);
 		if (opp != minecraft::op_code::FIX_MAP) 
 		for (auto it = minecraft::servs_stopped.begin(); it != minecraft::servs_stopped.end();) {
-			minecraft::serv_stopped ss = *it;
+			minecraft::serv_stopped& ss = *it;
 			if (s_servid == ss.serv or is_a_gran_master) {
 				__log__(log_lvl::IMPORTANT, "COMM", logstream << "Reporting stop of server '" << ss.serv << "' to master");
 				cli.o_char((char)ioslaves::answer_code::WANT_REPORT);
@@ -406,7 +413,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 			case minecraft::op_code::START_SERVER: {
 				__log__(log_lvl::LOG, "COMM", logstream << "Master wants to start server '" << s_servid << "'");
 				cli.o_char((char)ioslaves::answer_code::OK);
-				::pthread_mutex_unlock(&minecraft::servs_mutex);
+				_mutex_handle_.soon_unlock();
 				minecraft::startServer(cli, s_servid);
 			} break;
 			
@@ -416,7 +423,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 				try {
 					minecraft::serv* s = minecraft::servs.at(s_servid);
 					cli.o_char((char)ioslaves::answer_code::OK);
-					minecraft::stopServer(cli, s);
+					minecraft::stopServer(cli, s, _mutex_handle_);
 				} catch (std::out_of_range) {
 					__log__(log_lvl::ERROR, "COMM", logstream << "Server '" << s_servid << "' not found");
 					cli.o_char((char)ioslaves::answer_code::NOT_FOUND);
@@ -518,21 +525,21 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 					__log__(log_lvl::LOG, "COMM", ": Running", LOG_ADD, &l);
 					cli.o_bool(true);
 					if (cli.i_bool()) {
+						in_port_t port = s->s_port;
 						cli.o_bool(s->s_is_perm_map);
 						cli.o_str(s->s_map);
 						time_t start_time = ::time(NULL) - (::iosl_time() - s->s_start_iosl_time);
 						cli.o_int<uint64_t>(start_time);
 						socketxx::io::simple_socket<socketxx::base_fd> s_comm(socketxx::base_fd(s->s_sock_comm, SOCKETXX_MANUAL_FD));
 						s_comm.o_char((char)minecraft::internal_serv_op_code::GET_PLAYER_LIST);
-						::pthread_mutex_unlock(&minecraft::servs_mutex);
+						_mutex_handle_.soon_unlock();
 						ioslaves::answer_code o = (ioslaves::answer_code)s_comm.i_char();
-						::pthread_mutex_lock(&minecraft::servs_mutex);
 						if (o == ioslaves::answer_code::OK) {
 							cli.o_int<int32_t>(s_comm.i_int<int16_t>());
 						} else {
 							cli.o_int<int32_t>(-1);
 						}
-						cli.o_int<in_port_t>(s->s_port);
+						cli.o_int<in_port_t>(port);
 					}
 				} catch (std::out_of_range) {
 					__log__(log_lvl::LOG, "COMM", ": Not running", LOG_ADD, &l);
@@ -1035,7 +1042,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 	minecraft::serv* s = new minecraft::serv;
 	s->s_servid = servid;
 	
-		// Auto delete server : delete structure, temp map folder, reset effective uid
+		// Auto delete server on error/failure : delete structure, temp map folder, reset effective uid
 	struct _autodelete_serv {
 		minecraft::serv* s = NULL;
 		bool close_port = false;
@@ -2076,11 +2083,10 @@ std::string MC_log_interpret (const std::string line, minecraft::serv* s, minecr
 }
 
 	/// Stop
-void minecraft::stopServer (socketxx::io::simple_socket<socketxx::base_socket> cli, minecraft::serv* s) {
+void minecraft::stopServer (socketxx::io::simple_socket<socketxx::base_socket> cli, minecraft::serv* s, pthread_mutex_handle& _mutex_handle_) {
 	int r;
 	std::string servid = s->s_servid;
 	
-		// Servers mutex IS locked here
 	try {
 		
 			// Late communication pipe
@@ -2107,7 +2113,7 @@ void minecraft::stopServer (socketxx::io::simple_socket<socketxx::base_socket> c
 			// Sending stop command and release mutex
 		socketxx::io::simple_socket<socketxx::base_fd> s_comm(socketxx::base_fd(s->s_sock_comm, SOCKETXX_MANUAL_FD));
 		s_comm.o_char((char)minecraft::internal_serv_op_code::STOP_SERVER_CLI);
-		::pthread_mutex_unlock(&minecraft::servs_mutex);
+		_mutex_handle_.soon_unlock();
 		
 			// Waiting for stop
 		ReadEarlyStateIfNot('s',5) {
