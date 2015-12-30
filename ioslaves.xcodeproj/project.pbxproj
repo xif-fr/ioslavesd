@@ -877,7 +877,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				GCC_PREPROCESSOR_DEFINITIONS = (
-					"IOSLAVES_MASTER_KEYSTORE_EXT_METHODS=\"/usr/lib/ioslaves-master/keystore\"",
+					"IOSLAVES_MASTER_KEYSTORE_EXT_METHODS=\"\\\"/usr/lib/ioslaves-master/keystore\\\"\"",
 					"$(inherited)",
 				);
 				INFOPLIST_FILE = "ioslaves-master-macgui/Info.plist";
@@ -957,7 +957,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				GCC_PREPROCESSOR_DEFINITIONS = (
-					"IOSLAVES_MASTER_KEYSTORE_EXT_METHODS=\"/usr/lib/ioslaves-master/keystore\"",
+					"IOSLAVES_MASTER_KEYSTORE_EXT_METHODS=\"\\\"/usr/lib/ioslaves-master/keystore\\\"\"",
 					"$(inherited)",
 				);
 				HEADER_SEARCH_PATHS = (
@@ -978,7 +978,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				GCC_PREPROCESSOR_DEFINITIONS = (
-					"IOSLAVES_MASTER_KEYSTORE_EXT_METHODS=\"/usr/lib/ioslaves-master/keystore\"",
+					"IOSLAVES_MASTER_KEYSTORE_EXT_METHODS=\"\\\"/usr/lib/ioslaves-master/keystore\\\"\"",
 					"$(inherited)",
 				);
 				OTHER_LDFLAGS = (

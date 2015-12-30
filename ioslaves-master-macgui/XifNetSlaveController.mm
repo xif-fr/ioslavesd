@@ -263,6 +263,7 @@ NSAttributedString* log_master_strs[] = {
 		if (errno == ENOENT);
 		else if (errno == EBUSY) {
 			[[NSWorkspace sharedWorkspace] openURL:[NSURL fileURLWithPath:[NSString stringWithStdString:volume_dir]]]; 
+			return;
 		} else {
 			__log__(log_lvl::ERROR, "SSHFS", logstream << "rm " << volume_dir << " : " << strerror(errno));
 			return;
