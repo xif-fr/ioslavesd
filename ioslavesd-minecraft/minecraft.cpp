@@ -289,8 +289,10 @@ extern "C" xif::polyvar* ioslapi_status_info () {
 	for (auto p : pending_requests) {
 		servers.v().push_back(p.first);
 		try {
-			if ((ioslaves::answer_code)p.second.i_char() == ioslaves::answer_code::OK) 
+			if ((ioslaves::answer_code)p.second.i_char() == ioslaves::answer_code::OK) {
 				servers.v().back().s() += _S( " (",::ixtoa(p.second.i_int<int16_t>()),")" );
+				p.second.i_int<int32_t>();
+			}
 		} catch (...) {}
 		if (servs_fixed[p.first] == true) 
 			servers.v().back().s() += " fix";
@@ -535,9 +537,11 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 						_mutex_handle_.soon_unlock();
 						ioslaves::answer_code o = (ioslaves::answer_code)s_comm.i_char();
 						if (o == ioslaves::answer_code::OK) {
-							cli.o_int<int32_t>(s_comm.i_int<int16_t>());
+							cli.o_int<int32_t>(s_comm.i_int<int16_t>()); // # of players
+							cli.o_int<uint32_t>(s_comm.i_int<uint32_t>()); // 0 players since
 						} else {
 							cli.o_int<int32_t>(-1);
+							cli.o_int<uint32_t>(0);
 						}
 						cli.o_int<in_port_t>(port);
 					}
@@ -1763,6 +1767,7 @@ void* minecraft::serv_thread (void* arg) {
 										uint16_t n_players = parse_list_players(msg, req);
 										sock->o_char((char)ioslaves::answer_code::OK);
 										sock->o_int<int16_t>(n_players);
+										sock->o_int<uint32_t>(first_0);
 									} catch (std::exception& e) {
 										try {
 											sock->o_char((char)ioslaves::answer_code::ERROR);

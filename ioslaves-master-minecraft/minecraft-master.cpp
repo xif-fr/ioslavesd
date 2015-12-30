@@ -1025,10 +1025,34 @@ void verifyMapList (std::string slave_id, std::string server_name, socketxx::io:
 void MServStatus () {
 	__log__ << LOG_ARROW << "Updating status for server '" << $server_name << "'..." << std::flush;
 	int32_t n_players = -1;
+	time_t zero_players_since = 0;
 	in_port_t s_port = 0;
 	bool s_is_perm_map = true;
 	time_t s_time_start = 0;
 	std::string s_map = "";
+	auto _retrieve_status_info_ = [&] (std::string slave, socketxx::io::simple_socket<socketxx::base_socket>& sock, bool& $status) {
+		$status = sock.i_bool();
+		if ($status) {
+			sock.o_bool(true);
+			s_is_perm_map = sock.i_bool();
+			s_map = sock.i_str();
+			s_time_start = sock.i_int<uint64_t>();
+			n_players = sock.i_int<int32_t>();
+			zero_players_since = sock.i_int<uint32_t>();
+			s_port = sock.i_int<in_port_t>();
+			if (not optctx::interactive)
+				std::cout << std::endl << xif::polyvar(xif::polyvar::map({{"running",true},
+				                                                          {"slave",slave},
+				                                                          {"players",n_players},
+				                                                          {"zeropl_min",(zero_players_since == 0 ? xif::polyvar() : xif::polyvar((::time(NULL)-zero_players_since)/60))},
+				                                                          {"port",s_port},
+				                                                          {"is_perm_map",s_is_perm_map},
+				                                                          {"map",s_map},
+				                                                          {"start_time",s_time_start}
+				})).to_json() << std::endl;
+		}
+		verifyMapList(slave, $server_name, sock);
+	};
 	if ($granmaster) {
 		std::string $local_slave_id = ::getRunningOnSlave($server_name);
 		if (not $local_slave_id.empty()) {
@@ -1046,16 +1070,7 @@ void MServStatus () {
 					std::string $re_local_slave_id = ::getRunningOnSlave($server_name);
 					if ($local_slave_id != $re_local_slave_id) 
 						__log__ << "After report, the server is now closed" << std::flush;
-					$status = sock.i_bool();
-					if ($status) {
-						sock.o_bool(true);
-						s_is_perm_map = sock.i_bool();
-						s_map = sock.i_str();
-						s_time_start = sock.i_int<uint64_t>();
-						n_players = sock.i_int<int32_t>();
-						s_port = sock.i_int<in_port_t>();
-					}
-					verifyMapList($local_slave_id, $server_name, sock);
+					_retrieve_status_info_($local_slave_id, sock, $status);
 				} catch (socketxx::error& e) {
 					__log__ << NICE_WARNING << "Network error while refreshing status : " << e.what() << std::flush;
 					::sleep(3);
@@ -1070,16 +1085,16 @@ void MServStatus () {
 				__log__ << LOG_ARROW_OK << "Yes, server is running on slave '" << $local_slave_id << "'." << std::flush;
 			} else {
 				__log__ << LOG_ARROW_ERR << "Erm... No, server isn't running on slave '" << $local_slave_id << "'." << std::flush;
-				
+				#warning TO DO : check on dedicated slave of all maps
 				if (not $slave_id.empty() and $local_slave_id != $slave_id) {
 					goto __check_on_user_slave;
 				} else {
 					__log__ << "Marking as closed..." << std::flush;
 					::setRunningOnSlave($server_name, "");
+					if (not optctx::interactive)
+						std::cout << std::endl << xif::polyvar(xif::polyvar::map({{"running",false}})).to_json() << std::endl;
 				}
 			}
-			if (not optctx::interactive)
-				std::cout << std::endl << xif::polyvar(xif::polyvar::map({{"running",$status},{"slave",$local_slave_id},{"players",n_players},{"port",s_port},{"is_perm_map",s_is_perm_map},{"map",s_map},{"start_time",s_time_start}})).to_json() << std::endl;
 		} else {
 			__log__ << "Locally, server is not running." << std::flush;
 			if (not $slave_id.empty()) 
@@ -1094,16 +1109,7 @@ void MServStatus () {
 		if ($status) {
 			try {
 				auto sock = getConnection($slave_id, $server_name, minecraft::op_code::SERV_STAT, {2,0}, false, true);
-				$status = sock.i_bool();
-				if ($status) {
-					sock.o_bool(true);
-					s_is_perm_map = sock.i_bool();
-					s_map = sock.i_str();
-					s_time_start = sock.i_int<uint64_t>();
-					n_players = sock.i_int<int32_t>();
-					s_port = sock.i_int<in_port_t>();
-				}
-				verifyMapList($slave_id, $server_name, sock);
+				_retrieve_status_info_($slave_id, sock, $status);
 			} catch (std::runtime_error& e) {
 				__log__ << NICE_WARNING << "Error while connecting to slave : " << e.what() << std::flush;
 				$status = false;
@@ -1125,27 +1131,20 @@ void MServStatus () {
 				__log__ << "Marking as closed..." << std::flush;
 				::setRunningOnSlave($server_name, "");
 			}
+			if (not optctx::interactive)
+				std::cout << std::endl << xif::polyvar(xif::polyvar::map({{"running",false}})).to_json() << std::endl;
 		}
-		if (not optctx::interactive)
-			std::cout << std::endl << xif::polyvar(xif::polyvar::map({{"running",$status},{"slave",$slave_id},{"players",n_players},{"port",s_port},{"is_perm_map",s_is_perm_map},{"map",s_map},{"start_time",s_time_start}})).to_json() << std::endl;
 	} else {
 		auto sock = getConnection($slave_id, $server_name, minecraft::op_code::SERV_STAT, {2,0}, false, false);
-		bool $status = sock.i_bool();
-		if ($status) {
-			sock.o_bool(true);
-			s_is_perm_map = sock.i_bool();
-			s_map = sock.i_str();
-			s_time_start = sock.i_int<uint64_t>();
-			n_players = sock.i_int<int32_t>();
-			s_port = sock.i_int<in_port_t>();
-		}
-		verifyMapList($slave_id, $server_name, sock);
+		bool $status;
+		_retrieve_status_info_($slave_id, sock, $status);
 		__log__ << LOG_ARROW_OK << "Server '" << $server_name << "' on slave '" << $slave_id << "' is " << ($status?"running":"NOT running") << std::flush;
 		if ($status) {
 			__log__ << n_players << " players connected" << std::flush;
+		} else {
+			if (not optctx::interactive)
+				std::cout << std::endl << xif::polyvar(xif::polyvar::map({{"running",false}})).to_json() << std::endl;
 		}
-		if (not optctx::interactive)
-			std::cout << std::endl << xif::polyvar(xif::polyvar::map({{"running",$status},{"players",n_players},{"port",s_port},{"is_perm_map",s_is_perm_map},{"map",s_map},{"start_time",s_time_start}})).to_json() << std::endl;
 	}
 }
 
