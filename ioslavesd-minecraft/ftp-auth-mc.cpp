@@ -28,7 +28,7 @@ pid_t minecraft::pure_ftpd_pid = -1;
 std::string minecraft::ftp_serv_addr;
 in_port_t minecraft::pure_ftpd_base_port = 210;
 in_port_t minecraft::pure_ftpd_pasv_range_beg = 30000;
-uint8_t minecraft::pure_ftpd_max_cli = 10;
+uint8_t minecraft::pure_ftpd_max_cli = 50;
 #define PURE_FTPD_BASE_PORT pure_ftpd_base_port
 #define PURE_FTPD_MAX_CLI pure_ftpd_max_cli
 #define PURE_FTPD_PASV_RANGE_SZ (2*PURE_FTPD_MAX_CLI)

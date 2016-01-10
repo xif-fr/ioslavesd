@@ -78,6 +78,7 @@ time_t $needed_time = 0;
 std::string $ftp_user, $ftp_hash_passwd;
 uint8_t $mc_viewdist = 7;
 time_t $autoclose_time = 0;
+in_port_t $port = 0;
 std::vector<in_port_t> $additional_ports;
 bool $start_temp_perm = false;
 bool $fixmap;
@@ -218,6 +219,7 @@ int main (int argc, char* const argv[]) {
 				{"viewdist", required_argument, NULL, 'e'},
 				{"threads", required_argument, NULL, '#'},
 				{"mean-cpu", required_argument, NULL, '~'},
+				{"port", required_argument, NULL, '>'},
 				{"additional-ports", required_argument, NULL, '+'},
 				{"hint", no_argument, NULL, '`'},
 			{"stop", no_argument, NULL, 'o'},
@@ -276,6 +278,7 @@ int main (int argc, char* const argv[]) {
 				       "              --autoclose=TIME    Server will close after TIME sec. without players.\n"
 				       "                                   Default = 0 = disabled\n"
 				       "              --viewdist=CHUNKS   Minecraft view distance. Default = 7\n"
+					   "              --port=MC_TCP_PORT  Choice of Minecraft TCP listening port is no more left to slave.\n"
 				       "              --additional-ports=P1,P2…  Open additional TCP ports (for JSONAPI for exemple).\n"
 				       "                                   Should be attributed uniquely across the network.\n"
 				       "              --hint              Take [SALVE-ID] only as a hint for slave selection.\n"
@@ -427,6 +430,14 @@ int main (int argc, char* const argv[]) {
 					$mc_viewdist = ::atoix<uint8_t>(optarg);
 				} catch (...) {
 					try_help("--viewdist : invalid view distance\n");
+				}
+				break;
+			case '>':
+				optctx::optctx_test("--port", optctx::servStart);
+				try {
+					$port = ::atoix<in_port_t>(optarg);
+				} catch (std::exception& e) {
+					try_help(_s("--port : invalid port : ",e.what(),"\n"));
 				}
 				break;
 			case '+': 
@@ -868,22 +879,34 @@ void handleReportRequest (socketxx::io::simple_socket<socketxx::base_socket> soc
 		sock.o_bool(false);
 		return;
 	}
-	if (not map_to_save.empty()) 
-		__log__ << " Saving world '" << map_to_save << "'..." << std::flush;
-	else __log__ << std::flush;
 	r = ::access( _s(IOSLAVES_MINECRAFT_MASTER_DIR,'/',servname), X_OK);
 	if (r == -1) {
-		__log__ << LOG_AROBASE_ERR << "Can't accept report request : unable to access server folder" << std::flush;
+		__log__ << std::flush << LOG_AROBASE_ERR << "Can't accept report request : unable to access server folder" << std::flush;
 		sock.o_bool(false);
 		return;
 	}
 	if (::getRunningOnSlave(servname).empty())
-		__log__ << COLOR_YELLOW << "Warning ! Locally, server was stopped. Maybe an another master started this server. " << COLOR_RESET << std::flush;
+		__log__ << std::flush << COLOR_YELLOW << "Warning ! Locally, server was stopped. Maybe an another master started this server. " << COLOR_RESET << std::flush;
+	std::string lockpath = _S( IOSLAVES_MINECRAFT_MASTER_DIR,'/',servname,"/_mcmaster.lock" );
+	fd_t lockf = ::open(lockpath.c_str(), O_CREAT|O_RDONLY|O_EXCL|O_NOFOLLOW, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
+	if (lockf == -1 and errno == EEXIST) {
+		__log__ << std::flush << LOG_AROBASE_ERR << "Can't accept report request : server directory is already locked" << std::flush;
+		sock.o_bool(false);
+		return;
+	}
+	if (lockf == -1) throw xif::sys_error("create lock file");
+	RAII_AT_END({
+		::close(lockf);
+		::unlink(lockpath.c_str());
+	});
+	if (not map_to_save.empty()) 
+		__log__ << " Saving world '" << map_to_save << "'..." << std::flush;
+	else __log__ << std::flush;
 	::setRunningOnSlave(servname, "");
 	sock.o_bool(true);
 	if (not map_to_save.empty()) {
 		acceptFileSave(sock, servname, map_to_save, slave, true);
-		#warning Is it reasonable to consider the save as a last-save ?
+		// Is it reasonable to consider the save as a last-save ?
 	}
 	__log__ << LOG_AROBASE_OK << "Report request : Done" << std::flush;
 }
@@ -1500,6 +1523,9 @@ _try_start:
 	__log__ << " - last-save-time : " << lastsavetime << std::flush;
 	sock->o_int<int64_t>(lastsavetime);
 	sock->o_bool($start_earlyconsole);
+	if ($port != 0) 
+		__log__ << " - minecraft port : " << $port << std::flush;
+	sock->o_int<uint16_t>($port);
 	sock->o_int<uint8_t>((uint8_t)$additional_ports.size());
 	for (size_t i = 0; i < $additional_ports.size(); i++) 
 		sock->o_int<uint16_t>($additional_ports[i]);

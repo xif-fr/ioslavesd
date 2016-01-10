@@ -1088,6 +1088,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			throw ioslaves::req_err(ioslaves::answer_code::SECURITY_ERROR, "PARAM", MCLOGSCLI(s) << "'" << s->s_map << "' is not a valid map name");
 		time_t s_lastsavetime = (time_t)cli.i_int<int64_t>();
 		bool early_console = cli.i_bool();
+		s->s_port = cli.i_int<uint16_t>();
 		size_t oth_ports_sz = cli.i_int<uint8_t>();
 		for (size_t i = 0; i < oth_ports_sz; i++) {
 			in_port_t port = cli.i_int<uint16_t>();
@@ -1117,10 +1118,17 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			std::string port_descr = _s("minecraft server ",servid);
 			::srand((unsigned int)::time(NULL));
 			int8_t itry = -0xF;
+			if (s->s_port != 0) {
+				if (s->s_port < MINECRAFT_PORT_RANGE_BEG) 
+					throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "PORT", "Master-chosen port outside allowed range", log_lvl::ERROR);
+				itry = MINECRAFT_PORT_RANGE_SZ-1;
+				goto __test_port;
+			}
 		__new_port:
 			if (++itry == MINECRAFT_PORT_RANGE_SZ)
 				throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "PORT", "Port range entierly used !", log_lvl::SEVERE);
 			s->s_port = ::rand()%MINECRAFT_PORT_RANGE_SZ + MINECRAFT_PORT_RANGE_BEG;
+		__test_port:
 			if (minecraft::servs.find(servid) != minecraft::servs.end())
 				throw ioslaves::req_err(ioslaves::answer_code::BAD_STATE, "SERV", MCLOGSCLI(s) << "Server already opened", log_lvl::OOPS);
 			for (std::pair<std::string,minecraft::serv*> p : minecraft::servs) {
@@ -1762,12 +1770,12 @@ void* minecraft::serv_thread (void* arg) {
 								int_req->data = NULL;
 								int_req->patterns_beg = MINECRAFT_LIST_PATTERNS_BEG;
 								int_req->sock = new socketxx::io::simple_socket<socketxx::base_socket>( comms );
-								int_req->f_callback = [&parse_list_players] (decltype(int_req->sock) sock, std::string msg, interpret_request* req) -> bool {
+								int_req->f_callback = [&parse_list_players,&first_0] (decltype(int_req->sock) sock, std::string msg, interpret_request* req) -> bool {
 									try {
 										uint16_t n_players = parse_list_players(msg, req);
 										sock->o_char((char)ioslaves::answer_code::OK);
 										sock->o_int<int16_t>(n_players);
-										sock->o_int<uint32_t>(first_0);
+										sock->o_int<uint32_t>((uint32_t)first_0);
 									} catch (std::exception& e) {
 										try {
 											sock->o_char((char)ioslaves::answer_code::ERROR);
