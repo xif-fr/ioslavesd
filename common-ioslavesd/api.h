@@ -20,7 +20,7 @@ public:
 	pthread_mutex_handle (pthread_mutex_t* mutex) : _mutex(mutex), _locked(new bool (true)) { ::pthread_mutex_lock(_mutex); }
 	pthread_mutex_handle (const pthread_mutex_handle& oth) = delete;
 	void soon_unlock () { ::pthread_mutex_unlock(_mutex); *_locked = false; }
-	~pthread_mutex_handle () { if (not *_locked) ::pthread_mutex_unlock(_mutex); delete _locked; }
+	~pthread_mutex_handle () { if (*_locked) ::pthread_mutex_unlock(_mutex); delete _locked; }
 };
 #define pthread_mutex_handle_lock(mutex) pthread_mutex_handle _mutex_handle_ (&mutex)
 
