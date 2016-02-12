@@ -1,3 +1,12 @@
+/**********************************************************\
+ *                ioslaves : ioslaves-master
+ *            Common header for master programs
+ *     Connection/Authentication/DynSlaves interfaces
+ * *********************************************************
+ * Copyright © Félix Faisant 2014-2016. All rights reserved
+ * This software is under the GNU General Public License
+ \**********************************************************/
+
 #include "master.hpp"
 using namespace xlog;
 using ioslaves::answer_code;

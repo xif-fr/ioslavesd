@@ -1,9 +1,8 @@
 /**********************************************************\
- *               -== Xif Network project ==-
- *             ioslaves-master keystore plugin
+ *        ioslaves : ioslaves-master keystore plugin
  *          Arduino key storage and authentication
  * *********************************************************
- * Copyright © Félix Faisant 2015. All rights reserved
+ * Copyright © Félix Faisant 2015-2016. All rights reserved
  * This software is under the GNU General Public License
  \**********************************************************/
 
@@ -118,8 +117,10 @@ extern "C" ioslaves::hash_t key_answer_challenge (std::string key_id, ioslaves::
 		throw std::runtime_error(logstream << "failed to connect to arduino : " << e.what() << logstr);
 	}
 	RAII_AT_END({
-		if (not arduino_reuse_conn) 
+		if (not arduino_reuse_conn) {
+			__log__(log_lvl::LOG, "ARDUINO", logstream << "Connection to arduino closed");
 			::close(serial);
+		}
 	});
 	::arduino_write_str(serial, key_id, KEY_ID_MAX_SZ);
 	arduino_auth_answ o;

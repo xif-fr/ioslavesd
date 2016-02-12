@@ -1,9 +1,8 @@
 /**********************************************************\
- *                 -== Xif Network project ==-
- *                 ioslaves master : Minecraft
- *   Masters control program for for Minecraft API service
+ *          ioslaves : ioslaves master : Minecraft
+ *   Master program for controlling Minecraft API service
  * *********************************************************
- * Copyright © Félix Faisant 2013-2015. All rights reserved
+ * Copyright © Félix Faisant 2013-2016. All rights reserved
  * This software is under the GNU General Public License
  \**********************************************************/
 
@@ -17,6 +16,7 @@
 #include <algorithm>
 #include <sys/dir.h>
 #include <sys/time.h>
+#include <math.h>
 #include <xifutils/cxx.hpp>
 #include <xifutils/intstr.hpp>
 
@@ -167,7 +167,7 @@ public:
 } _cwlog_buf;
 std::ostream __log__ (&_cwlog_buf);
 
-#define XIF_LOG_DEFAULT_LOGSTREAM_IMPL
+#define IOSLAVES_LOG_DEFAULT_LOGSTREAM_IMPL
 #include "log_defimpl.h"
 pthread_mutex_t xlog::logstream_impl::mutex = PTHREAD_MUTEX_INITIALIZER;
 std::ostringstream xlog::logstream_impl::stream;
@@ -311,9 +311,9 @@ int main (int argc, char* const argv[]) {
 				$granmaster = true;
 				::tryParseSlaveID(argc,argv);
 					// Create ioslaves-master and minecraft-master dirs if not exist
-				r = ::access(_s(IOSLAVES_MASTER_DIR), F_OK);
+				r = ::access(IOSLAVES_MASTER_DIR, F_OK);
 				if (r == -1) {
-					r = ::mkdir(_s(IOSLAVES_MASTER_DIR), 0740);
+					r = ::mkdir(IOSLAVES_MASTER_DIR, 0740);
 					if (r == -1) {
 						std::cerr << COLOR_RED << "Can't create ioslaves-master directory" << COLOR_RESET << " (" << IOSLAVES_MASTER_DIR << ") : " << ::strerror(errno) << std::endl;
 						return EXIT_FAILURE;

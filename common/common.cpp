@@ -1,3 +1,11 @@
+/**********************************************************\
+ *                        ioslaves
+ *    Common ioslaves utility and communication routines
+ * *********************************************************
+ * Copyright © Félix Faisant 2013-2016. All rights reserved
+ * This software is under the GNU General Public License
+ \**********************************************************/
+
 #include "common.hpp"
 
 	// General

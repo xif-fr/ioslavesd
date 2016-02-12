@@ -1,9 +1,8 @@
 /**********************************************************\
- *               -== Xif Network project ==-
- *                      ioslaves-master
+ *                ioslaves : ioslaves-master
  *     Implementation of some connect and auth routines
  * *********************************************************
- * Copyright © Félix Faisant 2014-2015. All rights reserved
+ * Copyright © Félix Faisant 2014-2016. All rights reserved
  * This software is under the GNU General Public License
  \**********************************************************/
 

@@ -1,9 +1,9 @@
 /**********************************************************\
- *                 -== Xif Network project ==-
- *                         ioslstatd
- *               ioslaves master : status daemon
+ *                  ioslaves : ioslstatd
+ *        Master daemon retrieving and broadcasting
+ *            slaves status data via websocket
  * *********************************************************
- * Copyright © Félix Faisant 2014-2015. All rights reserved
+ * Copyright © Félix Faisant 2014-2016. All rights reserved
  * This software is under the GNU General Public License
  \**********************************************************/
 

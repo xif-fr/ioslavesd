@@ -1,9 +1,8 @@
 /**********************************************************\
- *               -== Xif Network project ==-
- *                      ioslaves-master
+ *                 ioslavs : ioslaves-master
  *          Wake On Lan/Wan sender implementation
  * *********************************************************
- * Copyright © Félix Faisant 2015. All rights reserved
+ * Copyright © Félix Faisant 2015-2016. All rights reserved
  * This software is under the GNU General Public License
  \**********************************************************/
 

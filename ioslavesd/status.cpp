@@ -1,10 +1,8 @@
 /**********************************************************\
- *               -== Xif Network project ==-
- *                   ioslaves - slave side
- *
- *                       Slave status
+ *                   ioslaves : ioslavesd
+ *     Slave system status and monitoring. Uses ToppAPI
  * *********************************************************
- * Copyright © Félix Faisant 2014-2015. All rights reserved
+ * Copyright © Félix Faisant 2014-2016. All rights reserved
  * This software is under the GNU General Public License
  \**********************************************************/
 
@@ -200,7 +198,7 @@ void ioslaves::statusEnd () {
 	#ifndef IOSLAVESD_NO_TOPP
 	std::tuple<time_t,time_t,time_t> uptimes = ioslaves::statusLinuxCalculateUptimes();
 	asroot_block();
-	std::ofstream totuptime_F (IOSLAVESD_UPTIME_FILE, std::fstream::out|std::fstream::trunc);
+	std::ofstream totuptime_F (_s(IOSLAVESD_PERSISTANT_RUN_FILES,"/uptime.iosl"), std::fstream::out|std::fstream::trunc);
 	totuptime_F << std::get<0>(uptimes) << ' ' << std::get<1>(uptimes) << ' ' << std::get<2>(uptimes);
 	#endif
 }
@@ -213,7 +211,7 @@ std::tuple<time_t,time_t,time_t> ioslaves::statusLinuxCalculateUptimes () {
 	time_t idletime = (time_t)( ::atof(F_uptime.stri(1).c_str()) / system_stat["cpu#"].i() );
 	time_t usedtime = uptime - idletime;
 	try {
-		topparsing::FieldsFile F_totuptime(IOSLAVESD_UPTIME_FILE, ' ', 3);
+		topparsing::FieldsFile F_totuptime(_s(IOSLAVESD_PERSISTANT_RUN_FILES,"/uptime.iosl"), ' ', 3);
 		float factor = (float)iosl_uptime/(float)uptime;
 		uptime = F_totuptime.numi(0) + iosl_uptime;
 		idletime = F_totuptime.numi(1) + (time_t)((float)idletime*factor);

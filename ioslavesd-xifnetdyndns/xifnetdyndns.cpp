@@ -1,9 +1,8 @@
 /**********************************************************\
- *               -== Xif Network project ==-
- *         ioslaves API service : XifNet Dynamic DNS 
- *  Dynamic DNS service interfacing NSD for the Xif Network
+ *            ioslaves : ioslavesd-xifnetdyndns
+ * Dynamic DNS service interfacing NSD for an ioslaves network
  * *********************************************************
- * Copyright © Félix Faisant 2014-2015. All rights reserved
+ * Copyright © Félix Faisant 2014-2016. All rights reserved
  * This software is under the GNU General Public License
  * *********************************************************
  * This dynamic DNS service use minimal TTLs for minimizing 
@@ -34,8 +33,6 @@ using namespace xlog;
 namespace xdyndns {
 	
 		// Slaves dyn IPs
-	
-	#define XIFNETDYNDNS_DYNIP_SLAVES_DOMAIN XIFNET_SLAVES_DOM
 	
 	struct slave_info_t {
 		std::string slave_name;
@@ -69,9 +66,6 @@ namespace xdyndns {
 	};
 	
 		// Manipulate DNS Server
-	
-	#define XIFNETDYNDNS_ZONES_DIR "/etc/nsd/zones"
-	#define XIFNETDYNDNS_ZONE_EXT ".zone"
 	
 	void NSD_zone_parser (std::string domain, const std::list<xdyndns::srv_t>* srvs, xdyndns::a_record_t* slave_ip_set);
 	void NSD_reload ();
@@ -305,7 +299,7 @@ void xdyndns::NSD_reload () {
 /// Zone file parser
 
 void xdyndns::NSD_zone_parser (std::string domain, const std::list<xdyndns::srv_t>* srvs, xdyndns::a_record_t* slave_ip_set) {
-	fd_t f = ::open(_s( XIFNETDYNDNS_ZONES_DIR,'/',domain,XIFNETDYNDNS_ZONE_EXT ), O_RDWR);
+	fd_t f = ::open(_s( XIFNETDYNDNS_NSD_ZONES_DIR,'/',domain,".zone" ), O_RDWR);
 	if (f == INVALID_HANDLE) throw xif::sys_error("can't open zone file for modifying");
 	RAII_AT_END_L( ::close(f) );
 	char c;

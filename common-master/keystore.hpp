@@ -1,9 +1,8 @@
 /**********************************************************\
- *               -== Xif Network project ==-
- *             ioslaves-master common header
- *                Master key storage API
+ *               ioslaves : ioslaves-master
+ *      Common header : Master key storage plugins API
  * *********************************************************
- * Copyright © Félix Faisant 2015. All rights reserved
+ * Copyright © Félix Faisant 2015-2016. All rights reserved
  * This software is under the GNU General Public License
  \**********************************************************/
 

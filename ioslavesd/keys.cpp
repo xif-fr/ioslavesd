@@ -1,9 +1,8 @@
 /**********************************************************\
- *               -== Xif Network project ==-
- *                   ioslaves - slave side
- *                 Key and Perms managemant
+ *                  ioslaves : ioslavesd
+ *                 Key and Perms management
  * *********************************************************
- * Copyright © Félix Faisant 2015. All rights reserved
+ * Copyright © Félix Faisant 2015-2016. All rights reserved
  * This software is under the GNU General Public License
  \**********************************************************/
 

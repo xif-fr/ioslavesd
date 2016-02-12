@@ -1,5 +1,5 @@
 CXX = clang++
-CXX_FLAGS = $(CXXFLAGS) -Wall -std=gnu++0x $(shell pkg-config --cflags nopoll) -DXIFNET
+CXX_FLAGS = $(CXXFLAGS) -Wall -std=gnu++0x $(shell pkg-config --cflags nopoll)
 LDFLAGS = $(shell pkg-config --libs-only-l socketxx nopoll) -lldns
 
 ifndef $(LD)

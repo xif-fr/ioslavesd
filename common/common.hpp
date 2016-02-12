@@ -1,11 +1,8 @@
 /**********************************************************\
- *               -== Xif Network project ==-
  *                        ioslaves
- *            Control interface for XifNet services
- * 
- *            Common interface for communication 
+ *    Common ioslaves utility and communication routines
  * *********************************************************
- * Copyright © Félix Faisant 2013-2015. All rights reserved
+ * Copyright © Félix Faisant 2013-2016. All rights reserved
  * This software is under the GNU General Public License
  \**********************************************************/
 
@@ -34,10 +31,6 @@ const std::string& __get_homedir__();
 #include <socket++/base_io.hpp>
 #include <socket++/base_inet.hpp>
 struct pipe_proc_t { fd_t in; fd_t out; fd_t err; };
-
-#ifdef XIFNET
-	#define XIFNET_SLAVES_DOM "net.xif.fr"
-#endif
 
 namespace ioslaves {
 	

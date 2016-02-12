@@ -1,7 +1,6 @@
 /**********************************************************\
- *               -== Xif Network project ==-
  *                   ioslaves API header
- *            Control interface for XifNet services
+ *            Control interface for ioslavesd services
  * *********************************************************
  * Copyright © Félix Faisant 2013-2015. All rights reserved
  * This software is under the GNU General Public License
@@ -187,7 +186,7 @@ extern "C" void ioslapi_set_callbacks (ioslaves::service* _me, sig_atomic_t* _si
 }
 
 	// API Log
-#define XIF_LOG_DEFAULT_LOGSTREAM_IMPL
+#define IOSLAVES_LOG_DEFAULT_LOGSTREAM_IMPL
 #include "log_defimpl.h"
 pthread_mutex_t xlog::logstream_impl::mutex = PTHREAD_MUTEX_INITIALIZER;
 std::ostringstream xlog::logstream_impl::stream;

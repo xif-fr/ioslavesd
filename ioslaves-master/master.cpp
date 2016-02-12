@@ -1,9 +1,8 @@
 /**********************************************************\
- *               -== Xif Network project ==-
- *                      ioslaves-master
- *            Ioslaves Control Program for Masters
+ *                ioslaves : ioslaves-master
+ *  Master program user interface for controlling ioslavesd
  * *********************************************************
- * Copyright © Félix Faisant 2013-2015. All rights reserved
+ * Copyright © Félix Faisant 2013-2016. All rights reserved
  * This software is under the GNU General Public License
  \**********************************************************/
 
@@ -51,7 +50,7 @@ typedef void* dl_t;
 #include <socket++/quickdefs.h>
 
 	// Log
-#define XIF_LOG_DEFAULT_LOGSTREAM_IMPL
+#define IOSLAVES_LOG_DEFAULT_LOGSTREAM_IMPL
 #include "log_defimpl.h"
 pthread_mutex_t xlog::logstream_impl::mutex = PTHREAD_MUTEX_INITIALIZER;
 std::ostringstream xlog::logstream_impl::stream;
@@ -189,9 +188,9 @@ int main (int argc, char* const argv[]) {
 	};
 	
 	{ int r;
-		r = ::access(_s(IOSLAVES_MASTER_DIR), F_OK);
+		r = ::access(IOSLAVES_MASTER_DIR, F_OK);
 		if (r == -1) {
-			r = ::mkdir(_s(IOSLAVES_MASTER_DIR), 0740);
+			r = ::mkdir(IOSLAVES_MASTER_DIR, 0740);
 			if (r == -1) {
 				std::cerr << COLOR_RED << "Can't create ioslaves-master directory" << COLOR_RESET << " (" << IOSLAVES_MASTER_DIR << ") : " << ::strerror(errno) << std::endl;
 				return EXIT_FAILURE;

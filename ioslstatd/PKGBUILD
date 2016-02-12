@@ -19,7 +19,7 @@ sha256sums=('SKIP' 'SKIP' 'SKIP'
             'SKIP')
 
 build() {
-	make CXXFLAGS="${CXXFLAGS} -DXIFNET"
+	make CXXFLAGS="${CXXFLAGS} -DXIFNET_MC_DOM=\"\\\"mc.xif.fr\\\"\" "
 }
 
 package() {

@@ -1,9 +1,8 @@
 /**********************************************************\
- *                 -== Xif Network project ==-
- *                      XifNet Master.app
- *         ioslaves master graphical interface for OS X
+ *              ioslaves : XifNet Master.app
+ *       ioslaves master graphical interface for OS X
  * *********************************************************
- * Copyright © Félix Faisant 2015. All rights reserved
+ * Copyright © Félix Faisant 2015-2016. All rights reserved
  * This software is under the GNU General Public License
  \**********************************************************/
 

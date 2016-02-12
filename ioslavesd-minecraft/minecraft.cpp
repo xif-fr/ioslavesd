@@ -1,9 +1,8 @@
 /**********************************************************\
- *               -== Xif Network project ==-
- *             ioslaves API service : Minecraft
- *        Control sub-program for Minecraft servers
+ *             ioslaves : ioslavesd-minecraft
+ *  Minecraft servers dynamic hosting service for ioslavesd
  * *********************************************************
- * Copyright © Félix Faisant 2013-2015. All rights reserved
+ * Copyright © Félix Faisant 2013-2016. All rights reserved
  * This software is under the GNU General Public License
  \**********************************************************/
 

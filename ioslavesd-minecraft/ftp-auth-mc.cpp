@@ -1,9 +1,8 @@
 /**********************************************************\
- *               -== Xif Network project ==-
- *                   ioslavesd minecraft
+ *              ioslaves : ioslavesd-minecraft
  *   pure-ftpd external auth method for minecraft service
  * *********************************************************
- * Copyright © Félix Faisant 2015. All rights reserved
+ * Copyright © Félix Faisant 2015-2016. All rights reserved
  * This software is under the GNU General Public License
  \**********************************************************/
 

@@ -1,9 +1,8 @@
 /**********************************************************\
- *               -== Xif Network project ==-
- *      ioslaves API service : WoL/Wake slave Gateway
- *               `ioslaves-master --on` relay
+ *             ioslaves : ioslavesd-wake-gateway
+ *   WoL/Wake slave gateway : `ioslaves-master --on` relay
  * *********************************************************
- * Copyright © Félix Faisant 2015. All rights reserved
+ * Copyright © Félix Faisant 2015-2016. All rights reserved
  * This software is under the GNU General Public License
  \**********************************************************/
 

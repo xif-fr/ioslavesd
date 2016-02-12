@@ -25,7 +25,18 @@ sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP'
             'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 build() {
-	make CXXFLAGS="${CXXFLAGS} -DIOSLAVES_FHS -DXIFNET -DIOSLAVES_MASTER_DIR=\"\\\"/var/ioslaves/ioslaves-master\\\"\" -DIOSLAVESD_VERSION=\"\\\"${pkgver}\\\"\" "
+	cat > $srcdir/defs.h <<- EODEFS
+		#define IOSLAVESD_ETC_DIR               "/etc/ioslavesd"
+		#define IOSLAVESD_API_DL_DIR            "/usr/lib/ioslavesd/api-services"
+		#define IOSLAVESD_LOG_FILE              "/var/log/ioslavesd.log"
+		#define IOSLAVESD_RUN_FILES             "/var/run"
+		#define IOSLAVESD_PERSISTANT_RUN_FILES  "/var/db"
+		#define IOSLAVESD_KEYS_DIR              IOSLAVESD_ETC_DIR"/keys"
+		#define IOSLAVES_MASTER_DIR             "/var/ioslaves/ioslaves-master"
+		#define IOSLAVESD_VERSION               "${pkgver}"
+		#define XIFNET_SLAVES_DOM               "net.xif.fr"
+EODEFS
+	make CXXFLAGS="${CXXFLAGS} -include defs.h"
 }
 
 package() {

@@ -23,7 +23,6 @@
 		AA1D3AD91ADECDAF00E2C7F6 /* minecraft.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA1D3AD41ADECDAF00E2C7F6 /* minecraft.cpp */; };
 		AA24CDCE1B8DFF1300B0AA73 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = AA24CDCC1B8DFF1300B0AA73 /* MainMenu.xib */; };
 		AA2B28EA1B83C06D00DAA1DD /* xif_logo_warn.png in Resources */ = {isa = PBXBuildFile; fileRef = AA2B28E91B83C06D00DAA1DD /* xif_logo_warn.png */; };
-		AA2B28EE1B83C14E00DAA1DD /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = AA2B28F01B83C14E00DAA1DD /* MainMenu.xib */; };
 		AA2B28F21B83C30B00DAA1DD /* icon.icns in Resources */ = {isa = PBXBuildFile; fileRef = AA2B28F11B83C30B00DAA1DD /* icon.icns */; };
 		AA2B28F71B83C85D00DAA1DD /* dot_blue.png in Resources */ = {isa = PBXBuildFile; fileRef = AA2B28F31B83C85D00DAA1DD /* dot_blue.png */; };
 		AA2B28F81B83C85D00DAA1DD /* dot_red.png in Resources */ = {isa = PBXBuildFile; fileRef = AA2B28F41B83C85D00DAA1DD /* dot_red.png */; };
@@ -99,9 +98,9 @@
 		AA1045AD1B5D9A7F00E8A875 /* Makefile */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.make; path = Makefile; sourceTree = "<group>"; };
 		AA129CEB1A90E83E009A2B42 /* ioslstatd */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ioslstatd; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA182FD01AF425CC007F94BD /* PKGBUILD */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = PKGBUILD; path = "ioslavesd-wake-gateway/PKGBUILD"; sourceTree = "<group>"; };
-		AA1D3AD11ADECD9200E2C7F6 /* minecraft.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = minecraft.h; path = "common-minecraft/minecraft.h"; sourceTree = "<group>"; };
-		AA1D3AD21ADECDAF00E2C7F6 /* ftp-auth-mc.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "ftp-auth-mc.cpp"; path = "ioslavesd-minecraft/ftp-auth-mc.cpp"; sourceTree = "<group>"; };
-		AA1D3AD41ADECDAF00E2C7F6 /* minecraft.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = minecraft.cpp; path = "ioslavesd-minecraft/minecraft.cpp"; sourceTree = "<group>"; };
+		AA1D3AD11ADECD9200E2C7F6 /* minecraft.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; lineEnding = 0; name = minecraft.h; path = "common-minecraft/minecraft.h"; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.objcpp; };
+		AA1D3AD21ADECDAF00E2C7F6 /* ftp-auth-mc.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; lineEnding = 0; name = "ftp-auth-mc.cpp"; path = "ioslavesd-minecraft/ftp-auth-mc.cpp"; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
+		AA1D3AD41ADECDAF00E2C7F6 /* minecraft.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; lineEnding = 0; name = minecraft.cpp; path = "ioslavesd-minecraft/minecraft.cpp"; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
 		AA2333951AE06F31009433E3 /* PKGBUILD */ = {isa = PBXFileReference; lastKnownFileType = text; path = PKGBUILD; sourceTree = "<group>"; };
 		AA2333971AE06F3C009433E3 /* PKGBUILD */ = {isa = PBXFileReference; lastKnownFileType = text; name = PKGBUILD; path = "ioslaves-master-minecraft/PKGBUILD"; sourceTree = SOURCE_ROOT; };
 		AA2333981AE06F4A009433E3 /* PKGBUILD */ = {isa = PBXFileReference; lastKnownFileType = text; name = PKGBUILD; path = "ioslavesd-xifnetdyndns/PKGBUILD"; sourceTree = "<group>"; };
@@ -114,32 +113,32 @@
 		AA2B28F41B83C85D00DAA1DD /* dot_red.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = dot_red.png; path = "ioslaves-master-macgui/dot_red.png"; sourceTree = SOURCE_ROOT; };
 		AA2B28F51B83C85D00DAA1DD /* dot_white.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = dot_white.png; path = "ioslaves-master-macgui/dot_white.png"; sourceTree = SOURCE_ROOT; };
 		AA2B28F61B83C85D00DAA1DD /* dot_yellow.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = dot_yellow.png; path = "ioslaves-master-macgui/dot_yellow.png"; sourceTree = SOURCE_ROOT; };
-		AA2F82191AED6CE100DFBBDF /* wake-gateway.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "wake-gateway.cpp"; path = "ioslavesd-wake-gateway/wake-gateway.cpp"; sourceTree = "<group>"; };
+		AA2F82191AED6CE100DFBBDF /* wake-gateway.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; lineEnding = 0; name = "wake-gateway.cpp"; path = "ioslavesd-wake-gateway/wake-gateway.cpp"; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
 		AA3944021B70E37C00E43364 /* log_defimpl.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = log_defimpl.h; path = common/log_defimpl.h; sourceTree = "<group>"; };
 		AA41B72B1ADEC2E200B369BE /* common.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = common.cpp; path = common/common.cpp; sourceTree = "<group>"; };
-		AA41B72C1ADEC2E200B369BE /* common.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = common.hpp; path = common/common.hpp; sourceTree = "<group>"; };
+		AA41B72C1ADEC2E200B369BE /* common.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; lineEnding = 0; name = common.hpp; path = common/common.hpp; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
 		AA41B7351ADEC2FE00B369BE /* api.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = api.h; path = "common-ioslavesd/api.h"; sourceTree = "<group>"; };
-		AA41B73E1ADEC32B00B369BE /* xifnetdyndns.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = xifnetdyndns.cpp; path = "ioslavesd-xifnetdyndns/xifnetdyndns.cpp"; sourceTree = "<group>"; };
-		AA41B7431ADEC34500B369BE /* log_slave.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = log_slave.cpp; path = ioslavesd/log_slave.cpp; sourceTree = "<group>"; };
-		AA41B7441ADEC34500B369BE /* main.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = main.h; path = ioslavesd/main.h; sourceTree = "<group>"; };
-		AA41B7471ADEC34500B369BE /* slave.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = slave.cpp; path = ioslavesd/slave.cpp; sourceTree = "<group>"; };
-		AA41B7491ADEC34500B369BE /* status.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = status.cpp; path = ioslavesd/status.cpp; sourceTree = "<group>"; };
-		AA41B74A1ADEC34500B369BE /* upnp.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = upnp.cpp; path = ioslavesd/upnp.cpp; sourceTree = "<group>"; };
+		AA41B73E1ADEC32B00B369BE /* xifnetdyndns.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; lineEnding = 0; name = xifnetdyndns.cpp; path = "ioslavesd-xifnetdyndns/xifnetdyndns.cpp"; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
+		AA41B7431ADEC34500B369BE /* log_slave.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; lineEnding = 0; name = log_slave.cpp; path = ioslavesd/log_slave.cpp; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
+		AA41B7441ADEC34500B369BE /* main.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; lineEnding = 0; name = main.h; path = ioslavesd/main.h; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.objcpp; };
+		AA41B7471ADEC34500B369BE /* slave.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; lineEnding = 0; name = slave.cpp; path = ioslavesd/slave.cpp; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
+		AA41B7491ADEC34500B369BE /* status.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; lineEnding = 0; name = status.cpp; path = ioslavesd/status.cpp; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
+		AA41B74A1ADEC34500B369BE /* upnp.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; lineEnding = 0; name = upnp.cpp; path = ioslavesd/upnp.cpp; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
 		AA41B7551ADEC7EB00B369BE /* ioslstatd.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ioslstatd.cpp; sourceTree = "<group>"; };
 		AA41B7561ADEC7EB00B369BE /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; path = Makefile; sourceTree = "<group>"; };
 		AA41B7571ADEC7EB00B369BE /* PKGBUILD */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = PKGBUILD; sourceTree = "<group>"; };
 		AA41B75A1ADECB1600B369BE /* dyn_slaves.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = dyn_slaves.cpp; path = "common-master/dyn_slaves.cpp"; sourceTree = SOURCE_ROOT; };
-		AA41B75B1ADECB1700B369BE /* master-impl.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "master-impl.cpp"; path = "common-master/master-impl.cpp"; sourceTree = SOURCE_ROOT; };
-		AA41B75C1ADECB1700B369BE /* master.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = master.hpp; path = "common-master/master.hpp"; sourceTree = SOURCE_ROOT; };
-		AA41B75D1ADECB1700B369BE /* wol.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = wol.cpp; path = "common-master/wol.cpp"; sourceTree = SOURCE_ROOT; };
-		AA41B7651ADECB3900B369BE /* master.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = master.cpp; sourceTree = "<group>"; };
+		AA41B75B1ADECB1700B369BE /* master-impl.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; lineEnding = 0; name = "master-impl.cpp"; path = "common-master/master-impl.cpp"; sourceTree = SOURCE_ROOT; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
+		AA41B75C1ADECB1700B369BE /* master.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; lineEnding = 0; name = master.hpp; path = "common-master/master.hpp"; sourceTree = SOURCE_ROOT; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
+		AA41B75D1ADECB1700B369BE /* wol.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; lineEnding = 0; name = wol.cpp; path = "common-master/wol.cpp"; sourceTree = SOURCE_ROOT; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
+		AA41B7651ADECB3900B369BE /* master.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; lineEnding = 0; path = master.cpp; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
 		AA41B76A1ADECB9B00B369BE /* minecraft-master.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "minecraft-master.cpp"; path = "ioslaves-master-minecraft/minecraft-master.cpp"; sourceTree = SOURCE_ROOT; };
 		AA429FA41B81D58B003385EB /* en */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = en; path = "ioslaves-master-macgui/en.lproj/SlaveViews.xib"; sourceTree = SOURCE_ROOT; };
 		AA429FDA1B81FBE8003385EB /* xif_logo_err.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = xif_logo_err.png; path = "ioslaves-master-macgui/xif_logo_err.png"; sourceTree = SOURCE_ROOT; };
 		AA429FDB1B81FBE8003385EB /* xif_logo_log.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = xif_logo_log.png; path = "ioslaves-master-macgui/xif_logo_log.png"; sourceTree = SOURCE_ROOT; };
 		AA429FDC1B81FBE8003385EB /* xif_logo_maj.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = xif_logo_maj.png; path = "ioslaves-master-macgui/xif_logo_maj.png"; sourceTree = SOURCE_ROOT; };
 		AA46BE581B779B8400E72F0C /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = /System/Library/Frameworks/Cocoa.framework; sourceTree = "<absolute>"; };
-		AA4A44C81B57AADB005CBBDC /* keys.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = keys.cpp; path = ioslavesd/keys.cpp; sourceTree = "<group>"; };
+		AA4A44C81B57AADB005CBBDC /* keys.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; lineEnding = 0; name = keys.cpp; path = ioslavesd/keys.cpp; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
 		AA6B99FC1AED9F1700146475 /* log.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = log.h; path = common/log.h; sourceTree = "<group>"; };
 		AA7EEC49193C9221002AD7E4 /* libxifnetdyndns.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = libxifnetdyndns.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA90C531189F7461003A8C60 /* libminecraft.ioslaves.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = libminecraft.ioslaves.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -164,11 +163,11 @@
 		AAD214831AE971C50062A678 /* wake-gateway.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = "wake-gateway.dylib"; sourceTree = BUILT_PRODUCTS_DIR; };
 		AADE2C541C2D910600017CC8 /* arduino-Makefile */ = {isa = PBXFileReference; lastKnownFileType = text; name = "arduino-Makefile"; path = "keystore/arduino-Makefile"; sourceTree = "<group>"; };
 		AADE2C551C2D910600017CC8 /* PKGBUILD */ = {isa = PBXFileReference; lastKnownFileType = text; name = PKGBUILD; path = keystore/PKGBUILD; sourceTree = "<group>"; };
-		AADFEA661B63F53D00163432 /* keystore.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = keystore.hpp; path = "common-master/keystore.hpp"; sourceTree = SOURCE_ROOT; };
+		AADFEA661B63F53D00163432 /* keystore.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; lineEnding = 0; name = keystore.hpp; path = "common-master/keystore.hpp"; sourceTree = SOURCE_ROOT; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
 		AADFEA701B64FCDE00163432 /* Makefile */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.make; name = Makefile; path = "ioslavesd-wake-gateway/Makefile"; sourceTree = "<group>"; };
 		AADFEA721B64FCE900163432 /* Makefile */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.make; name = Makefile; path = "ioslavesd-xifnetdyndns/Makefile"; sourceTree = "<group>"; };
 		AADFEA731B64FCF300163432 /* Makefile */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.make; name = Makefile; path = "ioslavesd-minecraft/Makefile"; sourceTree = "<group>"; };
-		AAF5EBAE1B63EF9100E445C3 /* arduino.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = arduino.cpp; path = keystore/arduino.cpp; sourceTree = "<group>"; };
+		AAF5EBAE1B63EF9100E445C3 /* arduino.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; lineEnding = 0; name = arduino.cpp; path = keystore/arduino.cpp; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
 		AAF5EBB41B63F02400E445C3 /* libarduino.ioslmcext */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = libarduino.ioslmcext; sourceTree = BUILT_PRODUCTS_DIR; };
 		AAF5EBB91B63F1F000E445C3 /* iosl_master_keystore.ino */ = {isa = PBXFileReference; lastKnownFileType = text; name = iosl_master_keystore.ino; path = keystore/iosl_master_keystore/iosl_master_keystore.ino; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
 		AAFED1201B7F5F0000FC0297 /* stat_cross.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = stat_cross.png; path = "ioslaves-master-macgui/stat_cross.png"; sourceTree = SOURCE_ROOT; };
@@ -637,7 +636,7 @@
 		AA99F1A7184C65DD00BB6836 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0420;
+				LastUpgradeCheck = 0620;
 			};
 			buildConfigurationList = AA99F1AA184C65DD00BB6836 /* Build configuration list for PBXProject "ioslaves" */;
 			compatibilityVersion = "Xcode 3.2";
@@ -669,7 +668,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				AA2B28EE1B83C14E00DAA1DD /* MainMenu.xib in Resources */,
 				AAB1B35A1B7A7ADC00646491 /* stat_cant.png in Resources */,
 				AAB1B35B1B7A7ADC00646491 /* stat_down.png in Resources */,
 				AAB1B35C1B7A7ADC00646491 /* stat_error.png in Resources */,
@@ -810,14 +808,6 @@
 			name = MainMenu.xib;
 			sourceTree = "<group>";
 		};
-		AA2B28F01B83C14E00DAA1DD /* MainMenu.xib */ = {
-			isa = PBXVariantGroup;
-			children = (
-			);
-			name = MainMenu.xib;
-			path = "/Users/xcodexif/Desktop/Code/C++/ioslaves/ioslaves-master-macgui/en.lproj";
-			sourceTree = "<absolute>";
-		};
 		AA429FA31B81D58B003385EB /* SlaveViews.xib */ = {
 			isa = PBXVariantGroup;
 			children = (
@@ -853,6 +843,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				EXECUTABLE_PREFIX = lib;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"XIFNETDYNDNS_DYNIP_SLAVES_DOMAIN=\\\"net.xif.fr\\\"",
+					"XIFNETDYNDNS_NSD_ZONES_DIR=\\\"/etc/nsd/zones\\\"",
+					"$(inherited)",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -863,6 +858,7 @@
 				EXECUTABLE_PREFIX = lib;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"MINECRAFT_SRV_DIR=\"\\\"/var/ioslaves/minecraft\\\"\"",
+					"XIFNET_MC_DOM=\\\"mc.xif.fr\\\"",
 					"$(inherited)",
 				);
 				OTHER_LDFLAGS = (
@@ -877,11 +873,12 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				GCC_PREPROCESSOR_DEFINITIONS = (
+					"IOSLAVES_MASTER_DIR='(__get_homedir__()+\\\"/.ioslaves-master\\\").c_str()'",
+					"IOSLAVES_MASTER_KEYS_DIR='_s(IOSLAVES_MASTER_DIR,\\\"/keys\\\")'",
 					"IOSLAVES_MASTER_KEYSTORE_EXT_METHODS=\"\\\"/usr/lib/ioslaves-master/keystore\\\"\"",
 					"$(inherited)",
 				);
 				INFOPLIST_FILE = "ioslaves-master-macgui/Info.plist";
-				MACOSX_DEPLOYMENT_TARGET = 10.6;
 				OTHER_LDFLAGS = (
 					"-lldns",
 					"-lconfig++",
@@ -895,41 +892,20 @@
 		AA99F1B8184C65DD00BB6836 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
 				ARCHS = "$(NATIVE_ARCH_ACTUAL)";
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
-				CLANG_CXX_LIBRARY = "libstdc++";
-				CLANG_WARN_IMPLICIT_SIGN_CONVERSION = NO;
-				CLANG_WARN_SUSPICIOUS_IMPLICIT_CONVERSION = NO;
-				COPY_PHASE_STRIP = NO;
-				GCC_C_LANGUAGE_STANDARD = gnu99;
-				GCC_DYNAMIC_NO_PIC = NO;
-				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
-				GCC_OPTIMIZATION_LEVEL = 0;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
 				GCC_PREPROCESSOR_DEFINITIONS = (
-					XIFNET,
+					"XIFNET_SLAVES_DOM=\\\"net.xif.fr\\\"",
 					"DEBUG=1",
 					"$(inherited)",
 				);
-				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
-				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_MISSING_PROTOTYPES = YES;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES;
-				GCC_WARN_NON_VIRTUAL_DESTRUCTOR = YES;
-				GCC_WARN_PEDANTIC = NO;
-				GCC_WARN_SHADOW = NO;
-				GCC_WARN_SIGN_COMPARE = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				HEADER_SEARCH_PATHS = ../Libs;
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_LDFLAGS = (
 					"-lsocketxx",
 					"-lssl",
 					"-lcrypto",
 				);
-				SDKROOT = "";
-				WARNING_CFLAGS = "";
+				SDKROOT = macosx;
 			};
 			name = Debug;
 		};
@@ -937,9 +913,15 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				GCC_PREPROCESSOR_DEFINITIONS = (
+					"IOSLAVESD_ETC_DIR=\\\"/etc/ioslavesd\\\"",
+					"IOSLAVESD_API_DL_DIR=\\\"/usr/lib/ioslavesd/api-services\\\"",
+					"IOSLAVESD_LOG_FILE=\\\"/var/log/ioslavesd.log\\\"",
+					"IOSLAVESD_RUN_FILES=\\\"/var/run\\\"",
+					"IOSLAVESD_PERSISTANT_RUN_FILES=\\\"/var/db\\\"",
+					"IOSLAVESD_KEYS_DIR=IOSLAVESD_ETC_DIR\\\"/keys\\\"",
+					"IOSLAVES_MASTER_DIR=\\\"/var/ioslaves/ioslaves-master\\\"",
 					"IOSLAVESD_VERSION=\\\"dev-osx\\\"",
 					IOSLAVESD_NO_TOPP,
-					"IOSLAVES_DIR=\"\\\"/var/ioslaves\\\"\"",
 					IOSLAVED_FORCE_CREDS,
 					"$(inherited)",
 				);
@@ -957,7 +939,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				GCC_PREPROCESSOR_DEFINITIONS = (
+					"IOSLAVES_MASTER_DIR='(__get_homedir__()+\\\"/.ioslaves-master\\\").c_str()'",
+					"IOSLAVES_MASTER_KEYS_DIR='_s(IOSLAVES_MASTER_DIR,\\\"/keys\\\")'",
 					"IOSLAVES_MASTER_KEYSTORE_EXT_METHODS=\"\\\"/usr/lib/ioslaves-master/keystore\\\"\"",
+					"XIFNET_MC_DOM=\\\"mc.xif.fr\\\"",
 					"$(inherited)",
 				);
 				HEADER_SEARCH_PATHS = (
@@ -978,6 +963,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				GCC_PREPROCESSOR_DEFINITIONS = (
+					"IOSLAVES_MASTER_DIR='(__get_homedir__()+\\\"/.ioslaves-master\\\").c_str()'",
+					"IOSLAVES_MASTER_KEYS_DIR='_s(IOSLAVES_MASTER_DIR,\\\"/keys\\\")'",
 					"IOSLAVES_MASTER_KEYSTORE_EXT_METHODS=\"\\\"/usr/lib/ioslaves-master/keystore\\\"\"",
 					"$(inherited)",
 				);
@@ -993,6 +980,11 @@
 		AAD214851AE971C50062A678 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"IOSLAVES_MASTER_DIR=\\\"/var/ioslaves/ioslaves-master\\\"",
+					"IOSLAVES_MASTER_KEYS_DIR=\\\"/var/ioslaves/ioslaves-master/keys\\\"",
+					"$(inherited)",
+				);
 				OTHER_LDFLAGS = (
 					"-lldns",
 					"-lconfig++",
@@ -1009,7 +1001,7 @@
 				EXECUTABLE_PREFIX = lib;
 				EXECUTABLE_SUFFIX = "";
 				GCC_PREPROCESSOR_DEFINITIONS = (
-					"IOSL_MASTER_KEYSTORE_ARDUINO_DEVICE_PATH_FILE=\"\\\"/var/ioslaves/master/arduino_device\\\"\"",
+					"IOSL_MASTER_KEYSTORE_ARDUINO_DEVICE_PATH_FILE='(__get_homedir__()+\\\"/.ioslaves-master/arduino_device\\\").c_str()'",
 					"$(inherited)",
 				);
 				OTHER_LDFLAGS = "-lcrypto";

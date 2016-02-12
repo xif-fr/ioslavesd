@@ -30,7 +30,12 @@ sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP'
             'SKIP' 'SKIP' 'SKIP')
 
 build() {
-	make CXXFLAGS="${CXXFLAGS} -DMINECRAFT_SRV_DIR=\\\"\"/srv/mc\"\\\" -DXIFNET"
+	cat > $srcdir/defs.h <<- EODEFS
+		#define MINECRAFT_SRV_DIR   "/srv/mc"
+		#define XIFNET_SLAVES_DOM   "net.xif.fr"
+		#define XIFNET_MC_DOM       "mc.xif.fr"
+EODEFS
+	make CXXFLAGS="${CXXFLAGS} -include defs.h"
 }
 
 package() {

@@ -1,10 +1,8 @@
 /**********************************************************\
- *               -== Xif Network project ==-
- *                   ioslaves - slave side
- *
- *                    UPnP port mapping
+ *                  ioslaves : ioslavesd
+ *                   UPnP port mapping
  * *********************************************************
- * Copyright © Félix Faisant 2013-2014. All rights reserved
+ * Copyright © Félix Faisant 2013-2016. All rights reserved
  * This software is under the GNU General Public License
  \**********************************************************/
 
@@ -102,11 +100,11 @@ void ioslaves::upnpInit () {
 			throw ioslaves::upnpError("No UPnP Device found on the network");
 		}
 		for (UPNPDev* dev = dev_list; dev != NULL; dev = dev->pNext) {
-			int xml_descr_sz = 0;
+			int xml_descr_sz = 0, status_code = -1;
 			const char* xml_descr = (char*)miniwget_getaddr(dev->descURL, &xml_descr_sz,
-			                                                upnp_lanIP, 16,
-			                                                dev->scope_id);
-			if (xml_descr == NULL or xml_descr_sz == 0) {
+			                                                upnp_lanIP, sizeof(upnp_lanIP),
+			                                                dev->scope_id, &status_code);
+			if (status_code != 200 or xml_descr == NULL or xml_descr_sz == 0) {
 				__log__(log_lvl::OOPS, "UPnP", logstream << "Error with UPnP device '" << dev->descURL << "'");
 				continue;
 			}

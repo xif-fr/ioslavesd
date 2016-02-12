@@ -1,9 +1,9 @@
 /**********************************************************\
- *               -== Xif Network project ==-
- *                       ioslavesd
+ *                 ioslaves : ioslavesd
  *        slave control daemon and services manager
+ *                      main file
  * *********************************************************
- * Copyright © Félix Faisant 2013-2015. All rights reserved
+ * Copyright © Félix Faisant 2013-2016. All rights reserved
  * This software is under the GNU General Public License
 \**********************************************************/
 
@@ -262,7 +262,7 @@ int main (int argc, const char* argv[]) {
 	__log__(log_lvl::LOG, NULL, logstream << "Loading conf file...", LOG_ADD, &l);
 	libconfig::Config conf;
 	try {
-		conf.readFile(IOSLAVESD_CONF_FILE);
+		conf.readFile( _s(IOSLAVESD_ETC_DIR,"/ioslavesd.conf") );
 		{
 			enable_upnp = (bool)conf.lookup("upnp_port_opening");
 			if (enable_upnp) {
@@ -359,11 +359,12 @@ int main (int argc, const char* argv[]) {
 	}
 		
 		// Load services
+	#define IOSLAVESD_SERVICE_FILE_EXT ".service"
 	__log__(log_lvl::IMPORTANT, NULL, logstream << "Loading services...");
 	{
 		size_t ext_sz = ::strlen(IOSLAVESD_SERVICE_FILE_EXT);
 		size_t ni;
-		DIR* services_dir = ::opendir(IOSLAVESD_SERVICE_FILES_DIR);
+		DIR* services_dir = ::opendir( _s(IOSLAVESD_ETC_DIR,"/services") );
 		if (services_dir == NULL) { __log__(log_lvl::FATAL, "SERVICES", logstream << "Can't open services dir !"); return EXIT_FAILURE; }
 		RAII_AT_END_L( ::closedir(services_dir) );
 		dirent* dp = NULL;
@@ -374,7 +375,7 @@ int main (int argc, const char* argv[]) {
 			{
 				std::string serv_name = std::string(dp->d_name).substr(0, ::strlen(dp->d_name)-ni+1);
 				if (serv_name.empty()) continue;
-				FILE* ser_f = ::fopen(_s( IOSLAVESD_SERVICE_FILES_DIR,"/",std::string(dp->d_name) ), "r");
+				FILE* ser_f = ::fopen(_s( IOSLAVESD_ETC_DIR,"/services/",std::string(dp->d_name) ), "r");
 				ioslaves::loadService(serv_name, ser_f);
 				::fclose(ser_f);
 			}

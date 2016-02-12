@@ -1,9 +1,9 @@
 /**********************************************************\
- *               -== Xif Network project ==-
- *                      ioslaves-master
+ *                ioslaves : ioslaves-master
  *            Common header for master programs
+ *     Connection/Authentication/DynSlaves interfaces
  * *********************************************************
- * Copyright © Félix Faisant 2013-2015. All rights reserved
+ * Copyright © Félix Faisant 2013-2016. All rights reserved
  * This software is under the GNU General Public License
  \**********************************************************/
 
@@ -34,10 +34,6 @@
 #endif
 
 	// Files
-#ifndef IOSLAVES_MASTER_DIR
-	#define IOSLAVES_MASTER_DIR "/var/ioslaves/master"
-#endif
-#define IOSLAVES_MASTER_KEYS_DIR _s(IOSLAVES_MASTER_DIR,"/keys")
 #define IOSLAVES_MASTER_SLAVES_DIR _s(IOSLAVES_MASTER_DIR,"/slaves")
 #define IOSLAVES_MASTER_KEYS_MODELS_DIR "/usr/share/ioslaves/master/key-perms/"
 

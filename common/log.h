@@ -1,5 +1,13 @@
-#ifndef _XIF_LOG_H
-#define _XIF_LOG_H
+/**********************************************************\
+ *                       ioslaves
+ *              Log common interface and defs
+ * *********************************************************
+ * Copyright © Félix Faisant 2013-2016. All rights reserved
+ * This software is under the GNU General Public License
+ \**********************************************************/
+
+#ifndef IOSLAVES_LOG_H
+#define IOSLAVES_LOG_H
 
 #include <ostream>
 #include <string>

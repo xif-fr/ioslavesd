@@ -21,8 +21,10 @@ sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP'
             'SKIP' 'SKIP' 'SKIP')
 
 build() {
-	export CXXFLAGS="${CXXFLAGS} -DXIFNET -DIOSL_MASTER_KEYSTORE_ARDUINO_DEVICE_PATH_FILE=\"__get_homedir__()+\\\"/ioslaves-master/arduino_device\\\"\" "
-	make --file=arduino-Makefile
+	cat > $srcdir/defs.h <<- EODEFS
+		#define IOSL_MASTER_KEYSTORE_ARDUINO_DEVICE_PATH_FILE   (__get_homedir__() + "/ioslaves-master/arduino_device").c_str()
+EODEFS
+	make --file=arduino-Makefile CXXFLAGS="${CXXFLAGS} -include defs.h"
 }
 
 package() {

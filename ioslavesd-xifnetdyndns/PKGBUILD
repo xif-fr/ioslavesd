@@ -26,7 +26,12 @@ sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP'
             'SKIP')
 
 build() {
-	make CXXFLAGS="${CXXFLAGS} -DXIFNET"
+	cat > $srcdir/defs.h <<- EODEFS
+		#define XIFNET_SLAVES_DOM                       "net.xif.fr"
+		#define XIFNETDYNDNS_DYNIP_SLAVES_DOMAIN        "net.xif.fr"
+		#define XIFNETDYNDNS_NSD_ZONES_DIR              "/etc/nsd/zones"
+EODEFS
+	make CXXFLAGS="${CXXFLAGS} -include defs.h"
 }
 
 package() {

@@ -1,14 +1,13 @@
 /**********************************************************\
- *               -== Xif Network project ==-
- *                       ioslavesd
- *                  Log implementation
+ *                  ioslaves : ioslavesd
+ *         Log backbone implementation for ioslavesd
  * *********************************************************
- * Copyright © Félix Faisant 2013-2015. All rights reserved
+ * Copyright © Félix Faisant 2013-2016. All rights reserved
  * This software is under the GNU General Public License
  \**********************************************************/
 
 	// Common log interface
-#define XIF_LOG_DEFAULT_LOGSTREAM_IMPL
+#define IOSLAVES_LOG_DEFAULT_LOGSTREAM_IMPL
 #include "log_defimpl.h"
 using namespace xlog;
 pthread_mutex_t xlog::logstream_impl::mutex = PTHREAD_MUTEX_INITIALIZER;

@@ -1,7 +1,15 @@
+/**********************************************************\
+ *                       ioslaves
+ *          Log default interface implementation
+ * *********************************************************
+ * Copyright © Félix Faisant 2013-2016. All rights reserved
+ * This software is under the GNU General Public License
+ \**********************************************************/
+
 #include "log.h"
 
-#ifndef XIF_LOG_DEFAULT_LOGSTREAM_H
-#define XIF_LOG_DEFAULT_LOGSTREAM_H
+#ifndef IOSLAVES_LOG_DEFAULT_LOGSTREAM_H
+#define IOSLAVES_LOG_DEFAULT_LOGSTREAM_H
 
 #include <string>
 #include <pthread.h>
@@ -22,7 +30,7 @@ namespace xlog {
 
 #endif
 
-#ifdef XIF_LOG_DEFAULT_LOGSTREAM_IMPL
+#ifdef IOSLAVES_LOG_DEFAULT_LOGSTREAM_IMPL
 
 std::ostream& xlog::logstream_acquire () noexcept {
 	::pthread_mutex_lock(&xlog::logstream_impl::mutex);

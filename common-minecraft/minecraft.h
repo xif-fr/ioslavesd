@@ -1,9 +1,8 @@
 /**********************************************************\
- *               -== Xif Network project ==-
- *               ioslaves service : Minecraft
- *          Common header for service and master
+ *             ioslaves : Minecraft API service
+ *      Common header for service and minecraft-master
  * *********************************************************
- * Copyright © Félix Faisant 2013-2015. All rights reserved
+ * Copyright © Félix Faisant 2013-2016. All rights reserved
  * This software is under the GNU General Public License
  \**********************************************************/
 	
@@ -11,9 +10,6 @@
 #include "common.hpp"
 
 	// Various
-#ifdef XIFNET
-	#define XIFNET_MC_DOM "mc.xif.fr"
-#endif
 #define MC_MAP_PERM 0640
 #define MC_LASTSAVETIME_FORCE (time_t)-1
 #define MC_LASTSAVETIME_NOSAVE (time_t)0
