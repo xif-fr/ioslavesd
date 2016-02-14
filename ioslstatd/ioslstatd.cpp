@@ -84,7 +84,7 @@ int main (int argc, char* const argv[]) {
 			std::cerr << LOG_ARROW << "Connecting to slave '" << slave << "'..." << std::endl;
 			
 			try {
-				socketxx::io::simple_socket<socketxx::base_netsock> slave_sock = iosl_master::slave_connect(slave, 0);
+				socketxx::io::simple_socket<socketxx::base_netsock> slave_sock = iosl_master::slave_connect(slave, 0, timeval{1,500000});
 			#ifndef IOSL_MASTER_IMPL_NO_AUTH
 				iosl_master::slave_command_auth(slave_sock, master_id, ioslaves::op_code::PERM_STATUS, _S(master_id,'.',slave));
 			#else
@@ -95,13 +95,13 @@ int main (int argc, char* const argv[]) {
 					throw answ;
 				slaves.insert( decltype(slaves)::value_type( slave, slave_sock ) );
 				std::cerr << LOG_ARROW_OK << "Ok" << std::endl;
-			} catch (master_err& e) {
+			} catch (const master_err& e) {
 				std::cerr << LOG_ARROW_ERR << "Master error : " << e.what() << std::endl;
-			} catch (socketxx::dns_resolve_error& e) {
+			} catch (const socketxx::dns_resolve_error& e) {
 				std::cerr << LOG_ARROW_ERR << "Can't resolve hostname '" << e.failed_hostname << "' !" << std::endl;
-			} catch (iosl_master::ldns_error& e) {
+			} catch (const iosl_master::ldns_error& e) {
 				std::cerr << LOG_ARROW_ERR << "Can't retrive port number : " << e.what() << std::endl;
-			} catch (socketxx::error& e) {
+			} catch (const socketxx::error& e) {
 				std::cerr << LOG_ARROW_ERR << "Failed to connect to slave : " << e.what() << std::endl;
 			}
 			
@@ -214,12 +214,12 @@ int main (int argc, char* const argv[]) {
 						break;
 					}
 					aggregated[(*it).first.c_str()] = info;
-				} catch (socketxx::error& e) {
+				} catch (const socketxx::error& e) {
 					std::cerr << LOG_ARROW_ERR << "Error while reading data from slave '" << (*it).first << "' ! Bye." << std::endl;
 					aggregated[(*it).first.c_str()] = xif::polyvar();
 					FD_CLR((*it).second.get_fd(), &set);
 					slaves.erase(it);
-				} catch (std::runtime_error& e) {
+				} catch (const std::runtime_error& e) {
 					std::cerr << "Slave " << (*it).first << " : bad data : " << e.what() << std::endl;
 				}
 				break;

@@ -6,13 +6,17 @@
  * This software is under the GNU General Public License
  \**********************************************************/
 
+	// Common
+#define PTHREAD_MUTEX_LOG_ENABLED
+#include "common.hpp"
+
 	// ioslavesd API
 #define IOSLAVESD_API_SERVICE
 #define IOSLAVESD_API_SERVICE_IMPL
 #include "api.h"
 using namespace xlog;
 
-	// Common
+	// Common Minecraft
 #define IOSLAVESD_MINECRAFT
 #include "minecraft.h"
 
@@ -57,6 +61,9 @@ struct _block_as_mcjava {
 	// Signals and threads
 #include <signal.h>
 #include <sys/wait.h>
+#define MUTEX_PRELOCK pthread_mutex_log(NULL,"will lock",&minecraft::servs_mutex);
+#define MUTEX_POSTLOCK pthread_mutex_log(NULL,"locked",&minecraft::servs_mutex);
+#define MUTEX_UNLOCKED pthread_mutex_log(NULL,"unlocked",&minecraft::servs_mutex);
 
 	// Minecraft service
 namespace minecraft {
@@ -174,7 +181,7 @@ extern "C" bool ioslapi_start (const char* by_master) {
 			minecraft::pure_ftpd_max_cli = (int)conf.lookup("ftp_max_cli");
 			minecraft::ignore_shutdown_time = (bool)conf.lookup("ignore_shutdown_time");
 		}
-	} catch (libconfig::ConfigException& ce) {
+	} catch (const libconfig::ConfigException& ce) {
 		__log__(log_lvl::FATAL, "CONF", logstream << "Reading configuration file " << MINECRAFT_CONF_FILE << " failed : " << ce.what());
 		return false;
 	}
@@ -198,12 +205,12 @@ extern "C" bool ioslapi_start (const char* by_master) {
 				__log__(log_lvl::LOG, NULL, ss.serv, LOG_ADD|LOG_WAIT, &l);
 			}
 			__log__(log_lvl::DONE, NULL, "Done", LOG_ADD, &l);
-		} catch (libconfig::SettingException& e) {
+		} catch (const libconfig::SettingException& e) {
 			__log__(log_lvl::ERROR, NULL, logstream << "Error while loading stop report : " << e.what());
 		}
-	} catch (libconfig::ParseException& e) {
+	} catch (const libconfig::ParseException& e) {
 		__log__(log_lvl::ERROR, NULL, logstream << "Parse error in stop reports save file at line " << e.getLine());
-	} catch (libconfig::FileIOException&) {
+	} catch (const libconfig::FileIOException&) {
 	}
 	r = ::unlink(MINECRAFT_REPORTS_FILE);
 	
@@ -222,22 +229,22 @@ extern "C" void ioslapi_stop (void) {
 			socketxx::io::simple_socket<socketxx::base_fd> s_comm (socketxx::base_fd(p.second->s_sock_comm, SOCKETXX_MANUAL_FD));
 			s_comm.o_char((char)minecraft::internal_serv_op_code::STOP_SERVER_NOW);
 		}
-	} catch (socketxx::error& e) {
+	} catch (const socketxx::error& e) {
 		__log__(log_lvl::FATAL, "COMM", logstream << "Failed to send stop request to server thread : " << e.what());
 	}
 	
 		// Wait for servers
-	::pthread_mutex_lock(&minecraft::servs_mutex);
+	MUTEX_PRELOCK; ::pthread_mutex_lock(&minecraft::servs_mutex); MUTEX_POSTLOCK;
 	if (not minecraft::servs.empty()) {
 		__log__(log_lvl::LOG, NULL, logstream << "Waiting for threads exiting...", LOG_WAIT, &l);
 		while (not minecraft::servs.empty()) {
-			::pthread_mutex_unlock(&minecraft::servs_mutex);
+			::pthread_mutex_unlock(&minecraft::servs_mutex); MUTEX_UNLOCKED;
 			::usleep(500000);
-			::pthread_mutex_lock(&minecraft::servs_mutex);
+			MUTEX_PRELOCK; ::pthread_mutex_lock(&minecraft::servs_mutex); MUTEX_POSTLOCK;
 		}
 		__log__(log_lvl::DONE, NULL, logstream << "Done !", LOG_ADD, &l);
 	}
-	::pthread_mutex_unlock(&minecraft::servs_mutex); // We are now free
+	::pthread_mutex_unlock(&minecraft::servs_mutex); MUTEX_UNLOCKED; // We are now free
 	
 		// Stop FTP server
 	minecraft::ftp_stop_thead(INT32_MAX);
@@ -257,7 +264,7 @@ extern "C" void ioslapi_stop (void) {
 		try {
 			savereports.writeFile(MINECRAFT_REPORTS_FILE);
 			__log__(log_lvl::DONE, NULL, "Done", LOG_ADD, &l);
-		} catch (libconfig::FileIOException& e) {
+		} catch (const libconfig::FileIOException& e) {
 			__log__(log_lvl::ERROR, NULL, logstream << "Failed to save reports : " << e.what());
 		}
 	}
@@ -273,7 +280,7 @@ extern "C" bool ioslapi_shutdown_inhibit () {
 extern "C" xif::polyvar* ioslapi_status_info () {
 	std::map<std::string, socketxx::io::simple_socket<socketxx::base_fd>> pending_requests;
 	std::map<std::string, bool> servs_fixed;
-	::pthread_mutex_lock(&minecraft::servs_mutex);
+	MUTEX_PRELOCK; ::pthread_mutex_lock(&minecraft::servs_mutex); MUTEX_POSTLOCK;
 	for (std::pair<std::string,minecraft::serv*> p : minecraft::servs) {
 		try {
 			socketxx::io::simple_socket<socketxx::base_fd> s_comm(socketxx::base_fd(p.second->s_sock_comm, SOCKETXX_MANUAL_FD));
@@ -283,7 +290,7 @@ extern "C" xif::polyvar* ioslapi_status_info () {
 				ioslaves::infofile_get(_s( MINECRAFT_SRV_DIR,"/mc_",p.first,'/',p.second->s_map,"/fixed_map" ), true).empty();
 		} catch (...) {}
 	}
-	::pthread_mutex_unlock(&minecraft::servs_mutex);
+	::pthread_mutex_unlock(&minecraft::servs_mutex); MUTEX_UNLOCKED;
 	xif::polyvar servers = std::vector<xif::polyvar>();
 	for (auto p : pending_requests) {
 		servers.v().push_back(p.first);
@@ -316,7 +323,7 @@ extern "C" bool ioslapi_got_sigchld (pid_t pid, int pid_status) {
 				socketxx::io::simple_socket<socketxx::base_fd> s_comm (socketxx::base_fd(s->s_sock_comm, SOCKETXX_MANUAL_FD));
 				s_comm.o_char((char)minecraft::internal_serv_op_code::GOT_SIGNAL);
 				s_comm.o_int<int>(pid_status);
-			} catch (socketxx::error& e) {
+			} catch (const socketxx::error& e) {
 				__log__(log_lvl::ERROR, NULL, logstream << "Error while sending sigchild to thread of server " << s->s_servid << " : " << e.what());
 			}
 			return true;
@@ -404,7 +411,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 					socketxx::io::simple_socket<socketxx::base_fd> s_comm(socketxx::base_fd(s->s_sock_comm, SOCKETXX_MANUAL_FD));
 					s_comm.o_char((char)minecraft::internal_serv_op_code::CHAT_WITH_CLIENT);
 					s_comm.o_sock(cli);
-				} catch (std::out_of_range) {
+				} catch (const std::out_of_range) {
 					__log__(log_lvl::ERROR, "COMM", logstream << "Server '" << s_servid << "' not found");
 					cli.o_char((char)ioslaves::answer_code::NOT_FOUND);
 				}
@@ -425,7 +432,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 					minecraft::serv* s = minecraft::servs.at(s_servid);
 					cli.o_char((char)ioslaves::answer_code::OK);
 					minecraft::stopServer(cli, s, _mutex_handle_);
-				} catch (std::out_of_range) {
+				} catch (const std::out_of_range) {
 					__log__(log_lvl::ERROR, "COMM", logstream << "Server '" << s_servid << "' not found");
 					cli.o_char((char)ioslaves::answer_code::NOT_FOUND);
 				}
@@ -441,7 +448,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 					s_comm.o_char((char)minecraft::internal_serv_op_code::KILL_JAVA);
 					__log__(log_lvl::DONE, NULL, "Kill order sent to thread");
 					cli.o_char((char)ioslaves::answer_code::OK);
-				} catch (std::out_of_range) {
+				} catch (const std::out_of_range) {
 					__log__(log_lvl::ERROR, "COMM", logstream << "Server '" << s_servid << "' not found");
 					cli.o_char((char)ioslaves::answer_code::NOT_FOUND);
 				}
@@ -495,7 +502,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 							return;
 						}
 						cli.o_char((char)ioslaves::answer_code::OK);
-						__log__(log_lvl::LOG, NULL, logstream << "Invalidate FTP sessions for server '" << s_servid << "'");
+						__log__(log_lvl::VERBOSE, NULL, logstream << "Invalidate FTP sessions for server '" << s_servid << "'");
 						minecraft::ftp_del_sess_for_serv(s_servid, 0);
 						cli.o_char((char)ioslaves::answer_code::OK);
 						__log__(log_lvl::IMPORTANT, NULL, logstream << "Saving world '" << map << "' of server '" << s_servid << "'...");
@@ -509,7 +516,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 						cli.o_char((char)ioslaves::answer_code::OK);
 					}
 					__log__(log_lvl::DONE, "SERV", "Done", LOG_ADD, &l);
-				} catch (std::exception& e) {
+				} catch (const std::exception& e) {
 					__log__(log_lvl::SEVERE, NULL, logstream << "Error while (un)fixing world : " << e.what());
 					cli.o_char((char)ioslaves::answer_code::INTERNAL_ERROR);
 				}
@@ -518,12 +525,12 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 				// Send stats to client (status, running map, start time, players, port, list of server maps)
 			case minecraft::op_code::SERV_STAT: {
 				logl_t l;
-				__log__(log_lvl::LOG, "COMM", logstream << "Master wants to get status of server '" << s_servid << "'", LOG_WAIT, &l);
+				__log__(log_lvl::VERBOSE, "COMM", logstream << "Master wants to get status of server '" << s_servid << "'", LOG_WAIT, &l);
 				cli.o_char((char)ioslaves::answer_code::OK);
 				minecraft::serv* s = NULL;
 				try {
 					s = minecraft::servs.at(s_servid);
-					__log__(log_lvl::LOG, "COMM", ": Running", LOG_ADD, &l);
+					__log__(log_lvl::VERBOSE, "COMM", ": Running", LOG_ADD, &l);
 					cli.o_bool(true);
 					if (cli.i_bool()) {
 						in_port_t port = s->s_port;
@@ -544,12 +551,12 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 						}
 						cli.o_int<in_port_t>(port);
 					}
-				} catch (std::out_of_range) {
-					__log__(log_lvl::LOG, "COMM", ": Not running", LOG_ADD, &l);
+				} catch (const std::out_of_range) {
+					__log__(log_lvl::VERBOSE, "COMM", ": Not running", LOG_ADD, &l);
 					cli.o_bool(false);
 				}
 					// Send map list (without running map) with their last-save-time for master syncing, and send map save if needed
-				__log__(log_lvl::LOG, "FILES", logstream << "List maps...", LOG_WAIT, &l);
+				__log__(log_lvl::VERBOSE, "FILES", logstream << "List maps...", LOG_WAIT, &l);
 				std::vector<std::tuple<std::string,time_t,bool>> serv_maps;
 				try {
 					block_as_mcjava();
@@ -579,13 +586,13 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 							if (r == 0) 
 								lastsave = minecraft::lastsaveTimeFile(lastsavetime_path.c_str(), false);
 							bool fixed = not ioslaves::infofile_get(_s( MINECRAFT_SRV_DIR,"/mc_",s_servid,'/',map,"/fixed_map" ), true).empty();
-							__log__(log_lvl::LOG, "FILES", logstream << map << ":" << lastsave << (fixed?" (fix)":""), LOG_ADD|LOG_WAIT, &l);
+							__log__(log_lvl::VERBOSE, "FILES", logstream << map << ":" << lastsave << (fixed?" (fix)":""), LOG_ADD|LOG_WAIT, &l);
 							serv_maps.push_back(std::make_tuple(map,lastsave,fixed));
 						}
 					}
 					if (rr == -1)
 						throw xif::sys_error("map listing in server folder : readdir_r");
-				} catch (std::exception& e) {
+				} catch (const std::exception& e) {
 					__log__(log_lvl::ERROR, "FILES", logstream << "Error while listing maps of server : " << e.what());
 				}
 				cli.o_int<uint32_t>((uint32_t)serv_maps.size());
@@ -617,7 +624,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 						__log__(log_lvl::DONE, NULL, "Done !", LOG_ADD, &l);
 						cli.o_char((char)ioslaves::answer_code::OK);
 					}
-				} catch (std::out_of_range) {
+				} catch (const std::out_of_range) {
 					__log__(log_lvl::ERROR, "COMM", logstream << "Server '" << s_servid << "' not found");
 					cli.o_char((char)ioslaves::answer_code::NOT_FOUND);
 				}
@@ -649,7 +656,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 					asroot_block();
 					ioslaves::rmdir_recurse(folder_path.c_str());
 					cli.o_char((char)ioslaves::answer_code::OK);
-				} catch (xif::sys_error& e) {
+				} catch (const xif::sys_error& e) {
 					__log__(log_lvl::ERROR, NULL, logstream << "Failed to delete map folder : " << e.what());
 					cli.o_char((char)ioslaves::answer_code::INTERNAL_ERROR);
 				}
@@ -673,7 +680,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 					bool sent = minecraft::compressAndSend(cli, s_servid, map, false);
 					if (not sent) 
 						__log__(log_lvl::ERROR, NULL, logstream << "Failed to send world save.");
-				} catch (std::exception& e) {
+				} catch (const std::exception& e) {
 					__log__(log_lvl::ERROR, "COMM", logstream << "World save sending has failed : " << e.what());
 					try { cli.o_char((char)ioslaves::answer_code::INTERNAL_ERROR); } catch (...) {}
 				}
@@ -693,10 +700,10 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 						minecraft::ftp_register_user(username, md5passwd, s_servid, s->s_map, validity);
 						cli.o_char((char)ioslaves::answer_code::OK);
 						cli.o_str(minecraft::ftp_serv_addr);
-					} catch (ioslaves::req_err& re) {
+					} catch (const ioslaves::req_err& re) {
 						cli.o_char((char)re.answ_code);
 					}
-				} catch (std::out_of_range) {
+				} catch (const std::out_of_range) {
 					__log__(log_lvl::ERROR, "COMM", logstream << "Server '" << s_servid << "' not running");
 					cli.o_char((char)ioslaves::answer_code::NOT_FOUND);
 				}
@@ -706,7 +713,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 				__log__(log_lvl::ERROR, "COMM", logstream << "Bad operation '" << (char)opp << "'");
 				cli.o_char((char)ioslaves::answer_code::OP_NOT_DEF);
 		}
-	} catch (socketxx::error& e) {
+	} catch (const socketxx::error& e) {
 		__log__(log_lvl::ERROR, "COMM", logstream << "Network error : " << e.what());
 	}
 }
@@ -757,7 +764,7 @@ time_t minecraft::lastsaveTimeFile (std::string path, bool set) {
 			throw xif::sys_error("error while reading server folder last-save-time", (rs==-1?"error":"size error"));
 		try {
 			lastsave = ::atoix<time_t>(std::string(buf,sz), IX_HEX);
-		} catch (std::runtime_error& re) { lastsave = 0; }
+		} catch (const std::runtime_error& re) { lastsave = 0; }
 		if (lastsave == 0) {
 			throw xif::sys_error("server folder last-save-time", "null or invalid number"); }
 		if (lastsave > utc_time.tv_sec) 
@@ -770,7 +777,7 @@ time_t minecraft::lastsaveTimeFile (std::string path, bool set) {
 void minecraft::unzip (const char* file, const char* in_dir, const char* expected_dir_name) {
 	assert_mcjava();
 	logl_t l;
-	__log__(log_lvl::LOG, "FILES", logstream << "Unzipping file (expecting '" << expected_dir_name << "')... ", LOG_WAIT, &l);
+	__log__(log_lvl::VERBOSE, "FILES", logstream << "Unzipping file (expecting '" << expected_dir_name << "')... ", LOG_WAIT, &l);
 	int r;
 	std::string expected_dir = _S( in_dir,'/',expected_dir_name );
 	r = ::access(expected_dir.c_str(), F_OK);
@@ -904,7 +911,7 @@ void minecraft::deleteLckFiles (std::string in_dir) {
 // Copy server template directory
 void minecraft::cpTplDir (const char* tplDir, std::string working_dir) {
 	assert_mcjava();
-	__log__(log_lvl::LOG, "FILES", logstream << "Copying template folder");
+	__log__(log_lvl::VERBOSE, "FILES", logstream << "Copying template folder");
 	int r;
 	{ sigchild_block(); asroot_block();
 		int cp_r = 
@@ -1195,7 +1202,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 						std::ifstream in_fs (in_props_path.c_str(), std::ios_base::binary);
 						out_fs.seekp(0, std::ios_base::end);
 						out_fs << '\n' << in_fs.rdbuf();
-					} catch (std::ios::failure& e) {
+					} catch (const std::ios::failure& e) {
 						throw std::runtime_error(logstream << "failed to concatenate properties files : " << e.what() << logstr);
 					}
 				}
@@ -1238,8 +1245,8 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 				time_t lastsavetime_map = 0;
 				try {
 					lastsavetime_map = lastsaveTimeFile(_S( MINECRAFT_SRV_DIR,"/mc_",s->s_servid,'/',s->s_map ), false);
-					__log__(log_lvl::LOG, "FILES", logstream << "Last-save-time local : " << lastsavetime_map << "; Last-save-time master : " << s_lastsavetime);
-				} catch (xif::sys_error& syserr) {
+					__log__(log_lvl::VERBOSE, "FILES", logstream << "Last-save-time local : " << lastsavetime_map << "; Last-save-time master : " << s_lastsavetime);
+				} catch (const xif::sys_error& syserr) {
 					if (syserr.errorno == ENOENT) {
 						__log__(log_lvl::WARNING, "FILES", MCLOGSCLI(s) << "Server folder : last-save-time file not found. Setting as now.");
 						lastsavetime_map = lastsaveTimeFile(_S( MINECRAFT_SRV_DIR,"/mc_",s->s_servid,'/',s->s_map ), true);
@@ -1247,7 +1254,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 					else throw;
 				}
 				if (abs((int)(lastsavetime_map-s_lastsavetime)) < MINECRAFT_SERV_MASTER_MAX_DELAY_CONSIDERED_EQUAL) {
-					__log__(log_lvl::LOG, "FILES", MCLOGSCLI(s) << "Server folder is up-to-date with saved one on the master");
+					__log__(log_lvl::VERBOSE, "FILES", MCLOGSCLI(s) << "Server folder is up-to-date with saved one on the master");
 				}
 				float diff_hours = (lastsavetime_map-s_lastsavetime)/3600.0f;
 				if (lastsavetime_map < s_lastsavetime) {
@@ -1324,7 +1331,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 				// Special treatment here : minecraft_server.jar will be patched by Forge and need to be in the folder
 				if (s->s_serv_type == minecraft::serv_type::CAULDRON) jar_prefix = "mc_cauldron_";
 				else if (s->s_serv_type == minecraft::serv_type::FORGE) jar_prefix = "mc_forge_";
-				__log__(log_lvl::LOG, "FILES", logstream << "Using forge -> Creating symlink to minecraft_server.jar");
+				__log__(log_lvl::VERBOSE, "FILES", logstream << "Using forge -> Creating symlink to minecraft_server.jar");
 				jar_path = _s( MINECRAFT_JAR_DIR,'/',(jar_name=_s("mc_vanilla_",s->s_mc_ver.strdigits(),".jar")) );
 				r = ::access(jar_path.c_str(), R_OK);
 				if (r == -1) {
@@ -1357,7 +1364,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 		
 			// Changing directory owner and reset effective uid
 		ioslaves::api::euid_switch(0,0);
-		__log__(log_lvl::LOG, NULL, MCLOGSCLI(s) << "Correcting permissions...");
+		__log__(log_lvl::VERBOSE, NULL, MCLOGSCLI(s) << "Correcting permissions...");
 		ioslaves::chown_recurse(working_dir.c_str(), minecraft::java_user_id, minecraft::java_group_id);
 		ioslaves::api::euid_switch(-1,-1);
 		
@@ -1402,7 +1409,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			ReadEarlyStateIfNot('y',1) {
 				throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "START", MCLOGCLI(servid) << "Start failed before java start");
 			}
-			__log__(log_lvl::LOG, "START", MCLOGSCLI(s) << "Java will start...");
+			__log__(log_lvl::VERBOSE, "START", MCLOGSCLI(s) << "Java will start...");
 			ReadEarlyStateIfNot('j',1) {
 				throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "START", MCLOGCLI(servid) << "Java start failed !");
 			}
@@ -1436,7 +1443,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			cli.o_char((char)ioslaves::answer_code::OK);
 			return;
 		}
-		catch (socketxx::error& e) {
+		catch (const socketxx::error& e) {
 			__log__(log_lvl::ERROR, "START", MCLOGCLI(servid) << "Non-fatal network error : " << e.what());
 			return;
 		}
@@ -1450,15 +1457,15 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			throw;
 		}
 		
-	} catch (ioslaves::req_err& re) {
+	} catch (const ioslaves::req_err& re) {
 		cli.o_char((char)re.answ_code);
-	} catch (xif::sys_error& se) {
+	} catch (const xif::sys_error& se) {
 		__log__(log_lvl::ERROR, "START", MCLOGCLI(servid) << "Internal sys error : " << se.what());
 		cli.o_char((char)ioslaves::answer_code::INTERNAL_ERROR);
-	} catch (std::runtime_error& re) {
+	} catch (const std::runtime_error& re) {
 		__log__(log_lvl::ERROR, "START", MCLOGCLI(servid) << "Exception : " << re.what());
 		cli.o_char((char)ioslaves::answer_code::INTERNAL_ERROR);
-	} catch (socketxx::error& e) {
+	} catch (const socketxx::error& e) {
 		__log__(log_lvl::ERROR, "START", MCLOGCLI(servid) << "Network error : " << e.what());
 	}
 }
@@ -1487,8 +1494,9 @@ void* minecraft::serv_thread (void* arg) {
 	
 	bool mutex_locked = false;
 	RAII_AT_END_N(mutex, {
-		if (mutex_locked)
-			::pthread_mutex_unlock(&minecraft::servs_mutex);
+		if (mutex_locked) {
+			::pthread_mutex_unlock(&minecraft::servs_mutex); MUTEX_UNLOCKED;
+		}
 	});
 	
 		// Prepare stop structure
@@ -1544,7 +1552,7 @@ void* minecraft::serv_thread (void* arg) {
 		
 		std::string _args = "java ";
 		for (std::string _arg : args) _args += _arg + ' ';
-		__log__(log_lvl::LOG, THLOGSCLI(s), logstream << "Launching java with `" << _args << "`");
+		__log__(log_lvl::VERBOSE, THLOGSCLI(s), logstream << "Launching java with `" << _args << "`");
 		
 			// Forking process and executing java
 		pipe_proc_t java_pipes;
@@ -1659,7 +1667,7 @@ void* minecraft::serv_thread (void* arg) {
 									}
 								} else 
 									first_0 = 0;
-							} catch (std::exception& e) { first_0 = 0; }
+							} catch (const std::exception& e) { first_0 = 0; }
 							return true;
 						};
 						int_req->req_end = ::time(NULL)+1;
@@ -1705,8 +1713,8 @@ void* minecraft::serv_thread (void* arg) {
 									try {
 										(*it)->o_int<int64_t>(utc_time.tv_sec);
 										(*it)->o_str(line); 
-									} catch (socketxx::error& e) { 
-										__log__(log_lvl::LOG, THLOGSCLI(s), "Live console client hanged up");
+									} catch (const socketxx::error& e) { 
+										__log__(log_lvl::VERBOSE, THLOGSCLI(s), "Live console client hanged up");
 										FD_CLR((*it)->socketxx::base_fd::get_fd(), &select_set);
 										delete *it;
 										auto p_it = it++; live_consoles.erase(p_it);
@@ -1744,7 +1752,7 @@ void* minecraft::serv_thread (void* arg) {
 											fd_t cnle_fd = cli.socketxx::base_fd::get_fd();
 											FD_SET(cnle_fd, &select_set);
 											if (cnle_fd > select_max) select_max = cnle_fd;
-											__log__(log_lvl::LOG, THLOGSCLI(s), "New live console client"); 
+											__log__(log_lvl::LOG, THLOGSCLI(s), "New live console client");
 										} break;	
 										case minecraft::serv_op_code::EXEC_MC_COMMAND: {
 											std::string cmd = cli.i_str();
@@ -1754,11 +1762,11 @@ void* minecraft::serv_thread (void* arg) {
 										} break;
 										default: throw ioslaves::req_err(ioslaves::answer_code::OP_NOT_DEF, THLOGSCLI(s), MCLOGSCLI(s) << "Server external request : invalid '" << (char)op << "' operation");
 									}
-								} catch (ioslaves::req_err& re) {
+								} catch (const ioslaves::req_err& re) {
 									try {
 										cli.o_char((char)re.answ_code);
 									} catch (...) {}
-								} catch (socketxx::error& e) {
+								} catch (const socketxx::error& e) {
 									__log__(log_lvl::OOPS, THLOGSCLI(s), logstream << "Network error with external client : " << e.what());
 								}
 							} break;
@@ -1775,7 +1783,7 @@ void* minecraft::serv_thread (void* arg) {
 										sock->o_char((char)ioslaves::answer_code::OK);
 										sock->o_int<int16_t>(n_players);
 										sock->o_int<uint32_t>((uint32_t)first_0);
-									} catch (std::exception& e) {
+									} catch (const std::exception& e) {
 										try {
 											sock->o_char((char)ioslaves::answer_code::ERROR);
 										} catch (...) {}
@@ -1837,11 +1845,11 @@ void* minecraft::serv_thread (void* arg) {
 						if (FD_ISSET((*it)->socketxx::base_fd::get_fd(), &sel_set)) {
 							try {
 								std::string cmd = (*it)->i_str();
-								__log__(log_lvl::LOG, THLOGSCLI(s), logstream << "Command from live console : '" << cmd << "'");
+								__log__(log_lvl::VERBOSE, THLOGSCLI(s), logstream << "Command from live console : '" << cmd << "'");
 								MC_write_command(s, java_pipes, cmd);
 								(*it)->o_char((char)ioslaves::answer_code::OK);
-							} catch (socketxx::error& e) { 
-								__log__(log_lvl::LOG, THLOGSCLI(s), logstream << "Live console client hanged up");
+							} catch (const socketxx::error& e) { 
+								__log__(log_lvl::VERBOSE, THLOGSCLI(s), logstream << "Live console client hanged up");
 								FD_CLR((*it)->socketxx::base_fd::get_fd(), &select_set);
 								delete *it;
 								auto p_it = it++; live_consoles.erase(p_it);
@@ -1871,9 +1879,9 @@ void* minecraft::serv_thread (void* arg) {
 				
 				continue;
 			}
-		} catch (xif::sys_error& sys_err) {
+		} catch (const xif::sys_error& sys_err) {
 			__log__(log_lvl::ERROR, THLOGSCLI(s), logstream << "Error in `java launched` state : " << sys_err.what());
-		} catch (socketxx::error& sock_err) {
+		} catch (const socketxx::error& sock_err) {
 			__log__(log_lvl::ERROR, THLOGSCLI(s), logstream << "Network error : " << sock_err.what());
 			goto __retry;
 		}
@@ -1881,14 +1889,14 @@ void* minecraft::serv_thread (void* arg) {
 		bool fixedworld = not ioslaves::infofile_get(_s( MINECRAFT_SRV_DIR,"/mc_",s->s_servid,'/',s->s_map,"/fixed_map" ), true).empty();
 
 			// Stopping : we don't want to be contacted
-		::pthread_mutex_lock(&minecraft::servs_mutex);
+		MUTEX_PRELOCK; ::pthread_mutex_lock(&minecraft::servs_mutex); MUTEX_POSTLOCK;
 		mutex_locked = true;
 		::close(s_sockets_comm[1]);
 		::close(s_sockets_comm[0]);
 		
 			// Bye LiveConsole clients...
 		if (live_consoles.size() != 0) {
-			__log__(log_lvl::LOG, THLOGSCLI(s), logstream << "Ejecting live console clients");
+			__log__(log_lvl::VERBOSE, THLOGSCLI(s), logstream << "Ejecting live console clients");
 			for (auto it = live_consoles.begin(); it != live_consoles.end(); it++) {
 				try {
 					(*it)->o_int<int64_t>(-1);
@@ -1930,7 +1938,7 @@ void* minecraft::serv_thread (void* arg) {
 		}
 		if (r == -1) {
 			if (errno == ESRCH) 
-				__log__(log_lvl::LOG, THLOGSCLI(s), logstream << "Java is already stopped", LOG_WAIT, &l);
+				__log__(log_lvl::VERBOSE, THLOGSCLI(s), logstream << "Java is already stopped", LOG_WAIT, &l);
 			else throw xif::sys_error("kill java failed");
 		} else {
 			__log__(log_lvl::NOTICE, THLOGSCLI(s), logstream << "SIGHUP signal sent to java", LOG_WAIT, &l);
@@ -1946,7 +1954,7 @@ void* minecraft::serv_thread (void* arg) {
 		{ // Delete SRV entry on DNS
 			ioslaves::api::euid_switch(-1,-1);
 			RAII_AT_END_L( ioslaves::api::euid_switch(minecraft::java_user_id, minecraft::java_group_id) );
-			__log__(log_lvl::LOG, THLOGSCLI(s), logstream << "Closing SRV entry...");
+			__log__(log_lvl::VERBOSE, THLOGSCLI(s), logstream << "Closing SRV entry...");
 			(*ioslaves::api::dns_srv_del)("minecraft", XIFNET_MC_DOM, s->s_servid, true);
 		}
 		
@@ -1956,9 +1964,9 @@ void* minecraft::serv_thread (void* arg) {
 		for (in_port_t port : s->s_oth_ports) 
 			(*ioslaves::api::close_port)(port, 1, true);
 		
-	} catch (xif::sys_error& sys_err) {
+	} catch (const xif::sys_error& sys_err) {
 		__log__(log_lvl::ERROR, THLOGSCLI(s), logstream << "Error in `starting java` state : " << sys_err.what());
-	} catch (std::runtime_error) {
+	} catch (const std::runtime_error) {
 		__log__(log_lvl::ERROR, THLOGSCLI(s), logstream << "Fatal error");
 	}
 	
@@ -1967,7 +1975,7 @@ void* minecraft::serv_thread (void* arg) {
 	
 		// Delete server entry and add it in stopped servers list
 	if (not mutex_locked) {
-		::pthread_mutex_lock(&minecraft::servs_mutex);
+		MUTEX_PRELOCK; ::pthread_mutex_lock(&minecraft::servs_mutex); MUTEX_POSTLOCK;
 		mutex_locked = true;
 	}
 	try { 
@@ -2013,7 +2021,7 @@ void* minecraft::serv_thread (void* arg) {
 	// Write command to Minecraft server
 void MC_write_command (minecraft::serv* s, pipe_proc_t java_pipes, std::string cmd) {
 	if (java_pipes.in == INVALID_HANDLE) return;
-	__log__(log_lvl::LOG, THLOGSCLI(s), logstream << "> " << cmd);
+	__log__(log_lvl::VERBOSE, THLOGSCLI(s), logstream << "> " << cmd);
 	errno = 0;
 	ssize_t rs;
 	rs = ::write(java_pipes.in, _s(cmd,'\n'), cmd.length()+1);
@@ -2057,10 +2065,10 @@ std::string MC_log_interpret (const std::string line, minecraft::serv* s, minecr
 		}
 	}
 	if (ctx != MSG) { 
-		__log__(log_lvl::LOG, THLOGSCLI(s), logstream << "-- " << line, (stopInfo->doneDone?LOG_NO_HISTORY:0));
+		__log__(log_lvl::VERBOSE, THLOGSCLI(s), logstream << "-- " << line, (stopInfo->doneDone?LOG_NO_HISTORY:0));
 		return line;
 	} else {
-		__log__(log_lvl::LOG, THLOGSCLI(s), logstream << "-- [" << m_part << "] " << m_msg, (stopInfo->doneDone?LOG_NO_HISTORY:0));
+		__log__(log_lvl::VERBOSE, THLOGSCLI(s), logstream << "-- [" << m_part << "] " << m_msg, (stopInfo->doneDone?LOG_NO_HISTORY:0));
 		if (ctx != MSG) return m_msg;
 	}
 	for (auto it = int_req_list.begin(); it != int_req_list.end(); it++) {
@@ -2158,7 +2166,7 @@ void minecraft::stopServer (socketxx::io::simple_socket<socketxx::base_socket> c
 		RAII_AT_END_N(del, { // Server structure will be finally deleted by us
 			delete s;
 		});
-		__log__(log_lvl::LOG, "STOP", "Ok, thread is exited");
+		__log__(log_lvl::VERBOSE, "STOP", "Ok, thread is exited");
 		cli.o_char((char)ioslaves::answer_code::OK);
 		
 		if (s->s_is_perm_map) {
@@ -2182,9 +2190,9 @@ void minecraft::stopServer (socketxx::io::simple_socket<socketxx::base_socket> c
 		cli.o_char((char)ioslaves::answer_code::OK);
 		__log__(log_lvl::DONE, "STOP", MCLOGSCLI(s) << "Server successfully stopped");
 		
-	} catch (ioslaves::req_err& re) {
+	} catch (const ioslaves::req_err& re) {
 		cli.o_char((char)re.answ_code);
-	} catch (xif::sys_error& se) {
+	} catch (const xif::sys_error& se) {
 		__log__(log_lvl::ERROR, "STOP", MCLOGSCLI(s) << "Internal sys error : " << se.what());
 		cli.o_char((char)ioslaves::answer_code::INTERNAL_ERROR);
 	}

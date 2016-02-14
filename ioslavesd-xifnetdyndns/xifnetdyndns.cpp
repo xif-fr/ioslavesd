@@ -163,7 +163,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 				xdyndns::a_record_t rec = {.hostname = slave_name, ip_addr};
 				xdyndns::NSD_zone_parser(XIFNETDYNDNS_DYNIP_SLAVES_DOMAIN, &xdyndns::srv_entries, &rec);
 				xdyndns::NSD_reload();
-			} catch (xif::sys_error& e) {
+			} catch (const xif::sys_error& e) {
 				__log__(log_lvl::ERROR, NULL, logstream << "Failed to update DNS : " << e.what());
 				cli.o_char((char)ioslaves::answer_code::INTERNAL_ERROR);
 				return;
@@ -190,7 +190,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 				xdyndns::a_record_t rec = {.hostname = slave_name, ip_addr};
 				xdyndns::NSD_zone_parser(XIFNETDYNDNS_DYNIP_SLAVES_DOMAIN, &xdyndns::srv_entries, &rec);
 				xdyndns::NSD_reload();
-			} catch (xif::sys_error& e) {
+			} catch (const xif::sys_error& e) {
 				__log__(log_lvl::ERROR, NULL, logstream << "Failed to update DNS : " << e.what());
 				cli.o_char((char)ioslaves::answer_code::INTERNAL_ERROR);
 				return;
@@ -245,7 +245,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 				try {
 					xdyndns::NSD_zone_parser(srv_entry.domain, &xdyndns::srv_entries, NULL);
 					xdyndns::NSD_reload();
-				} catch (xif::sys_error& e) {
+				} catch (const xif::sys_error& e) {
 					__log__(log_lvl::DONE, NULL, logstream << "Failed to update DNS : " << e.what());
 					cli.o_char((char)ioslaves::answer_code::INTERNAL_ERROR);
 					return;
@@ -264,7 +264,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 						try {
 							xdyndns::NSD_zone_parser(domain, &xdyndns::srv_entries, NULL);
 							xdyndns::NSD_reload();
-						} catch (xif::sys_error& e) {
+						} catch (const xif::sys_error& e) {
 							__log__(log_lvl::ERROR, NULL, logstream << "Failed to update DNS : " << e.what());
 							cli.o_char((char)ioslaves::answer_code::INTERNAL_ERROR);
 							return;
@@ -278,7 +278,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 				cli.o_char((char)ioslaves::answer_code::NOT_FOUND);
 			}
 		}
-	} catch (socketxx::error& e) {
+	} catch (const socketxx::error& e) {
 		__log__(log_lvl::NOTICE, "COMM", logstream << "Network error : " << e.what());
 	}
 }
@@ -429,9 +429,9 @@ void xdyndns::NSD_zone_parser (std::string domain, const std::list<xdyndns::srv_
 		throw xif::sys_error("dyndns zone parse error", (ctx < CTX_DYNPART_WAIT) ? 
 																		_S("didn't reach DYNPART ctxs (ctx=",::ixtoa((int)ctx),")"):
 																		"wtf, srv table not written");
-	} catch (xif::sys_error& se) {
+	} catch (const xif::sys_error& se) {
 		throw;
-	} catch (std::exception& e) {
+	} catch (const std::exception& e) {
 		throw xif::sys_error("dyndns zone parse error", e.what());
 	}
 __werror:

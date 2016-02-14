@@ -68,7 +68,7 @@ std::pair<ioslaves::key_t, ioslaves::perms_t> ioslaves::load_master_key (std::st
 				.props = std::map<std::string,std::string>()
 			});
 		}
-	} catch (libconfig::ConfigException& e) {
+	} catch (const libconfig::ConfigException& e) {
 		throw ioslaves::req_err(answer_code::INVALID_DATA, logstream << "Error while reading key file for master '" << master << "' : " << e.what());
 	}
 	return std::make_pair(key, perms);

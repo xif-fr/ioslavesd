@@ -176,7 +176,7 @@ void xlog::logstream_impl::log (log_lvl lvl, const char* part, std::string msg, 
 	if (_log_wait_flag and not (m & LOG_ADD)) ::__log__ << std::flush;
 	_log_wait_flag = false;
 	switch (lvl) {
-		case log_lvl::LOG: break;
+		case log_lvl::LOG: case log_lvl::VERBOSE: break;
 		case log_lvl::NOTICE: case log_lvl::IMPORTANT: case log_lvl::MAJOR: ::__log__<< LOG_ARROW; break;
 		case log_lvl::FATAL: case log_lvl::ERROR: case log_lvl::OOPS: case log_lvl::SEVERE: ::__log__ << LOG_ARROW_ERR << COLOR_RED << "Error : " << COLOR_RESET; break;
 		case log_lvl::WARNING: ::__log__ << COLOR_YELLOW << "Warning : " << COLOR_RESET; break;
@@ -372,7 +372,7 @@ int main (int argc, char* const argv[]) {
 				$start_jar_ver = optarg;
 				try {
 					ioslaves::version($start_jar_ver, true);
-				} catch (std::exception& e) { try_help(_s("jar: invalid version str : ",e.what(),"\n")); }
+				} catch (const std::exception& e) { try_help(_s("jar: invalid version str : ",e.what(),"\n")); }
 			} break;
 			case 'm':
 				optctx::optctx_test("--temp-map", optctx::servStart);
@@ -436,7 +436,7 @@ int main (int argc, char* const argv[]) {
 				optctx::optctx_test("--port", optctx::servStart);
 				try {
 					$port = ::atoix<in_port_t>(optarg);
-				} catch (std::exception& e) {
+				} catch (const std::exception& e) {
 					try_help(_s("--port : invalid port : ",e.what(),"\n"));
 				}
 				break;
@@ -453,7 +453,7 @@ int main (int argc, char* const argv[]) {
 					}
 					in_port_t port = ::atoix<in_port_t>( arg.substr(start) );
 					$additional_ports.push_back(port);
-				} catch (std::exception& e) {
+				} catch (const std::exception& e) {
 					try_help(_s("--additional-ports : invalid port list : ",e.what(),"\n"));
 				}
 				break;
@@ -639,7 +639,7 @@ int main (int argc, char* const argv[]) {
 		nopoll_ctx_set_on_msg(wsctx, &_noPoll_callbacks::onMsg, NULL);
 		try {
 			nopoll_loop_wait(wsctx, TIMEOUT_WEBSOCKET);
-		} catch (std::exception) {}
+		} catch (const std::exception) {}
 		nopoll_conn_close(listener);
 		if ($websocket_conn == NULL) {
 			std::cerr << LOG_AROBASE_ERR << "Can't get websocket client..." << std::endl;
@@ -651,15 +651,15 @@ int main (int argc, char* const argv[]) {
 		// Execute
 	try {
 		optctx::optctx_exec();
-	} catch (OPTCTX_POSTFNCT_EXCEPT_T) {
+	} catch (const OPTCTX_POSTFNCT_EXCEPT_T) {
 		return EXIT_FAILURE;
-	} catch (xif::sys_error& se) {
+	} catch (const xif::sys_error& se) {
 		__log__ << NICE_WARNING << COLOR_RED << "System error" << COLOR_RESET << " : " << se.what() << std::flush;
 		return EXIT_FAILURE;
-	} catch (socketxx::error& ne) {
+	} catch (const socketxx::error& ne) {
 		__log__ << NICE_WARNING << COLOR_RED << "Network error" << COLOR_RESET << " : " << ne.what() << std::flush;
 		return EXIT_FAILURE;
-	} catch (std::runtime_error& re) {
+	} catch (const std::runtime_error& re) {
 		__log__ << NICE_WARNING << COLOR_RED << "Error" << COLOR_RESET << " : " << re.what() << std::flush;
 		return EXIT_FAILURE;
 	}
@@ -693,7 +693,7 @@ time_t getLastSaveTime (std::string serv, std::string map) {
 		try {
 			time_t savetime = ::atoix<time_t>(timestamp, IX_HEX);
 			if (savetime > lastsavetime) lastsavetime = savetime;
-		} catch (std::runtime_error) { continue; }
+		} catch (const std::runtime_error) { continue; }
 	}
 	::closedir(map_dir);
 	return lastsavetime;
@@ -707,7 +707,7 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 			try {
 				__log__ << LOG_ARROW << "Connecting to '" << slave << "'..." << std::flush;
 				return iosl_master::slave_api_service_connect(slave, $master_id, "minecraft", TIMEOUT_CONNECT);
-			} catch (master_err& e) {
+			} catch (const master_err& e) {
 				if (e.is_ioslaves_err() and e.o == ioslaves::answer_code::BAD_STATE and $granmaster and autoservice) {
 					__log__ << LOG_ARROW << "Minecraft service seems to be off. Starting it..." << std::flush;
 					socketxx::io::simple_socket<socketxx::base_netsock> sock = iosl_master::slave_connect(slave, 0);
@@ -722,13 +722,13 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 				} else 
 					throw;
 			}
-		} catch (master_err& e) {
+		} catch (const master_err& e) {
 			__log__ << LOG_ARROW_ERR << "ioslaves-master error : " << e.what() << std::flush;
 			if (e.ret == EXIT_FAILURE_DOWN and not secondtry and autostart and $granmaster) {
 				time_t time_up = 0;
 				try {
 					time_up = iosl_master::slave_start($slave_id, $master_id);
-				} catch (std::exception& e) {
+				} catch (const std::exception& e) {
 					__log__ << LOG_AROBASE_ERR << "Power up error : " << e.what() << std::flush;
 					EXIT_FAILURE = EXIT_FAILURE_EXTERR;
 					throw EXCEPT_ERROR_IGNORE;
@@ -849,7 +849,7 @@ void acceptFileSave (socketxx::io::simple_socket<socketxx::base_socket> sock, st
 	                              retreivingProgressionShow(0,0);
 	sock.i_file(save_f, std::bind(retreivingProgressionShow, std::placeholders::_1,std::placeholders::_2));
 	                              retreivingProgressionShow(1,0);
-	} catch (socketxx::error&) {
+	} catch (const socketxx::error&) {
 		::close(save_f);
 		::unlink(savepath.c_str());
 		throw;
@@ -887,17 +887,22 @@ void handleReportRequest (socketxx::io::simple_socket<socketxx::base_socket> soc
 	}
 	if (::getRunningOnSlave(servname).empty())
 		__log__ << std::flush << COLOR_YELLOW << "Warning ! Locally, server was stopped. Maybe an another master started this server. " << COLOR_RESET << std::flush;
+	fd_t lockf = -1;
 	std::string lockpath = _S( IOSLAVES_MINECRAFT_MASTER_DIR,'/',servname,"/_mcmaster.lock" );
-	fd_t lockf = ::open(lockpath.c_str(), O_CREAT|O_RDONLY|O_EXCL|O_NOFOLLOW, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
-	if (lockf == -1 and errno == EEXIST) {
-		__log__ << std::flush << LOG_AROBASE_ERR << "Can't accept report request : server directory is already locked" << std::flush;
-		sock.o_bool(false);
-		return;
+	if (servname != $server_name) {
+		lockf = ::open(lockpath.c_str(), O_CREAT|O_RDONLY|O_EXCL|O_NOFOLLOW, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
+		if (lockf == -1 and errno == EEXIST) {
+			__log__ << std::flush << LOG_AROBASE_ERR << "Can't accept report request : server directory is already locked" << std::flush;
+			sock.o_bool(false);
+			return;
+		}
+		if (lockf == -1) throw xif::sys_error("create lock file");
 	}
-	if (lockf == -1) throw xif::sys_error("create lock file");
 	RAII_AT_END({
-		::close(lockf);
-		::unlink(lockpath.c_str());
+		if (lockf != -1) {
+			::close(lockf);
+			::unlink(lockpath.c_str());
+		}
 	});
 	if (not map_to_save.empty()) 
 		__log__ << " Saving world '" << map_to_save << "'..." << std::flush;
@@ -1037,7 +1042,7 @@ void verifyMapList (std::string slave_id, std::string server_name, socketxx::io:
 			} else
 				sock.o_char((char)ioslaves::answer_code::OK);
 		}
-	} catch (socketxx::error& e) {
+	} catch (const socketxx::error& e) {
 		__log__ << LOG_AROBASE_ERR << "Network error while getting world list for server " << server_name << " : " << e.what() << std::flush;
 		return;
 	}
@@ -1094,7 +1099,7 @@ void MServStatus () {
 					if ($local_slave_id != $re_local_slave_id) 
 						__log__ << "After report, the server is now closed" << std::flush;
 					_retrieve_status_info_($local_slave_id, sock, $status);
-				} catch (socketxx::error& e) {
+				} catch (const socketxx::error& e) {
 					__log__ << NICE_WARNING << "Network error while refreshing status : " << e.what() << std::flush;
 					::sleep(3);
 					tryGetStatus(n-1);
@@ -1132,7 +1137,7 @@ void MServStatus () {
 			try {
 				auto sock = getConnection($slave_id, $server_name, minecraft::op_code::SERV_STAT, {2,0}, false, true);
 				_retrieve_status_info_($slave_id, sock, $status);
-			} catch (std::runtime_error& e) {
+			} catch (const std::runtime_error& e) {
 				__log__ << NICE_WARNING << "Error while connecting to slave : " << e.what() << std::flush;
 				$status = false;
 			} catch (...) {
@@ -1471,7 +1476,7 @@ _try_start:
 			if (slaves.front().sl_status == -1) {
 				try {
 					iosl_master::slave_start($slave_id, $master_id);
-				} catch (std::exception& e) {
+				} catch (const std::exception& e) {
 					__log__ << LOG_AROBASE_ERR << "Power up error : " << e.what() << std::flush;
 					if (not $granmaster) EXCEPT_ERROR_IGNORE;
 					goto _retry_start;
@@ -1480,7 +1485,7 @@ _try_start:
 				__log__ << LOG_AROBASE << "Please wait " << wait_delay << "s for slave starting..." << std::flush;
 				::sleep(wait_delay);
 			}
-			} catch (std::exception& e) {
+			} catch (const std::exception& e) {
 				__log__ << LOG_AROBASE_ERR << "Error while selecting slave : " << e.what() << std::flush;
 				throw EXCEPT_ERROR_IGNORE;
 			}
@@ -1490,7 +1495,7 @@ _try_start:
 		sock = new socketxx::io::simple_socket<socketxx::base_socket> (
 			getConnection($slave_id, $server_name, minecraft::op_code::START_SERVER, {2,0}, !autoselect_slave or $hint, true)
 		);
-	} catch (ioslaves::answer_code) {
+	} catch (const ioslaves::answer_code) {
 		if (not $granmaster) throw;
 		goto _retry_start;
 	}
@@ -1818,7 +1823,7 @@ void MServConsole () {
 				}
 			}
 		}
-	} catch (std::exception& e) {
+	} catch (const std::exception& e) {
 		nopoll_conn_close($websocket_conn);
 		$websocket_conn = NULL;
 		__log__ << LOG_ARROW_ERR << "LiveConsole pool : end by error" << std::flush;

@@ -25,6 +25,7 @@ enum class log_lvl : unsigned char {
 	IMPORTANT = 7,
 	MAJOR = 8,
 	DONE = 9,
+	VERBOSE = 10,
 };
 
 std::ostream& logstream_acquire () noexcept;

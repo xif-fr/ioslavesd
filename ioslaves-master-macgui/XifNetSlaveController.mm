@@ -77,6 +77,10 @@ NSAttributedString* log_lvl_strs[] = {
 		NSFontAttributeName : MakeLogAttrFont(@"Menlo", 11, NSFontBoldTrait),
 		NSForegroundColorAttributeName : MakeLogAttrColor(255,255,255)
 	}),
+	[(int)log_lvl::VERBOSE] = MakeLogAttrStr(@" ", @{
+		NSFontAttributeName : MakeLogAttrFont(@"Menlo", 11, 0),
+		NSForegroundColorAttributeName : MakeLogAttrColor(255,255,255)
+	}),
 	[(int)log_lvl::IMPORTANT] = MakeLogAttrStr(@"[IMP]", @{
 		NSFontAttributeName : MakeLogAttrFont(@"Menlo", 11, NSFontBoldTrait|NSFontItalicTrait),
 		NSForegroundColorAttributeName : MakeLogAttrColor(20,240,240)
@@ -321,7 +325,7 @@ NSAttributedString* log_master_strs[] = {
 			else 
 				stop_ssh_after = false;
 		}
-	} catch (std::exception& e) {
+	} catch (const std::exception& e) {
 		return __log__(log_lvl::ERROR, "SSH", logstream << "Error while starting service : " << e.what());
 	}
 	@autoreleasepool {
@@ -374,7 +378,7 @@ NSAttributedString* log_master_strs[] = {
 		ioslaves::answer_code o = (ioslaves::answer_code)sock.i_char();
 		if (o != ioslaves::answer_code::OK) 
 			__log__(log_lvl::ERROR, "SSH", logstream << "Failed to stop ssh service : " << ioslaves::getAnswerCodeDescription(o));
-	} catch (std::exception& e) {
+	} catch (const std::exception& e) {
 		return __log__(log_lvl::ERROR, "SSH", logstream << "Error while stopping service : " << e.what());
 	}
 }
@@ -417,6 +421,7 @@ NSAttributedString* log_master_strs[] = {
 	                                                               attributes:@{ NSFontAttributeName: slaveNameLabel.font } ];
 	NSRect labelbounds = [labelstr boundingRectWithSize:NSMakeSize(FLT_MAX,FLT_MAX) 
 	                                            options:NSStringDrawingUsesLineFragmentOrigin];
+	[labelstr release];
 	return labelbounds.size.width + SLAVE_LABEL_ADDITIONAL_MENU_WIDTH;
 }
 - (void)setMenuWidth:(CGFloat)width {
@@ -492,7 +497,7 @@ NSAttributedString* log_master_strs[] = {
 		});
 		auto sock = socketxx::simple_socket_client<socketxx::base_netsock> (addr, timeval{2,0});
 		sock.set_read_timeout(timeval{1,0});
-		iosl_master::slave_command_auth(sock, 
+		iosl_master::slave_command_auth(sock,
 		                                master_id, 
 		                                ioslaves::op_code::LOG_OBSERVE, 
 		                                _S(master_id,'.',self->slaveID));
@@ -518,7 +523,7 @@ NSAttributedString* log_master_strs[] = {
 					[self addLogLineAtTime:le_time OfLevel:le_lvl isLocal:false inPart:le_part withMessage:le_msg];
 				});
 			}
-		} catch (socketxx::error& e) {
+		} catch (const socketxx::error& e) {
 			::dispatch_sync(dispatch_get_main_queue(), ^{
 				isConnected = false;
 				[slaveStatusImage setImage:(icons::disconnected)];
@@ -526,19 +531,19 @@ NSAttributedString* log_master_strs[] = {
 				[slaveReconnectButton setEnabled:YES];
 				[self addLogLineAtTime:LOG_TIME_NOW OfLevel:(log_lvl::OOPS) isLocal:true inPart:"" withMessage:logstream << "Disconnected : " << e.what() << logstr];
 			});
-		} catch (socketxx::stop_event& e) {
+		} catch (const socketxx::stop_event& e) {
 			isConnected = false;
 			return;
 		}
-	} catch (socketxx::end::client_connect_error& e) {
+	} catch (const socketxx::end::client_connect_error& e) {
 		return connectFail( icons::down, logstream << "Can't connect to slave '" << self->slaveID << "' : " << e.what() << logstr );
-	} catch (socketxx::dns_resolve_error& e) {
+	} catch (const socketxx::dns_resolve_error& e) {
 		return connectFail( icons::unreachable, logstream << "Can't resolve hostname '" << e.failed_hostname << "'" << logstr );
-	} catch (iosl_master::ldns_error& e) {
-		return connectFail( icons::down, logstream << "Can't retrive ioslavesd port number : " << e.what() << logstr );
-	} catch (socketxx::error& e) {
+	} catch (const socketxx::io_error& e) {
 		return connectFail( icons::neterr, logstream << "Communication error with slave : " << e.what() << logstr );
-	} catch (master_err& e) {
+	} catch (const iosl_master::ldns_error& e) {
+		return connectFail( icons::down, logstream << "Can't retrive ioslavesd port number : " << e.what() << logstr );
+	} catch (const master_err& e) {
 		if (e.is_ioslaves_err()) {
 			switch (e.o) {
 				case ioslaves::answer_code::NOT_AUTHORIZED: 
@@ -557,8 +562,9 @@ NSAttributedString* log_master_strs[] = {
 			case EXIT_FAILURE_SYSERR: return connectFail( icons::syserr, e.what() );
 			case EXIT_FAILURE_COMM: return connectFail( icons::neterr, e.what() );
 			default: return connectFail( icons::error, e.what() );
-				std::logic_error("");
 		}
+	} catch (const std::exception& e) {
+		return connectFail( icons::error, logstream << "Unknown error of type '" << typeid(e).name() << "' : " << e.what() << logstr );
 	}
 }
 
@@ -571,15 +577,15 @@ NSAttributedString* log_master_strs[] = {
 		time = now.tv_sec;
 	}
 	msg = _S(part.empty()?_S(" "):_S(" [",part,"] "),msg,'\n');
-	NSMutableAttributedString* textLine = [[NSMutableAttributedString alloc] initWithString:[NSString stringWithStdString:msg]];
+	NSMutableAttributedString* textLine = nil;
 	if (local) {
-		[textLine setAttributes:@{
+		textLine = [[NSMutableAttributedString alloc] initWithString:[NSString stringWithStdString:msg] attributes:@{
 			NSFontAttributeName : MakeLogAttrFont(@"Menlo", 11, NSFontItalicTrait),
 			NSForegroundColorAttributeName : [NSColor colorWithCalibratedWhite:0.8f alpha:1.f]
-		} range:NSMakeRange(0, [textLine length])];
+		}];
 		if (not part.empty())
 			[textLine addAttribute:NSFontAttributeName 
-			                 value:MakeLogAttrFont(@"Monaco", 10) 
+			                 value:MakeLogAttrFont(@"Monaco", 10)
 			                 range:NSMakeRange(1, part.length()+2)];
 		[textLine replaceCharactersInRange:NSMakeRange(0,0) withAttributedString:log_master_strs[(uint8_t)lvl]];
 	} else {
@@ -587,7 +593,7 @@ NSAttributedString* log_master_strs[] = {
 		::gmtime_r(&time, &gmt_time);
 		char time_str[30];
 		::strftime(time_str, 30, "%d/%m %TZ ", &gmt_time);
-		[textLine initWithString:[NSString stringWithUTF8String:time_str] attributes:@{
+		textLine = [[NSMutableAttributedString alloc] initWithString:[NSString stringWithUTF8String:time_str] attributes:@{
 			NSFontAttributeName : MakeLogAttrFont(@"Menlo", 10),
 			NSForegroundColorAttributeName : [NSColor colorWithCalibratedWhite:1.f alpha:1.f]
 		}];
@@ -632,6 +638,8 @@ NSAttributedString* log_master_strs[] = {
 				if ([shutUpCheckBox state] != NSOnState)
 					[delegate setState:AppState::StateLogLine];
 				[logDotWhite setHidden:NO];
+				break;
+			case xlog::log_lvl::VERBOSE:
 				break;
 		}
 	}
@@ -687,6 +695,7 @@ NSAttributedString* log_master_strs[] = {
 		                                                                      [NSColor controlBackgroundColor], 1.0f, nil];
 		rect.size.width -= SLAVE_LABEL_ADDITIONAL_MENU_WIDTH - 45;
 		[gradient drawInRect:rect angle:0];
+		[gradient release];
 		[slaveNameLabel setTextColor:[NSColor selectedMenuItemTextColor]];
 	} else {
 		[slaveNameLabel setTextColor:[NSColor textColor]];

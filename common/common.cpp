@@ -18,6 +18,22 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#ifdef __linux__
+	#include <sys/syscall.h>
+#endif
+
+void pthread_mutex_log (void* obj, const char* action, pthread_mutex_t* mutex) {
+	uint64_t thread_id = -1;
+#ifdef __APPLE__
+	::pthread_threadid_np(NULL,&thread_id);
+#elif __linux__
+	thread_id = (pid_t)::syscall(SYS_gettid);
+#endif
+	if (obj == NULL)
+		__log__(xlog::log_lvl::VERBOSE, NULL, logstream << "Thread " << thread_id << " " << action << " mutex " << ::ixtoa((off_t)mutex,IX_HEX));
+	else
+		__log__(xlog::log_lvl::VERBOSE, NULL, logstream << "[" << ::ixtoa((off_t)obj,IX_HEX) << "] Thread " << thread_id << " " << action << " mutex " << ::ixtoa((off_t)mutex,IX_HEX));
+}
 
 std::string ioslaves::getAnswerCodeDescription (ioslaves::answer_code o) {
 	switch (o) {

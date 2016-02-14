@@ -59,7 +59,7 @@ void xlog::logstream_impl::log (log_lvl lvl, const char* part, std::string msg, 
 	if (_log_wait_flag and not (m & LOG_ADD)) std::clog << std::endl;
 	_log_wait_flag = false;
 	switch (lvl) {
-		case log_lvl::LOG: break;
+		case log_lvl::LOG: case log_lvl::VERBOSE: break;
 		case log_lvl::NOTICE: case log_lvl::IMPORTANT: case log_lvl::MAJOR: std::clog << LOG_ARROW; break;
 		case log_lvl::FATAL: case log_lvl::ERROR: case log_lvl::OOPS: case log_lvl::SEVERE: std::clog << LOG_ARROW_ERR << COLOR_RED << "Error : " << COLOR_RESET; break;
 		case log_lvl::WARNING: std::clog << COLOR_YELLOW << "Warning : " << COLOR_RESET; break;
@@ -269,9 +269,9 @@ int main (int argc, char* const argv[]) {
 			case 'd': {
 				try {
 					$connect_addr = socketxx::base_netsock::addr_info ( IOSLAVES_MASTER_DEFAULT_PORT, optarg );
-				} catch (socketxx::bad_addr_error& e) {
+				} catch (const socketxx::bad_addr_error& e) {
 					try_help("ioslaves-master: invalid slave address\n");
-				} catch (socketxx::dns_resolve_error& e) {
+				} catch (const socketxx::dns_resolve_error& e) {
 					std::cerr << COLOR_RED << "Can't resolve slave hostname '" << e.failed_hostname << "' !" << COLOR_RESET << std::endl;
 					return EXIT_FAILURE_CONN;
 				}
@@ -451,9 +451,9 @@ int main (int argc, char* const argv[]) {
 						$poweron_type = iosl_master::on_type::WoW;
 						try {
 							$connect_addr = socketxx::base_netsock::addr_info( 9, argv[optind++] );
-						} catch (socketxx::bad_addr_error) {
+						} catch (const socketxx::bad_addr_error) {
 							try_help("--on=MAGIC_PKT : second arg must be a valid IP addr or hostname\n");
-						} catch (socketxx::dns_resolve_error& e) {
+						} catch (const socketxx::dns_resolve_error& e) {
 							std::cerr << COLOR_RED << "Can't resolve slave hostname '" << e.failed_hostname << "' !" << COLOR_RESET << std::endl;
 							return EXIT_FAILURE_CONN;
 						}
@@ -473,7 +473,7 @@ int main (int argc, char* const argv[]) {
 						try_help("--on=SERIAL_PSU must take PSU output ID as argument\n");
 					try {
 						$on_psu_id = ::atoix<uint16_t>(argv[optind++]);
-					} catch (std::runtime_error) {
+					} catch (const std::runtime_error) {
 						try_help("--on=SERIAL_PSU : PSU output ID must be a number\n");
 					}
 				} else if (not on_str_type.empty()) {
@@ -492,17 +492,17 @@ int main (int argc, char* const argv[]) {
 	/// Execute
 	try {
 		optctx::optctx_exec();
-	} catch (socketxx::error& se) {
+	} catch (const socketxx::error& se) {
 		if ($ignore_net_errors) return EXIT_SUCCESS;
 		std::cerr << COLOR_RED << "network error : " << COLOR_RESET << se.what() << std::endl;
 		return EXIT_FAILURE_COMM;
-	} catch (master_err& e) {
+	} catch (const master_err& e) {
 		std::cerr << COLOR_RED << "master error : " << COLOR_RESET << e.what() << std::endl;
 		return e.ret;
-	} catch (std::exception& e) {
+	} catch (const std::exception& e) {
 		std::cerr << "Exception of type '" << typeid(e).name() << "' catched : " << COLOR_RED << e.what() << COLOR_RESET << std::endl;
 		return EXIT_FAILURE;
-	} catch (ioslaves::answer_code) {
+	} catch (const ioslaves::answer_code) {
 		return EXIT_FAILURE;
 	}
 	return EXIT_SUCCESS;
@@ -523,7 +523,7 @@ void IPreSlaveCo () {
 			try { // Retriving port number with SRV records
 				std::cerr << "Retriving port number from SRV record _ioslavesd._tcp." << $slave_id << '.' << XIFNET_SLAVES_DOM << "..." << std::endl;
 				$connect_port = iosl_master::slave_get_port_dns($slave_id);
-			} catch (iosl_master::ldns_error& e) {
+			} catch (const iosl_master::ldns_error& e) {
 				std::cerr << (optctx::interactive?COLOR_YELLOW:COLOR_RED) << "Failed to retrive port number : " << e.what();
 				if (optctx::interactive) 
 					std::cerr << " - using port " << $connect_port << COLOR_RESET << std::endl;
@@ -534,7 +534,7 @@ void IPreSlaveCo () {
 			}
 			$connect_addr = socketxx::base_netsock::addr_info ( _s($slave_id,'.',XIFNET_SLAVES_DOM), $connect_port );
 		}
-	} catch (socketxx::dns_resolve_error& e) {
+	} catch (const socketxx::dns_resolve_error& e) {
 		std::cerr << COLOR_RED << "Can't resolve hostname '" << e.failed_hostname << "' !" << COLOR_RESET << std::endl;
 		EXIT_FAILURE = EXIT_FAILURE_CONN; throw EXCEPT_ERROR_IGNORE;
 	}
@@ -543,7 +543,7 @@ void IPreSlaveCo () {
 		std::cerr << "Connecting to " << $slave_id << " at " << $connect_addr.get_ip_str() << ":" << $connect_addr.get_port() << "..." << std::endl;
 		$slave_sock = new socketxx::simple_socket_client<socketxx::base_netsock> ($connect_addr, $connect_timeout);
 		$slave_sock->set_read_timeout($comm_timeout);
-	} catch (socketxx::end::client_connect_error& e) {
+	} catch (const socketxx::end::client_connect_error& e) {
 		std::cerr << COLOR_RED << "Failed to connect to slave : " << COLOR_RESET << e.what() << std::endl;
 		EXIT_FAILURE = EXIT_FAILURE_DOWN;
 		delete $slave_sock;
@@ -559,7 +559,7 @@ void IPreSlaveCo () {
 			iosl_master::authenticate(*$slave_sock, _S($master_id,'.',$slave_id));
 		}
 		$slave_sock->set_read_timeout($op_timeout);
-	} catch (socketxx::error& e) {
+	} catch (const socketxx::error& e) {
 		std::cerr << COLOR_RED << "Failed to communicate with " << $slave_id << " : " << COLOR_RESET << e.what() << std::endl;
 		EXIT_FAILURE = EXIT_FAILURE_COMM;
 		delete $slave_sock;
@@ -623,7 +623,7 @@ void IApi () {
 	$slave_sock->o_str($service_name);
 	try {
 		IPostService(ctx_postfnct_excpt_default);
-	} catch (ioslaves::answer_code& e) {
+	} catch (const ioslaves::answer_code& e) {
 		if (e != ioslaves::answer_code::OK) 
 			throw e;
 	}
@@ -759,7 +759,7 @@ void IPowerup () {
 		time_t delay;
 		try {
 			delay = iosl_master::slave_start($slave_id, $master_id);
-		} catch (std::exception& e) {
+		} catch (const std::exception& e) {
 			std::cerr << COLOR_RED << "Power up error" << COLOR_RESET << " : " << e.what() << std::endl;
 			EXIT_FAILURE = EXIT_FAILURE_EXTERR;
 			throw EXCEPT_ERROR_IGNORE;
@@ -808,7 +808,7 @@ void IPowerup () {
 		}
 		std::cout << COLOR_GREEN << "Done." << COLOR_RESET << std::endl;
 	}
-	} catch (std::exception& e) {
+	} catch (const std::exception& e) {
 		std::cerr << COLOR_RED << "Power up error" << COLOR_RESET << " : " << e.what() << std::endl;
 		EXIT_FAILURE = EXIT_FAILURE_EXTERR;
 		throw EXCEPT_ERROR_IGNORE;
@@ -906,7 +906,7 @@ void IKeygen () {
 			(*key_store_func)($master_id+'.'+$slave_id,
 			                  key,
 			                  data_c);
-			} catch (std::runtime_error& e) {
+			} catch (const std::runtime_error& e) {
 				std::cerr << LOG_ARROW_ERR << "Error occured in keystore plugin '" << $key_storage_method << "' while storing new key : " << e.what() << std::endl;
 				::dlclose(pl_handle);
 				EXIT_FAILURE = EXIT_FAILURE_SYSERR;
@@ -948,10 +948,10 @@ void IKeygen () {
 			try {
 				std::string perms_str = slsock.i_str();
 				std::cout << "Below are permissions associated with this key : \n--------------------\n" << perms_str << "\n--------------------" << std::endl;
-			} catch (socketxx::error&) {
+			} catch (const socketxx::error&) {
 				return;
 			}
-		} catch (socketxx::error& e) {
+		} catch (const socketxx::error& e) {
 			std::cerr << LOG_ARROW_ERR << "Network error while sending key : " << e.what() << std::endl;
 			std::cout << LOG_ARROW << "Do you want to retry ?";
 			goto _retry;
@@ -970,7 +970,7 @@ void ISlKeyAuth () {
 		perms_f.open($key_sl_auth_perms_file_path);
 		perms_str = std::string (std::istreambuf_iterator<char>(perms_f),
 		                         std::istreambuf_iterator<char>());
-	} catch (std::ifstream::failure& e) {
+	} catch (const std::ifstream::failure& e) {
 		std::cerr << LOG_ARROW_ERR << "Failed to read key permissions settings file : " << e.what() << std::endl;
 		EXIT_FAILURE = EXIT_FAILURE_SYSERR;
 		throw EXCEPT_ERROR_IGNORE;
@@ -981,11 +981,11 @@ void ISlKeyAuth () {
 		perms_c.lookup("allow_by_default").assertType(libconfig::Setting::TypeBoolean);
 		perms_c.lookup("allowed_ops").assertType(libconfig::Setting::TypeGroup);
 		perms_c.lookup("denied_ops").assertType(libconfig::Setting::TypeArray);
-	} catch (libconfig::ParseException& e) {
+	} catch (const libconfig::ParseException& e) {
 		std::cerr << LOG_ARROW_ERR << "Parse error in permissions settings file at line " << e.getLine() << " : " << e.getError() << std::endl;
 		EXIT_FAILURE = EXIT_FAILURE_EXTERR;
 		throw EXCEPT_ERROR_IGNORE;
-	} catch (libconfig::SettingException& e) {
+	} catch (const libconfig::SettingException& e) {
 		std::cerr << LOG_ARROW_ERR << "Missing/bad setting @" << e.getPath() << " in permissions settings file" << std::endl;
 		EXIT_FAILURE = EXIT_FAILURE_EXTERR;
 		throw EXCEPT_ERROR_IGNORE;
@@ -1074,7 +1074,7 @@ void IioslFile2JSON () {
 		};
 		xif::polyvar var = conf_recuse(conf.libconfig::Config::getRoot());
 		std::cout << var.to_json(3) << std::endl;
-	} catch (std::exception& e) {
+	} catch (const std::exception& e) {
 		std::cerr << COLOR_RED << "Setting error in conf file of '" << $slave_id << "'" << COLOR_RESET << " : " << e.what() << std::endl;
 	}
 }

@@ -50,6 +50,7 @@ log_display_info log_display_infos[] = {
 	{"IMP",     "\033[1;36m"     },
 	{"MAJOR",   "\033[1;34m"     },
 	{"DONE",    "\033[32m"       },
+	{"VERB",    ""               },
 	{NULL,      NULL             }
 };
 
@@ -77,7 +78,7 @@ void xlog::logstream_impl::log (log_lvl lvl, const char* part, std::string msg, 
 			bool same_line = (log_history.size()-1 == *lid);
 			if (same_line && waiting_log) {
 				txt_output = timestr + msg;
-				tty_output = ((lvl != le.le_lvl and lvl != log_lvl::LOG) 
+				tty_output = ((lvl != le.le_lvl and lvl != log_lvl::LOG and lvl != log_lvl::VERBOSE)
 				              ? _S(log_disp.color) + timestr + msg + "\033[0m" 
 				              : timestr + msg);
 				if (log_callback) 

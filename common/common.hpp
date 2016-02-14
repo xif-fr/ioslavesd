@@ -14,8 +14,23 @@
 #include <inttypes.h>
 #include <vector>
 
-	// Log
-#include "log.h"
+	// Mutex
+#include <pthread.h>
+void pthread_mutex_log (void* obj, const char* action, pthread_mutex_t* mutex);
+#ifndef PTHREAD_MUTEX_LOG_ENABLED
+	#define pthread_mutex_log(a,b,c)
+#endif
+class pthread_mutex_handle { // Shall be used/copied only in the same thread
+	pthread_mutex_t* const _mutex;
+	bool* _locked;
+public:
+	pthread_mutex_handle (pthread_mutex_t* mutex) : _mutex(mutex), _locked(new bool (true)) { pthread_mutex_log(this,"will lock",_mutex); ::pthread_mutex_lock(_mutex); pthread_mutex_log(this,"locked",_mutex); }
+	pthread_mutex_handle (const pthread_mutex_handle& oth) = delete;
+	void soon_unlock () { ::pthread_mutex_unlock(_mutex); *_locked = false; pthread_mutex_log(this,"soon unlocked",_mutex); }
+	~pthread_mutex_handle () { if (*_locked) { ::pthread_mutex_unlock(_mutex); pthread_mutex_log(this,"auto unlocked",_mutex); } delete _locked; }
+};
+#define pthread_mutex_handle_lock(mutex) pthread_mutex_handle _mutex_handle_ (&mutex)
+#undef pthread_mutex_log
 
 	// Time
 #include <time.h>
@@ -31,6 +46,9 @@ const std::string& __get_homedir__();
 #include <socket++/base_io.hpp>
 #include <socket++/base_inet.hpp>
 struct pipe_proc_t { fd_t in; fd_t out; fd_t err; };
+
+	// Log
+#include "log.h"
 
 namespace ioslaves {
 	

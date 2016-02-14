@@ -184,9 +184,9 @@ struct {
 				conf.read(slave_f);
 				const char* fullname = conf.lookup("fullname");
 				fullName = [[NSString alloc] initWithUTF8String:fullname];
-			} catch (libconfig::ParseException& e) {
+			} catch (const libconfig::ParseException& e) {
 				throw std::runtime_error(logstream << "Parse error in slave file of " << slave_name << " at line " << e.getLine() << " : " << e.getError() << logstr);
-			} catch (libconfig::SettingException& e) {
+			} catch (const libconfig::SettingException& e) {
 				throw std::runtime_error(logstream << "Missing/bad field @" << e.getPath() << " in slave file of " << slave_name << logstr);
 			}
 			XifNetSlaveController* slaveController = [[XifNetSlaveController alloc] initWithSlaveID:slave_name 
@@ -196,7 +196,7 @@ struct {
 			[slaveController release];
 			CGFloat slaveLabelWidth = [slaveController calculateMenuWidth];
 			maxMenuWidth = std::max(maxMenuWidth, slaveLabelWidth);
-		} catch (std::runtime_error& e) {
+		} catch (const std::runtime_error& e) {
 			NSAlert *alert = [[NSAlert alloc] init];
 			[alert addButtonWithTitle:@"OK"];
 			[alert setMessageText:@"Can't load slave !"];

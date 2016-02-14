@@ -11,19 +11,8 @@
 
 namespace ioslaves { struct service; }
 
-#include <pthread.h>
-class pthread_mutex_handle { // Shall be used/copied only in the same thread
-	pthread_mutex_t* const _mutex;
-	bool* _locked;
-public: 
-	pthread_mutex_handle (pthread_mutex_t* mutex) : _mutex(mutex), _locked(new bool (true)) { ::pthread_mutex_lock(_mutex); }
-	pthread_mutex_handle (const pthread_mutex_handle& oth) = delete;
-	void soon_unlock () { ::pthread_mutex_unlock(_mutex); *_locked = false; }
-	~pthread_mutex_handle () { if (*_locked) ::pthread_mutex_unlock(_mutex); delete _locked; }
-};
-#define pthread_mutex_handle_lock(mutex) pthread_mutex_handle _mutex_handle_ (&mutex)
-
 // Signals to block in threads of api services
+#include <stddef.h>
 #include <signal.h>
 extern int sigs_to_block[];
 extern sig_atomic_t* signal_catch_sigchild_p;
@@ -46,7 +35,6 @@ struct _block_sigchild {
 };
 #define sigchild_block() _block_sigchild _block_sigchild_handle
 
-#include "log.h"
 #include "common.hpp"
 #include <xifutils/polyvar.hpp>
 

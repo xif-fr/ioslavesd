@@ -33,6 +33,7 @@ build() {
 		#define IOSLAVESD_PERSISTANT_RUN_FILES  "/var/db"
 		#define IOSLAVESD_KEYS_DIR              IOSLAVESD_ETC_DIR"/keys"
 		#define IOSLAVES_MASTER_DIR             "/var/ioslaves/ioslaves-master"
+		#define IOSLAVES_MASTER_KEYS_DIR        IOSLAVES_MASTER_DIR"/keys"
 		#define IOSLAVESD_VERSION               "${pkgver}"
 		#define XIFNET_SLAVES_DOM               "net.xif.fr"
 EODEFS

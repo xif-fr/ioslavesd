@@ -82,7 +82,7 @@ void ioslaves::upnpInit () {
 				                       &upnp_device_url, &upnp_device_data, 
 				                       upnp_lanIP, (size_t)16);
 				if (r == 1) {
-					__log__(log_lvl::LOG, "UPnP", logstream << "Got IGD URL in cache", LOG_DEBUG);
+					__log__(log_lvl::VERBOSE, "UPnP", logstream << "Got IGD URL in cache", LOG_DEBUG);
 					last_init = ::iosl_time();
 					::close(f);
 					return;
@@ -136,7 +136,7 @@ void ioslaves::upnpInit () {
 			rs = ::write(f, upnp_device_url.rootdescURL, ::strlen(upnp_device_url.rootdescURL));
 		}
 		last_init = ::iosl_time();
-	} catch (ioslaves::upnpError& upnperr) {
+	} catch (const ioslaves::upnpError& upnperr) {
 		__log__(log_lvl::ERROR, "UPnP", logstream << "UPnP init : " << upnperr.what());
 		throw;
 	}
@@ -182,7 +182,7 @@ void upnp_ports_open (ioslaves::upnpPort& p, bool silent) {
 		if (not ok) 
 			throw ioslaves::upnpError("Failed to add port redirection : verification failed");
 		p._is_verifiable = true;
-	} catch (ioslaves::upnpError& upnperr) {
+	} catch (const ioslaves::upnpError& upnperr) {
 		if (not upnperr.fatal and p.p_range_sz == 1) {
 			p._is_verifiable = false;
 			if (not silent)
@@ -227,7 +227,7 @@ void upnp_ports_close (ioslaves::upnpPort p, bool silent) {
 	try {
 		if (upnp_port_check(p.p_ext_port, p.p_proto))
 			__log__(log_lvl::WARNING, "UPnP", logstream << "Port " << p.p_ext_port << " is still opened after deletion !");
-	} catch (ioslaves::upnpError) {}
+	} catch (const ioslaves::upnpError) {}
 	if (not silent) 
 		__log__(log_lvl::DONE, "UPnP", "Closed", LOG_ADD, &l);
 }
@@ -333,17 +333,17 @@ void ioslaves::upnpReopen () {
 					log_lvl done_lvl = log_lvl::DONE;
 					try {
 						upnp_ports_open(port, true);
-					} catch (ioslaves::upnpError& upnperr) { if (upnperr.fatal) throw; done_lvl = log_lvl::WARNING; }
+					} catch (const ioslaves::upnpError& upnperr) { if (upnperr.fatal) throw; done_lvl = log_lvl::WARNING; }
 					::gettimeofday(&port._lastopen, NULL);
 					__log__(done_lvl, "UPnP", "Done", LOG_ADD|LOG_WAIT, &l);
 					done_lvl = log_lvl::DONE;
 					try {
 						upnp_ports_open(port, true);
-					} catch (ioslaves::upnpError& upnperr) { if (upnperr.fatal) throw; done_lvl = log_lvl::WARNING; }
+					} catch (const ioslaves::upnpError& upnperr) { if (upnperr.fatal) throw; done_lvl = log_lvl::WARNING; }
 					__log__(done_lvl, "UPnP", "Done²", LOG_ADD, &l);
 				}
 			}
-		} catch (ioslaves::upnpError& ue) {
+		} catch (const ioslaves::upnpError& ue) {
 			__log__(log_lvl::WARNING, "UPnP", logstream << "UPnP error while " << (reopening?"reopening":"checking") << " port : " << ue.what());
 			if (failed) { 
 				__log__(log_lvl::FATAL, "UPnP", "Ports refresh failed for the second time !");
@@ -375,7 +375,7 @@ ioslaves::answer_code ioslaves::api::open_port (in_port_t ext_port, bool is_tcp,
 		if (ports_table_check_collision(ext_port, range_sz, proto))
 			return ioslaves::answer_code::EXISTS;
 		upnp_ports_open(p, false);
-	} catch (ioslaves::upnpError& upnperr) {
+	} catch (const ioslaves::upnpError& upnperr) {
 		errno = upnperr.ret;
 		if (upnperr.fatal)
 			return ioslaves::answer_code::UPNP_ERROR;
@@ -392,7 +392,7 @@ void ioslaves::api::close_port (in_port_t ext_port, uint16_t range_sz, bool is_t
 	ports_table_del(ext_port, proto);
 	try {
 		upnp_ports_close(ioslaves::upnpPort({ext_port, proto, ext_port, range_sz}), false);
-	} catch (ioslaves::upnpError& eu) {}
+	} catch (const ioslaves::upnpError& eu) {}
 }
 
 	/// ioslaves interface, aware of enable_upnp
@@ -405,7 +405,7 @@ void ioslaves::upnpOpenPort (upnpPort p) {
 	try {
 		upnp_ports_open(p, false);
 		ports_table_add(p);
-	} catch (ioslaves::upnpError& upnperr) {
+	} catch (const ioslaves::upnpError& upnperr) {
 		if (not upnperr.fatal) 
 			ports_table_add(p);
 		throw;

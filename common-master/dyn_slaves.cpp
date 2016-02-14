@@ -65,7 +65,7 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::gather_infos (std::vec
 			libconfig::Config* conf = new libconfig::Config;
 			try {
 				conf->read(ser_f);
-			} catch (libconfig::ParseException& e) {
+			} catch (const libconfig::ParseException& e) {
 				throw ioslaves::req_err(answer_code::INVALID_DATA, logstream << "Parse error in slave file of " << info.sl_name << " at line " << e.getLine() << " : " << e.getError());
 			}
 			slaves_list_cfg.push_back( std::pair<slave_info,libconfig::Config*>( info, conf ) );
@@ -116,7 +116,7 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::gather_infos (std::vec
 				break;
 			_next:;
 			}
-		} catch (libconfig::SettingException& e) {
+		} catch (const libconfig::SettingException& e) {
 			throw ioslaves::req_err(answer_code::INVALID_DATA, logstream << "Missing/bad field @" << e.getPath() << " in slave file of " << info.sl_name);
 		}
 		slaves_list.push_back(info);
@@ -138,10 +138,10 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::gather_infos (std::vec
 				stat = sock.i_var(); // Get system infos
 				sock.i_char();
 			} 
-			catch (socketxx::dns_resolve_error&) { info.sl_status = -1; return NULL; }
-			catch (socketxx::end::client_connect_error& e) { info.sl_status = -1; return NULL; }
-			catch (socketxx::classic_error& e) { info.sl_status = e.get_errno(); return NULL; }
-			catch (iosl_master::ldns_error&) { info.sl_status = -1; return NULL; }
+			catch (const socketxx::dns_resolve_error&) { info.sl_status = -1; return NULL; }
+			catch (const socketxx::end::client_connect_error& e) { info.sl_status = -1; return NULL; }
+			catch (const socketxx::classic_error& e) { info.sl_status = e.get_errno(); return NULL; }
+			catch (const iosl_master::ldns_error&) { info.sl_status = -1; return NULL; }
 			catch (...) { info.sl_status = -3; return NULL; }
 			try { // Fill the info struct with fresh infos from slave
 				info._sl_raw_infos = stat;
@@ -254,8 +254,8 @@ void iosl_dyn_slaves::select_slaves (std::vector<slave_info>& slaves_list,
 					if (ext_pt == INT32_MIN) goto bye;
 					pt += ext_pt;
 				}
-				catch (xif::polyvar::bad_type) { goto bye; }
-				catch (std::runtime_error) { goto bye; }
+				catch (const xif::polyvar::bad_type) { goto bye; }
+				catch (const std::runtime_error) { goto bye; }
 			else
 				std::get<7>(info._sl_categs_infos) = 0;
 		}
@@ -305,9 +305,9 @@ time_t iosl_master::slave_start (std::string slave_id, std::string master_id) {
 				throw std::runtime_error("Invalid slave name as wake gateway");
 		} else 
 			throw std::runtime_error("Invalid poweron type");
-	} catch (libconfig::SettingException& e) {
+	} catch (const libconfig::SettingException& e) {
 		throw ioslaves::req_err(answer_code::INVALID_DATA, logstream << "Missing/bad setting @" << e.getPath() << " in slave file of '" << slave_id << "'");
-	} catch (std::exception& e) {
+	} catch (const std::exception& e) {
 		throw ioslaves::req_err(answer_code::INVALID_DATA, logstream << "Error in slave file of '" << slave_id << "' : " << e.what());
 	}
 	__log__(log_lvl::LOG, "WAKE", logstream << "Waking up slave '" << slave_id << "'", LOG_WAIT, &l);
@@ -330,9 +330,9 @@ time_t iosl_master::slave_start (std::string slave_id, std::string master_id) {
 			time_t dist_delay = sock.i_int<uint16_t>();
 			if (dist_delay > $start_delay)
 				$start_delay = dist_delay;
-		} catch (socketxx::classic_error& e) {
+		} catch (const socketxx::classic_error& e) {
 			throw ioslaves::req_err(answer_code::ERROR, logstream << "Network error with wake-gateway service : " << e.what());
-		} catch (master_err& e) {
+		} catch (const master_err& e) {
 			throw ioslaves::req_err(answer_code::ERROR, logstream << "Master error while connecting to wake-gateway service : " << e.what());
 		}
 		__log__(log_lvl::DONE, "WAKE", "Start request relayed !");

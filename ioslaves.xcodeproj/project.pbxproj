@@ -920,6 +920,7 @@
 					"IOSLAVESD_PERSISTANT_RUN_FILES=\\\"/var/db\\\"",
 					"IOSLAVESD_KEYS_DIR=IOSLAVESD_ETC_DIR\\\"/keys\\\"",
 					"IOSLAVES_MASTER_DIR=\\\"/var/ioslaves/ioslaves-master\\\"",
+					"IOSLAVES_MASTER_KEYS_DIR=\\\"/var/ioslaves/ioslaves-master/keys\\\"",
 					"IOSLAVESD_VERSION=\\\"dev-osx\\\"",
 					IOSLAVESD_NO_TOPP,
 					IOSLAVED_FORCE_CREDS,

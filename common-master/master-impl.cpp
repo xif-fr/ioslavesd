@@ -70,7 +70,7 @@ socketxx::base_netsock iosl_master::slave_connect (std::string slave_id, in_port
 	socketxx::base_netsock::addr_info addr ( _s(slave_id,'.',XIFNET_SLAVES_DOM), [&] () -> in_port_t {
 		try { // Retriving port number with SRV records
 			return iosl_master::slave_get_port_dns(slave_id);
-		} catch (ldns_error&) {
+		} catch (const ldns_error&) {
 			if (default_port == 0)
 				throw;
 			else 
@@ -90,7 +90,7 @@ void iosl_master::slave_command (socketxx::io::simple_socket<socketxx::base_nets
 		slave_sock.o_str(master_id);
 		slave_sock.o_bool(false); // no auth
 		slave_sock.o_char((char)opp);
-	} catch (socketxx::error& e) {
+	} catch (const socketxx::error& e) {
 		if ($leave_exceptions) throw;
 		throw master_err(EXIT_FAILURE_COMM, logstream << "Failed to communicate with slave : " << e.what());
 	}
@@ -162,18 +162,18 @@ void iosl_master::authenticate (socketxx::io::simple_socket<socketxx::base_netso
 			answer = (*answer_challenge_func)(key_id,
 			                                  challenge,
 			                                  data_c);
-			} catch (std::runtime_error& e) {
+			} catch (const std::runtime_error& e) {
 				throw master_err(EXIT_FAILURE_EXTERR, logstream << "Error in key storage plugin '" << store_method << "' while resolving challenge : " << e.what());
 			}
 	#else
 			throw master_err(EXIT_FAILURE_AUTH, logstream << "Key storage method '" << store_method << "' is unknown and external storage methods are not enabled");
 	#endif
 		}
-	} catch (libconfig::SettingException& e) {
+	} catch (const libconfig::SettingException& e) {
 		throw master_err(EXIT_FAILURE_EXTERR, logstream << "Missing/bad field @" << e.getPath() << " in key file for '" << key_id << "'");
-	} catch (libconfig::ConfigException& e) {
+	} catch (const libconfig::ConfigException& e) {
 		throw master_err(EXIT_FAILURE_EXTERR, logstream << "Malformed key file for '" << key_id << "' : " << e.what());
-	} catch (master_err& e) {
+	} catch (const master_err& e) {
 		throw master_err(e.ret, logstream << "Failure with key '" << key_id << "' : " << e.what());
 	}
 	slave_sock.o_buf(answer.bin, HASH_LEN);
@@ -196,7 +196,7 @@ void iosl_master::slave_command_auth (socketxx::io::simple_socket<socketxx::base
 		slave_sock.o_bool(true); // auth
 		iosl_master::authenticate(slave_sock, key_id);
 		slave_sock.o_char((char)opp);
-	} catch (socketxx::error& e) {
+	} catch (const socketxx::error& e) {
 		if ($leave_exceptions) throw;
 		throw master_err(EXIT_FAILURE_COMM, logstream << "Failed to communicate with slave while authenticating : " << e.what());
 	}
@@ -212,16 +212,16 @@ socketxx::base_netsock iosl_master::slave_api_service_connect (std::string slave
 		if (answ != ioslaves::answer_code::OK) 
 			throw master_err(EXIT_FAILURE_IOSL, logstream << "Failed to connect to API service : " << ioslaves::getAnswerCodeDescription(answ), answ);
 		return slave_sock;
-	} catch (socketxx::end::client_connect_error& e) {
+	} catch (const socketxx::end::client_connect_error& e) {
 		if ($leave_exceptions) throw;
 		throw master_err(EXIT_FAILURE_DOWN, logstream << "Can't connect to slave : " << e.what());
-	} catch (socketxx::dns_resolve_error& e) {
+	} catch (const socketxx::dns_resolve_error& e) {
 		if ($leave_exceptions) throw;
 		throw master_err(EXIT_FAILURE_CONN, logstream << "Can't resolve hostname '" << e.failed_hostname << "' !");
-	} catch (iosl_master::ldns_error& e) {
+	} catch (const iosl_master::ldns_error& e) {
 		if ($leave_exceptions) throw;
 		throw master_err(EXIT_FAILURE_DOWN, logstream << "Can't retrive port number : " << e.what());
-	} catch (socketxx::error& e) {
+	} catch (const socketxx::error& e) {
 		if ($leave_exceptions) throw;
 		throw master_err(EXIT_FAILURE_COMM, logstream << "Communication error while connecting to slave or API service : " << e.what());
 	}

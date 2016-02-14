@@ -58,11 +58,11 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 		time_t delay = 0;
 		try {
 			delay = iosl_master::slave_start(slave_up, _S("_IOSL_",ioslaves::api::slave_name));
-		} catch (ioslaves::req_err& re) {
+		} catch (const ioslaves::req_err& re) {
 			__log__(log_lvl::ERROR, "WAKE", logstream << "Failed to wake up slave : " << re.what());
 			cli.o_char((char)re.answ_code);
 			return;
-		} catch (std::exception& e) {
+		} catch (const std::exception& e) {
 			__log__(log_lvl::ERROR, "WAKE", logstream << "Error while waking up slave : " << e.what());
 			cli.o_char((char)ioslaves::answer_code::ERROR);
 			return;
@@ -71,7 +71,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 		cli.o_int<uint16_t>(delay);
 		__log__(log_lvl::DONE, "WAKE", logstream << "Done. Announced delay : " << delay);
 		
-	} catch (socketxx::error& e) {
+	} catch (const socketxx::error& e) {
 		__log__(log_lvl::NOTICE, "COMM", logstream << "Network error : " << e.what());
 	}
 }

@@ -78,7 +78,7 @@ extern "C" void key_store (std::string key_id, ioslaves::key_t key, libconfig::S
 	try {
 		serial = ::arduino_get_connection(device.c_str(), 
 		                                  arduino_auth_opcode::OP_ADD_KEY);
-	} catch (std::runtime_error& e) {
+	} catch (const std::runtime_error& e) {
 		throw std::runtime_error(logstream << "failed to connect to arduino : " << e.what() << logstr);
 	}
 	RAII_AT_END({
@@ -113,12 +113,12 @@ extern "C" ioslaves::hash_t key_answer_challenge (std::string key_id, ioslaves::
 	try {
 		serial = ::arduino_get_connection( ioslaves::infofile_get(_s(IOSL_MASTER_KEYSTORE_ARDUINO_DEVICE_PATH_FILE), false).c_str(), 
 		                                   arduino_auth_opcode::OP_CHALLENGE);
-	} catch (std::runtime_error& e) {
+	} catch (const std::runtime_error& e) {
 		throw std::runtime_error(logstream << "failed to connect to arduino : " << e.what() << logstr);
 	}
 	RAII_AT_END({
 		if (not arduino_reuse_conn) {
-			__log__(log_lvl::LOG, "ARDUINO", logstream << "Connection to arduino closed");
+			__log__(log_lvl::VERBOSE, "ARDUINO", logstream << "Connection to arduino closed");
 			::close(serial);
 		}
 	});
@@ -166,7 +166,7 @@ fd_t arduino_get_connection (const char* device, arduino_auth_opcode op) {
 	else {
 		if (*serial_save_p == 0) {
 			arduino_reuse_conn = true;
-			__log__(log_lvl::LOG, "ARDUINO", "Opening new reusable connection...");
+			__log__(log_lvl::VERBOSE, "ARDUINO", "Opening new reusable connection...");
 			goto _connect;
 		} else if (*serial_save_p > 0) {
 			arduino_reuse_conn = true;
@@ -203,8 +203,8 @@ _connect:
 	}
 	try {
 		::arduino_read_byte(serial, ARDUINO_CONNECTION_TIMEOUT);
-	} catch (xif::sys_error&) { throw; }
-	  catch (std::runtime_error&) {
+	} catch (const xif::sys_error&) { throw; }
+	  catch (const std::runtime_error&) {
 		throw std::runtime_error("connection to arduino timed out");
 	}
 	if (arduino_reuse_conn) 
