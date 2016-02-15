@@ -1,7 +1,7 @@
 # Maintainer: Félix Faisant <xcodexif@xif.fr>
 
 pkgname=ioslavesd-minecraft
-pkgver=3.6.3
+pkgver=3.6.4
 pkgrel=1
 pkgdesc='Xif Network - ioslaved plugin for Minecraft Server Distributed Hosting'
 license=('custom')
@@ -34,6 +34,7 @@ build() {
 		#define MINECRAFT_SRV_DIR   "/srv/mc"
 		#define XIFNET_SLAVES_DOM   "net.xif.fr"
 		#define XIFNET_MC_DOM       "mc.xif.fr"
+		#define PTHREAD_MUTEX_LOG_ENABLED
 EODEFS
 	make CXXFLAGS="${CXXFLAGS} -include defs.h"
 }

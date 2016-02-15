@@ -15,11 +15,9 @@ install=''
 
 source=('../common/common.hpp' '../common/common.cpp' '../common/log.h'  '../common/log_defimpl.h'
         'master.cpp' '../common-master/master.hpp' '../common-master/master-impl.cpp' '../common-master/dyn_slaves.cpp' '../common-master/wol.cpp' '../common-master/keystore.hpp'
-        'Makefile'
-        'perms-tpl')
+        'Makefile')
 sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP'
             'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
-            'SKIP'
             'SKIP')
 
 build() {
@@ -37,5 +35,5 @@ package() {
 	install -D -m755 $srcdir/ioslaves-master $pkgdir/usr/bin/ioslaves-master
 	install -d -m755 $pkgdir/usr/share/ioslaves/master/key-perms/
 	install -d -m755 $pkgdir/usr/lib/ioslaves-master/keystore
-	cp $srcdir/perms-tpl/* $pkgdir/usr/share/ioslaves/master/key-perms/
+	cp $srcdir/../perms-tpl/* $pkgdir/usr/share/ioslaves/master/key-perms/
 }
