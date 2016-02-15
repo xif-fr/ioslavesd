@@ -6,10 +6,6 @@
  * This software is under the GNU General Public License
  \**********************************************************/
 
-	// Common
-#define PTHREAD_MUTEX_LOG_ENABLED
-#include "common.hpp"
-
 	// ioslavesd API
 #define IOSLAVESD_API_SERVICE
 #define IOSLAVESD_API_SERVICE_IMPL
@@ -388,6 +384,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 				cli.o_str(ss.serv);
 				cli.o_char((char)ss.why);
 				cli.o_bool(ss.gracefully);
+				cli.o_bool((bool)minecraft::servs.count(ss.serv));
 				cli.o_str(ss.map_to_save);
 				bool accept = cli.i_bool();
 				if (accept) {
@@ -1777,9 +1774,10 @@ void* minecraft::serv_thread (void* arg) {
 								int_req->data = NULL;
 								int_req->patterns_beg = MINECRAFT_LIST_PATTERNS_BEG;
 								int_req->sock = new socketxx::io::simple_socket<socketxx::base_socket>( comms );
-								int_req->f_callback = [&parse_list_players,&first_0] (decltype(int_req->sock) sock, std::string msg, interpret_request* req) -> bool {
+								int_req->f_callback = [&parse_list_players,&first_0,s] (decltype(int_req->sock) sock, std::string msg, interpret_request* req) -> bool {
 									try {
 										uint16_t n_players = parse_list_players(msg, req);
+										__log__(log_lvl::VERBOSE, THLOGSCLI(s), logstream << "Reporting " << n_players << " players.");
 										sock->o_char((char)ioslaves::answer_code::OK);
 										sock->o_int<int16_t>(n_players);
 										sock->o_int<uint32_t>((uint32_t)first_0);
@@ -1981,7 +1979,6 @@ void* minecraft::serv_thread (void* arg) {
 	try { 
 		minecraft::servs.erase(s->s_servid);
 	} catch (...) {}
-	if (stopInfo.why == (minecraft::whyStopped)0) stopInfo.why = minecraft::whyStopped::ERROR_INTERNAL;
 	if (stopInfo.why != minecraft::whyStopped::DESIRED_MASTER and stopInfo.why != minecraft::whyStopped::NOT_STARTED) {
 		minecraft::servs_stopped.push_back(stopInfo);
 		__log__(log_lvl::NOTICE, THLOGSCLI(s), logstream << "Stop report saved");
@@ -2175,6 +2172,7 @@ void minecraft::stopServer (socketxx::io::simple_socket<socketxx::base_socket> c
 			cli.o_str(s->s_servid);
 			cli.o_char((char)minecraft::whyStopped::DESIRED_MASTER);
 			cli.o_bool(true);
+			cli.o_bool(false);
 			bool fixedworld = not ioslaves::infofile_get(_s( MINECRAFT_SRV_DIR,"/mc_",s->s_servid,'/',s->s_map,"/fixed_map" ), true).empty();
 			cli.o_str( fixedworld ? std::string() : s->s_map );
 			bool accept = cli.i_bool();

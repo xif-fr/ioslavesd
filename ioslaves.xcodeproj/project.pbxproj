@@ -859,6 +859,7 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"MINECRAFT_SRV_DIR=\"\\\"/var/ioslaves/minecraft\\\"\"",
 					"XIFNET_MC_DOM=\\\"mc.xif.fr\\\"",
+					PTHREAD_MUTEX_LOG_ENABLED,
 					"$(inherited)",
 				);
 				OTHER_LDFLAGS = (
@@ -899,6 +900,7 @@
 					"DEBUG=1",
 					"$(inherited)",
 				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_LDFLAGS = (
 					"-lsocketxx",

@@ -871,9 +871,19 @@ void handleReportRequest (socketxx::io::simple_socket<socketxx::base_socket> soc
 	std::string servname = sock.i_str();
 	__log__ << LOG_AROBASE << "Handling stop report request for server '" << servname << "' from slave " << slave << "..." << std::flush;
 	minecraft::whyStopped why_stopped = (minecraft::whyStopped)sock.i_char();
+	const char* reason = NULL;
+	switch (why_stopped) {
+		case minecraft::whyStopped::DESIRED_INTERNAL: reason = "Stopped automatically bu ioslavesd-minecraft"; break;
+		case minecraft::whyStopped::DESIRED_MASTER: reason = "Stopped by a master"; break;
+		case minecraft::whyStopped::ITSELF: reason = "Minecraft server stopped itself"; break;
+		case minecraft::whyStopped::ERROR_INTERNAL: reason = "Killed or halted by force"; break;
+		case minecraft::whyStopped::NOT_STARTED: reason = "Server was not even started"; break;
+		default: reason = "Unknown";
+	}
 	bool gracefully_stopped = sock.i_bool();
+	bool current_state_running = sock.i_bool();
 	std::string map_to_save = sock.i_str();
-	__log__ << "Server was stopped " << (gracefully_stopped?"":"un") << "gracefully. Reason : " << (char)why_stopped << ".";
+	__log__ << "Server was stopped " << (gracefully_stopped?"":"un") << "gracefully. Reason : " << reason << ".";
 	if (not $granmaster or ($refuse_save and ($worldname.empty() or $worldname != map_to_save))) {
 		__log__ << std::flush << LOG_AROBASE_ERR << "Refusing report request" << std::flush;
 		sock.o_bool(false);
@@ -907,12 +917,22 @@ void handleReportRequest (socketxx::io::simple_socket<socketxx::base_socket> soc
 	if (not map_to_save.empty()) 
 		__log__ << " Saving world '" << map_to_save << "'..." << std::flush;
 	else __log__ << std::flush;
-	::setRunningOnSlave(servname, "");
-	sock.o_bool(true);
-	if (not map_to_save.empty()) {
-		acceptFileSave(sock, servname, map_to_save, slave, true);
-		// Is it reasonable to consider the save as a last-save ?
+	bool true_save = true;
+	if (current_state_running) {
+		::setRunningOnSlave(servname, slave);
+		true_save = false;
+	} else {
+		std::string local_running_on = ::getRunningOnSlave(servname);
+		if (local_running_on == slave) {
+			true_save = true; // really ?
+			::setRunningOnSlave(servname, "");
+		} else {
+			true_save = false;
+		}
 	}
+	sock.o_bool(true);
+	if (not map_to_save.empty())
+		acceptFileSave(sock, servname, map_to_save, slave, true_save);
 	__log__ << LOG_AROBASE_OK << "Report request : Done" << std::flush;
 }
 
