@@ -1071,6 +1071,9 @@ void* signals_thread (void* _data) {
 	sigchild_action.sa_flags = SA_RESTART;
 	::sigaction(SIGCHLD, &sigchild_action, NULL);
 	
+		// Ignore SIGPIPE
+	::signal(SIGPIPE, SIG_IGN);
+	
 		// Loop
 	for (;;) {
 		
