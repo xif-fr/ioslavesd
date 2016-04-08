@@ -76,7 +76,7 @@ void ioslaves::wol::magic_send (const char* mac_addr, bool wan, in_addr_t ip, in
 	
 		// Send
 	ssize_t rs = ::sendto(udps, pkt, MAGIC_HEADER+ETHER_ADDR_LEN*MAGIC_MAC_TIMES, 0,
-								 (const sockaddr*)&sendaddr, sizeof (sockaddr_in));
+	                      (const sockaddr*)&sendaddr, sizeof (sockaddr_in));
 	if (rs <= 0)
 		throw xif::sys_error("wol: can't send magic packet");
 }

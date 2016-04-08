@@ -25,7 +25,7 @@ enum class log_lvl : unsigned char {
 	IMPORTANT = 7,
 	MAJOR = 8,
 	DONE = 9,
-	VERBOSE = 10,
+	_DEBUG = 10,
 };
 
 std::ostream& logstream_acquire () noexcept;
@@ -38,11 +38,12 @@ typedef size_t logl_t;
 
 #define LOG_WAIT         0x01
 #define LOG_ADD          0x02
-#define LOG_DEBUG        0x04
 #define LOG_NO_HISTORY   0x08
 
 void __log__ (log_lvl, const char* part, std::ostream&, int flags = 0, logl_t* lid = NULL) noexcept;
 void __log__ (log_lvl, const char* part, std::string msg, int flags = 0, logl_t* lid = NULL) noexcept;
+inline void __ldebug__ (const char* part, std::string msg) noexcept { __log__(xlog::log_lvl::_DEBUG, part, msg); }
+inline void __ldebug__ (const char* part, std::ostream& os) noexcept { __log__(xlog::log_lvl::_DEBUG, part, xlog::logstream_retrieve()); }
 
 }
 

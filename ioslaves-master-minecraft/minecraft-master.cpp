@@ -176,7 +176,7 @@ void xlog::logstream_impl::log (log_lvl lvl, const char* part, std::string msg, 
 	if (_log_wait_flag and not (m & LOG_ADD)) ::__log__ << std::flush;
 	_log_wait_flag = false;
 	switch (lvl) {
-		case log_lvl::LOG: case log_lvl::VERBOSE: break;
+		case log_lvl::LOG: case log_lvl::_DEBUG: break;
 		case log_lvl::NOTICE: case log_lvl::IMPORTANT: case log_lvl::MAJOR: ::__log__<< LOG_ARROW; break;
 		case log_lvl::FATAL: case log_lvl::ERROR: case log_lvl::OOPS: case log_lvl::SEVERE: ::__log__ << LOG_ARROW_ERR << COLOR_RED << "Error : " << COLOR_RESET; break;
 		case log_lvl::WARNING: ::__log__ << COLOR_YELLOW << "Warning : " << COLOR_RESET; break;
@@ -873,7 +873,7 @@ void handleReportRequest (socketxx::io::simple_socket<socketxx::base_socket> soc
 	minecraft::whyStopped why_stopped = (minecraft::whyStopped)sock.i_char();
 	const char* reason = NULL;
 	switch (why_stopped) {
-		case minecraft::whyStopped::DESIRED_INTERNAL: reason = "Stopped automatically bu ioslavesd-minecraft"; break;
+		case minecraft::whyStopped::DESIRED_INTERNAL: reason = "Stopped automatically by ioslavesd-minecraft"; break;
 		case minecraft::whyStopped::DESIRED_MASTER: reason = "Stopped by a master"; break;
 		case minecraft::whyStopped::ITSELF: reason = "Minecraft server stopped itself"; break;
 		case minecraft::whyStopped::ERROR_INTERNAL: reason = "Killed or halted by force"; break;
@@ -1131,6 +1131,7 @@ void MServStatus () {
 			}; tryGetStatus(20/*trials*/);
 			if ($status) {
 				__log__ << LOG_ARROW_OK << "Yes, server is running on slave '" << $local_slave_id << "'." << std::flush;
+				::setRunningOnSlave($server_name, $local_slave_id);
 			} else {
 				__log__ << LOG_ARROW_ERR << "Erm... No, server isn't running on slave '" << $local_slave_id << "'." << std::flush;
 				#warning TO DO : check on dedicated slave of all maps

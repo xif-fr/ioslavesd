@@ -293,7 +293,7 @@ extern "C" xif::polyvar* ioslapi_status_info () {
 		try {
 			if ((ioslaves::answer_code)p.second.i_char() == ioslaves::answer_code::OK) {
 				servers.v().back().s() += _S( " (",::ixtoa(p.second.i_int<int16_t>()),")" );
-				p.second.i_int<int32_t>();
+				p.second.i_int<uint32_t>();
 			}
 		} catch (...) {}
 		if (servs_fixed[p.first] == true) 
@@ -499,7 +499,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 							return;
 						}
 						cli.o_char((char)ioslaves::answer_code::OK);
-						__log__(log_lvl::VERBOSE, NULL, logstream << "Invalidate FTP sessions for server '" << s_servid << "'");
+						__log__(log_lvl::LOG, NULL, logstream << "Invalidate FTP sessions for server '" << s_servid << "'");
 						minecraft::ftp_del_sess_for_serv(s_servid, 0);
 						cli.o_char((char)ioslaves::answer_code::OK);
 						__log__(log_lvl::IMPORTANT, NULL, logstream << "Saving world '" << map << "' of server '" << s_servid << "'...");
@@ -522,12 +522,12 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 				// Send stats to client (status, running map, start time, players, port, list of server maps)
 			case minecraft::op_code::SERV_STAT: {
 				logl_t l;
-				__log__(log_lvl::VERBOSE, "COMM", logstream << "Master wants to get status of server '" << s_servid << "'", LOG_WAIT, &l);
+				__log__(log_lvl::_DEBUG, "COMM", logstream << "Master wants to get status of server '" << s_servid << "'", LOG_WAIT, &l);
 				cli.o_char((char)ioslaves::answer_code::OK);
 				minecraft::serv* s = NULL;
 				try {
 					s = minecraft::servs.at(s_servid);
-					__log__(log_lvl::VERBOSE, "COMM", ": Running", LOG_ADD, &l);
+					__log__(log_lvl::_DEBUG, "COMM", ": Running", LOG_ADD, &l);
 					cli.o_bool(true);
 					if (cli.i_bool()) {
 						in_port_t port = s->s_port;
@@ -549,11 +549,11 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 						cli.o_int<in_port_t>(port);
 					}
 				} catch (const std::out_of_range) {
-					__log__(log_lvl::VERBOSE, "COMM", ": Not running", LOG_ADD, &l);
+					__log__(log_lvl::_DEBUG, "COMM", ": Not running", LOG_ADD, &l);
 					cli.o_bool(false);
 				}
 					// Send map list (without running map) with their last-save-time for master syncing, and send map save if needed
-				__log__(log_lvl::VERBOSE, "FILES", logstream << "List maps...", LOG_WAIT, &l);
+				__log__(log_lvl::_DEBUG, "FILES", logstream << "List maps...", LOG_WAIT, &l);
 				std::vector<std::tuple<std::string,time_t,bool>> serv_maps;
 				try {
 					block_as_mcjava();
@@ -583,7 +583,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 							if (r == 0) 
 								lastsave = minecraft::lastsaveTimeFile(lastsavetime_path.c_str(), false);
 							bool fixed = not ioslaves::infofile_get(_s( MINECRAFT_SRV_DIR,"/mc_",s_servid,'/',map,"/fixed_map" ), true).empty();
-							__log__(log_lvl::VERBOSE, "FILES", logstream << map << ":" << lastsave << (fixed?" (fix)":""), LOG_ADD|LOG_WAIT, &l);
+							__log__(log_lvl::_DEBUG, "FILES", logstream << map << ":" << lastsave << (fixed?" (fix)":""), LOG_ADD|LOG_WAIT, &l);
 							serv_maps.push_back(std::make_tuple(map,lastsave,fixed));
 						}
 					}
@@ -774,7 +774,7 @@ time_t minecraft::lastsaveTimeFile (std::string path, bool set) {
 void minecraft::unzip (const char* file, const char* in_dir, const char* expected_dir_name) {
 	assert_mcjava();
 	logl_t l;
-	__log__(log_lvl::VERBOSE, "FILES", logstream << "Unzipping file (expecting '" << expected_dir_name << "')... ", LOG_WAIT, &l);
+	__log__(log_lvl::_DEBUG, "FILES", logstream << "Unzipping file (expecting '" << expected_dir_name << "')... ", LOG_WAIT, &l);
 	int r;
 	std::string expected_dir = _S( in_dir,'/',expected_dir_name );
 	r = ::access(expected_dir.c_str(), F_OK);
@@ -908,7 +908,7 @@ void minecraft::deleteLckFiles (std::string in_dir) {
 // Copy server template directory
 void minecraft::cpTplDir (const char* tplDir, std::string working_dir) {
 	assert_mcjava();
-	__log__(log_lvl::VERBOSE, "FILES", logstream << "Copying template folder");
+	__ldebug__("FILES", logstream << "Copying template folder");
 	int r;
 	{ sigchild_block(); asroot_block();
 		int cp_r = 
@@ -1242,7 +1242,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 				time_t lastsavetime_map = 0;
 				try {
 					lastsavetime_map = lastsaveTimeFile(_S( MINECRAFT_SRV_DIR,"/mc_",s->s_servid,'/',s->s_map ), false);
-					__log__(log_lvl::VERBOSE, "FILES", logstream << "Last-save-time local : " << lastsavetime_map << "; Last-save-time master : " << s_lastsavetime);
+					__ldebug__("FILES", logstream << "Last-save-time local : " << lastsavetime_map << "; Last-save-time master : " << s_lastsavetime);
 				} catch (const xif::sys_error& syserr) {
 					if (syserr.errorno == ENOENT) {
 						__log__(log_lvl::WARNING, "FILES", MCLOGSCLI(s) << "Server folder : last-save-time file not found. Setting as now.");
@@ -1251,7 +1251,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 					else throw;
 				}
 				if (abs((int)(lastsavetime_map-s_lastsavetime)) < MINECRAFT_SERV_MASTER_MAX_DELAY_CONSIDERED_EQUAL) {
-					__log__(log_lvl::VERBOSE, "FILES", MCLOGSCLI(s) << "Server folder is up-to-date with saved one on the master");
+					__log__(log_lvl::_DEBUG, "FILES", MCLOGSCLI(s) << "Server folder is up-to-date with saved one on the master");
 				}
 				float diff_hours = (lastsavetime_map-s_lastsavetime)/3600.0f;
 				if (lastsavetime_map < s_lastsavetime) {
@@ -1328,7 +1328,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 				// Special treatment here : minecraft_server.jar will be patched by Forge and need to be in the folder
 				if (s->s_serv_type == minecraft::serv_type::CAULDRON) jar_prefix = "mc_cauldron_";
 				else if (s->s_serv_type == minecraft::serv_type::FORGE) jar_prefix = "mc_forge_";
-				__log__(log_lvl::VERBOSE, "FILES", logstream << "Using forge -> Creating symlink to minecraft_server.jar");
+				__log__(log_lvl::_DEBUG, "FILES", logstream << "Using forge -> Creating symlink to minecraft_server.jar");
 				jar_path = _s( MINECRAFT_JAR_DIR,'/',(jar_name=_s("mc_vanilla_",s->s_mc_ver.strdigits(),".jar")) );
 				r = ::access(jar_path.c_str(), R_OK);
 				if (r == -1) {
@@ -1361,7 +1361,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 		
 			// Changing directory owner and reset effective uid
 		ioslaves::api::euid_switch(0,0);
-		__log__(log_lvl::VERBOSE, NULL, MCLOGSCLI(s) << "Correcting permissions...");
+		__ldebug__(NULL, MCLOGSCLI(s) << "Correcting permissions...");
 		ioslaves::chown_recurse(working_dir.c_str(), minecraft::java_user_id, minecraft::java_group_id);
 		ioslaves::api::euid_switch(-1,-1);
 		
@@ -1375,9 +1375,14 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 		if (r == -1)
 			throw xif::sys_error("failed to create pipe for early server thread comm");
 		s->s_early_pipe = early_pipes[1];
+		__ldebug__("START", MCLOGCLI(servid) << "Set early pipe to [" << early_pipes[0] << "]<-" << early_pipes[1]);
 		fd_t early_pipe_r = early_pipes[0];
 		struct _autoclose_early_pipes { 
-			minecraft::serv* s; fd_t r; ~_autoclose_early_pipes () { ::close(r); ::close(s->s_early_pipe); s->s_early_pipe = INVALID_HANDLE; }
+			minecraft::serv* s; fd_t r; ~_autoclose_early_pipes () {
+				::close(r); ::close(s->s_early_pipe);
+				__ldebug__("START", MCLOGSCLI(s) << "Close and invalidate early pipe " << r << "/" << s->s_early_pipe);
+				s->s_early_pipe = INVALID_HANDLE;
+			}
 		} __autoclose_early_pipes({s,early_pipe_r});
 		char _stat;
 		auto _read_pipe_state_ = [&] (ushort tm_sec) {
@@ -1406,7 +1411,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			ReadEarlyStateIfNot('y',1) {
 				throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "START", MCLOGCLI(servid) << "Start failed before java start");
 			}
-			__log__(log_lvl::VERBOSE, "START", MCLOGSCLI(s) << "Java will start...");
+			__ldebug__("START", MCLOGSCLI(s) << "Java will start...");
 			ReadEarlyStateIfNot('j',1) {
 				throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "START", MCLOGCLI(servid) << "Java start failed !");
 			}
@@ -1527,6 +1532,7 @@ void* minecraft::serv_thread (void* arg) {
 			throw xif::sys_error("can't create socket pair for server thread communication");
 		s->s_sock_comm = s_sockets_comm[1];
 		fd_t comm_socket = s_sockets_comm[0];
+		__ldebug__(THLOGSCLI(s), logstream << "Set internal comm socket to [" << s_sockets_comm[0] << "]<->" << s_sockets_comm[1]);
 		FD_SET(comm_socket, &select_set);
 		select_max = comm_socket;
 		
@@ -1549,7 +1555,7 @@ void* minecraft::serv_thread (void* arg) {
 		
 		std::string _args = "java ";
 		for (std::string _arg : args) _args += _arg + ' ';
-		__log__(log_lvl::VERBOSE, THLOGSCLI(s), logstream << "Launching java with `" << _args << "`");
+		__ldebug__(THLOGSCLI(s), logstream << "Launching java with `" << _args << "`");
 		
 			// Forking process and executing java
 		pipe_proc_t java_pipes;
@@ -1711,7 +1717,7 @@ void* minecraft::serv_thread (void* arg) {
 										(*it)->o_int<int64_t>(utc_time.tv_sec);
 										(*it)->o_str(line); 
 									} catch (const socketxx::error& e) { 
-										__log__(log_lvl::VERBOSE, THLOGSCLI(s), "Live console client hanged up");
+										__ldebug__(THLOGSCLI(s), "Live console client hanged up");
 										FD_CLR((*it)->socketxx::base_fd::get_fd(), &select_set);
 										delete *it;
 										auto p_it = it++; live_consoles.erase(p_it);
@@ -1727,6 +1733,7 @@ void* minecraft::serv_thread (void* arg) {
 					if (FD_ISSET(comm_socket, &sel_set)) {
 						socketxx::io::simple_socket<socketxx::base_fd> comms(socketxx::base_socket(comm_socket, SOCKETXX_MANUAL_FD));
 						minecraft::internal_serv_op_code opp = (minecraft::internal_serv_op_code)comms.i_char();
+						__ldebug__(THLOGSCLI(s), logstream << "Internal request on socket [" << comm_socket << "]<->" << s->s_sock_comm);
 						switch (opp) {
 								
 							case minecraft::internal_serv_op_code::CHAT_WITH_CLIENT: {
@@ -1777,9 +1784,9 @@ void* minecraft::serv_thread (void* arg) {
 								int_req->f_callback = [&parse_list_players,&first_0,s] (decltype(int_req->sock) sock, std::string msg, interpret_request* req) -> bool {
 									try {
 										uint16_t n_players = parse_list_players(msg, req);
-										__log__(log_lvl::VERBOSE, THLOGSCLI(s), logstream << "Reporting " << n_players << " players.");
 										sock->o_char((char)ioslaves::answer_code::OK);
 										sock->o_int<int16_t>(n_players);
+										__ldebug__(THLOGSCLI(s), logstream << "Reported " << n_players << " players.");
 										sock->o_int<uint32_t>((uint32_t)first_0);
 									} catch (const std::exception& e) {
 										try {
@@ -1843,11 +1850,11 @@ void* minecraft::serv_thread (void* arg) {
 						if (FD_ISSET((*it)->socketxx::base_fd::get_fd(), &sel_set)) {
 							try {
 								std::string cmd = (*it)->i_str();
-								__log__(log_lvl::VERBOSE, THLOGSCLI(s), logstream << "Command from live console : '" << cmd << "'");
+								__log__(log_lvl::_DEBUG, THLOGSCLI(s), logstream << "Command from live console : '" << cmd << "'");
 								MC_write_command(s, java_pipes, cmd);
 								(*it)->o_char((char)ioslaves::answer_code::OK);
 							} catch (const socketxx::error& e) { 
-								__log__(log_lvl::VERBOSE, THLOGSCLI(s), logstream << "Live console client hanged up");
+								__ldebug__(THLOGSCLI(s), logstream << "Live console client hanged up");
 								FD_CLR((*it)->socketxx::base_fd::get_fd(), &select_set);
 								delete *it;
 								auto p_it = it++; live_consoles.erase(p_it);
@@ -1894,7 +1901,7 @@ void* minecraft::serv_thread (void* arg) {
 		
 			// Bye LiveConsole clients...
 		if (live_consoles.size() != 0) {
-			__log__(log_lvl::VERBOSE, THLOGSCLI(s), logstream << "Ejecting live console clients");
+			__ldebug__(THLOGSCLI(s), logstream << "Ejecting live console clients");
 			for (auto it = live_consoles.begin(); it != live_consoles.end(); it++) {
 				try {
 					(*it)->o_int<int64_t>(-1);
@@ -1936,7 +1943,7 @@ void* minecraft::serv_thread (void* arg) {
 		}
 		if (r == -1) {
 			if (errno == ESRCH) 
-				__log__(log_lvl::VERBOSE, THLOGSCLI(s), logstream << "Java is already stopped", LOG_WAIT, &l);
+				__log__(log_lvl::_DEBUG, THLOGSCLI(s), logstream << "Java is already stopped", LOG_WAIT, &l);
 			else throw xif::sys_error("kill java failed");
 		} else {
 			__log__(log_lvl::NOTICE, THLOGSCLI(s), logstream << "SIGHUP signal sent to java", LOG_WAIT, &l);
@@ -1952,7 +1959,7 @@ void* minecraft::serv_thread (void* arg) {
 		{ // Delete SRV entry on DNS
 			ioslaves::api::euid_switch(-1,-1);
 			RAII_AT_END_L( ioslaves::api::euid_switch(minecraft::java_user_id, minecraft::java_group_id) );
-			__log__(log_lvl::VERBOSE, THLOGSCLI(s), logstream << "Closing SRV entry...");
+			__ldebug__(THLOGSCLI(s), logstream << "Closing SRV entry...");
 			(*ioslaves::api::dns_srv_del)("minecraft", XIFNET_MC_DOM, s->s_servid, true);
 		}
 		
@@ -2018,7 +2025,7 @@ void* minecraft::serv_thread (void* arg) {
 	// Write command to Minecraft server
 void MC_write_command (minecraft::serv* s, pipe_proc_t java_pipes, std::string cmd) {
 	if (java_pipes.in == INVALID_HANDLE) return;
-	__log__(log_lvl::VERBOSE, THLOGSCLI(s), logstream << "> " << cmd);
+	__ldebug__(THLOGSCLI(s), logstream << "> " << cmd);
 	errno = 0;
 	ssize_t rs;
 	rs = ::write(java_pipes.in, _s(cmd,'\n'), cmd.length()+1);
@@ -2062,10 +2069,10 @@ std::string MC_log_interpret (const std::string line, minecraft::serv* s, minecr
 		}
 	}
 	if (ctx != MSG) { 
-		__log__(log_lvl::VERBOSE, THLOGSCLI(s), logstream << "-- " << line, (stopInfo->doneDone?LOG_NO_HISTORY:0));
+		__log__(log_lvl::_DEBUG, THLOGSCLI(s), logstream << "-- " << line, (stopInfo->doneDone?LOG_NO_HISTORY:0));
 		return line;
 	} else {
-		__log__(log_lvl::VERBOSE, THLOGSCLI(s), logstream << "-- [" << m_part << "] " << m_msg, (stopInfo->doneDone?LOG_NO_HISTORY:0));
+		__log__(log_lvl::_DEBUG, THLOGSCLI(s), logstream << "-- [" << m_part << "] " << m_msg, (stopInfo->doneDone?LOG_NO_HISTORY:0));
 		if (ctx != MSG) return m_msg;
 	}
 	for (auto it = int_req_list.begin(); it != int_req_list.end(); it++) {
@@ -2112,8 +2119,12 @@ void minecraft::stopServer (socketxx::io::simple_socket<socketxx::base_socket> c
 		if (r == -1)
 			throw xif::sys_error("failed to create pipe for early server thread comm");
 		s->s_early_pipe = late_pipes[1];
+		__ldebug__("STOP", MCLOGCLI(servid) << "Set late pipe to [" << late_pipes[0] << "]<-" << late_pipes[1]);
 		struct _autoclose_late_pipes { 
-			fd_t w,r; ~_autoclose_late_pipes () { ::close(r); ::close(w); }
+			fd_t w,r; ~_autoclose_late_pipes () {
+				::close(r); ::close(w);
+				__ldebug__("STOP", logstream << "Close late pipe " << r << "/" << w);
+			}
 		} __autoclose_late_pipes({late_pipes[0],late_pipes[1]});
 		char _stat;
 		auto _read_pipe_state_ = [&] (ushort tm_sec) {
@@ -2148,7 +2159,10 @@ void minecraft::stopServer (socketxx::io::simple_socket<socketxx::base_socket> c
 		} while (_stat == 'S' or _stat == 'l');
 		cli.o_char((char)ioslaves::answer_code::OK);
 		if (_stat != 'g') {
-			throw ioslaves::req_err(ioslaves::answer_code::TIMEOUT, "STOP", MCLOGSCLI(s) << "Didn't received sigchild ack (" << _stat << ")");
+			if (_stat == '_')
+				throw ioslaves::req_err(ioslaves::answer_code::TIMEOUT, "STOP", MCLOGSCLI(s) << "Timeout : server didn't stop");
+			else
+				throw ioslaves::req_err(ioslaves::answer_code::ERROR, "STOP", MCLOGSCLI(s) << "Didn't received sigchild ack (" << _stat << ")");
 		}
 		ReadEarlyStateIfNot('E',6) {
 			throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "STOP", MCLOGSCLI(s) << "Didn't received ack of thread secondary cleanup");
@@ -2163,7 +2177,7 @@ void minecraft::stopServer (socketxx::io::simple_socket<socketxx::base_socket> c
 		RAII_AT_END_N(del, { // Server structure will be finally deleted by us
 			delete s;
 		});
-		__log__(log_lvl::VERBOSE, "STOP", "Ok, thread is exited");
+		__ldebug__("STOP", "Ok, thread is exited");
 		cli.o_char((char)ioslaves::answer_code::OK);
 		
 		if (s->s_is_perm_map) {

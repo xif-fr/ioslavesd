@@ -82,7 +82,7 @@ extern "C" bool ioslapi_start (const char*) {
 	int r;
 	__log__(log_lvl::IMPORTANT, NULL, logstream << "Starting XifNet Dynamic DNS Service...", LOG_WAIT, &l);
 	{ sigchild_block(); asroot_block();
-		r = ::system("nsd-control status > /dev/null 2>&1");
+		r = ioslaves::exec_wait("nsd-control", {"status"}, NULL, -1, -1);
 	}
 	if (r != 0) {
 		__log__(log_lvl::FATAL, NULL, logstream << "NSD status check failed ($? = " << r << ")");
@@ -291,7 +291,7 @@ void xdyndns::NSD_reload () {
 	errno = 0;
 	int r;
 	{ sigchild_block(); asroot_block();
-		r = ::system("nsd-control reload > /dev/null");
+		r = ioslaves::exec_wait("nsd-control", {"reload"}, NULL, -1, -1);
 	}
 	if (r != 0) throw xif::sys_error("failed to reload NSD zones", (errno == 0 ? "nsd-control reload failed" : _s("system(nsd-control) failed : ",::strerror(errno))));
 }

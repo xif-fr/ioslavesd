@@ -9,7 +9,6 @@
 	// Common log interface
 #define IOSLAVES_LOG_DEFAULT_LOGSTREAM_IMPL
 #include "log_defimpl.h"
-using namespace xlog;
 pthread_mutex_t xlog::logstream_impl::mutex = PTHREAD_MUTEX_INITIALIZER;
 std::ostringstream xlog::logstream_impl::stream;
 
@@ -50,17 +49,13 @@ log_display_info log_display_infos[] = {
 	{"IMP",     "\033[1;36m"     },
 	{"MAJOR",   "\033[1;34m"     },
 	{"DONE",    "\033[32m"       },
-	{"VERB",    ""               },
+	{"DEBUG",   ""               },
 	{NULL,      NULL             }
 };
 
 void xlog::logstream_impl::log (log_lvl lvl, const char* part, std::string msg, int m, logl_t* lid) noexcept {
 	timeval now;
 	::gettimeofday(&now, NULL);
-	#if !DEBUG
-	if (m & LOG_DEBUG) 
-		return;
-	#endif
 	log_display_info log_disp = log_display_infos[(size_t)lvl];
 	std::string txt_output, tty_output;
 	if (m & LOG_ADD) {
@@ -78,7 +73,7 @@ void xlog::logstream_impl::log (log_lvl lvl, const char* part, std::string msg, 
 			bool same_line = (log_history.size()-1 == *lid);
 			if (same_line && waiting_log) {
 				txt_output = timestr + msg;
-				tty_output = ((lvl != le.le_lvl and lvl != log_lvl::LOG and lvl != log_lvl::VERBOSE)
+				tty_output = ((lvl != le.le_lvl and lvl != log_lvl::LOG and lvl != log_lvl::_DEBUG)
 				              ? _S(log_disp.color) + timestr + msg + "\033[0m" 
 				              : timestr + msg);
 				if (log_callback) 

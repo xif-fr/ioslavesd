@@ -41,7 +41,7 @@
 	IBOutlet NSButton* slaveSSHFSButton;
 	IBOutlet NSSegmentedControl* slaveSshPresets;
 	IBOutlet NSButton* shutUpCheckBox;
-	IBOutlet NSButton* noVerboseLogCheckBox;
+	IBOutlet NSButton* debugCheckBox;
 	IBOutlet NSButton* clearLogButton;
 }
 

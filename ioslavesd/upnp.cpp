@@ -40,11 +40,11 @@ time_t ports_check_interval = 0;
 UPNPUrls upnp_device_url;
 IGDdatas upnp_device_data;
 char upnp_lanIP[16];
-time_t last_init = 0;
 
 void ioslaves::upnpInit () {
+	static bool first_init = true;
 	try {
-		if (last_init != 0) 
+		if (not first_init)
 			FreeUPNPUrls(&upnp_device_url);
 		int r; ssize_t rs;
 		fd_t f = -1;
@@ -81,12 +81,13 @@ void ioslaves::upnpInit () {
 				r = UPNP_GetIGDFromUrl(url_str, 
 				                       &upnp_device_url, &upnp_device_data, 
 				                       upnp_lanIP, (size_t)16);
+				first_init = false;
 				if (r == 1) {
-					__log__(log_lvl::VERBOSE, "UPnP", logstream << "Got IGD URL in cache", LOG_DEBUG);
-					last_init = ::iosl_time();
+					__log__(log_lvl::LOG, "UPnP", logstream << "Got IGD URL in cache");
 					::close(f);
 					return;
-				}
+				} else
+					__log__(log_lvl::LOG, "UPnP", logstream << "Cached IGD is now unreachable");
 			}
 		_abort_cache:;
 		}
@@ -118,6 +119,7 @@ void ioslaves::upnpInit () {
 				GetUPNPUrls(&upnp_device_url, 
 				            &upnp_device_data, 
 				            dev->descURL, dev->scope_id);
+				first_init = false;
 				bool igd_connected = UPNPIGD_IsConnected(&upnp_device_url, 
 				                                         &upnp_device_data);
 				if (igd_connected) {
@@ -135,15 +137,10 @@ void ioslaves::upnpInit () {
 			::lseek(f, (off_t)0, SEEK_SET);
 			rs = ::write(f, upnp_device_url.rootdescURL, ::strlen(upnp_device_url.rootdescURL));
 		}
-		last_init = ::iosl_time();
 	} catch (const ioslaves::upnpError& upnperr) {
 		__log__(log_lvl::ERROR, "UPnP", logstream << "UPnP init : " << upnperr.what());
 		throw;
 	}
-}
-inline void upnpRefreshInit () {
-	if ((::iosl_time()-last_init) > 120) 
-		ioslaves::upnpInit();
 }
 
 	/// Private impl functions
@@ -161,7 +158,6 @@ void upnp_ports_open (ioslaves::upnpPort& p, bool silent) {
 		else 
 			__log__(log_lvl::LOG, "UPnP", logstream << "Redirecting external ports " << (char)p.p_proto << p.p_ext_port << '-' << p.p_ext_port+p.p_range_sz-1 << " to local ports " << p.p_int_port << '-' << p.p_int_port+p.p_range_sz-1 << " with descr : \"" << p.p_descr << "\"...", LOG_WAIT, &l);
 	}
-	upnpRefreshInit();
 	uint16_t i;
 	try {
 		errno_autoreset_handle();
@@ -210,7 +206,6 @@ void upnp_ports_close (ioslaves::upnpPort p, bool silent) {
 		else 
 			__log__(log_lvl::LOG, "UPnP", logstream << "Closing external ports " << (char)p.p_proto << p.p_ext_port << '-' << p.p_ext_port+p.p_range_sz-1 << "...", LOG_WAIT, &l);
 	}
-	upnpRefreshInit();
 	int r;
 	errno_autoreset_handle();
 		// Delete port mapping
@@ -234,7 +229,6 @@ void upnp_ports_close (ioslaves::upnpPort p, bool silent) {
 
 bool upnp_port_check (in_port_t p_ext_port, ioslaves::upnpPort::proto p_prot) {
 	errno_autoreset_handle();
-	upnpRefreshInit();
 	int r;
 		// Verify if port is opened and belongs to us
 	std::string e_port = ::ixtoa(p_ext_port);
@@ -298,7 +292,7 @@ void ioslaves::upnpReopen () {
 	static time_t unreachable = 0;
 	if (unreachable != 0) {
 		try {
-			upnpInit();
+			ioslaves::upnpInit();
 			__log__(log_lvl::IMPORTANT, "UPnP", logstream << "Retook contact with UPnP IGD, after " << ::time(NULL)-unreachable << "s !");
 			unreachable = 0;
 		} catch (...) {
@@ -352,7 +346,7 @@ void ioslaves::upnpReopen () {
 			failed = true;
 			::sleep(1);
 			try {
-				upnpInit();
+				ioslaves::upnpInit();
 			} catch (...) { 
 				__log__(log_lvl::FATAL, "UPnP", "UPnP reinitialization failed, maybe the IGD is unreachable !");
 				unreachable = ::time(NULL);

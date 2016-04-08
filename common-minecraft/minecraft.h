@@ -71,7 +71,9 @@ namespace minecraft {
 	#ifndef MINECRAFT_BIGFILES_DIR
 		#define MINECRAFT_BIGFILES_DIR MINECRAFT_SRV_DIR"/_bigfiles"
 	#endif
-	#define MINECRAFT_JAVA_USER "mcjava"
+	#ifndef MINECRAFT_JAVA_USER
+		#define MINECRAFT_JAVA_USER "mcjava"
+	#endif
 	
 	extern uid_t java_user_id;
 	extern gid_t java_group_id;

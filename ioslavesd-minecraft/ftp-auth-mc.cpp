@@ -128,7 +128,7 @@ void* minecraft::mc_ftpd_auth_thread (void* arg) {
 		::close(minecraft::ftp_stopfd);
 		minecraft::ftp_serv_addr.clear();
 		minecraft::ftp_sessions.clear();
-		__log__(log_lvl::VERBOSE, "FTP", "Thread end");
+		__ldebug__("FTP", "Thread end");
 	});
 	
 	try {
@@ -216,7 +216,7 @@ void* minecraft::mc_ftpd_auth_thread (void* arg) {
 		authsock.wait_activity_loop(NULL, 
 				// New client
 			[&](socketxx::end::socket_server<socketxx::base_unixsock,void>::client cli) -> socketxx::pool_ret_t {
-				__log__(log_lvl::VERBOSE, "FTP", logstream << "New authentication request");
+				__ldebug__("FTP", logstream << "New authentication request");
 				pure_in_reqst fields;
 				
 				socketxx::io::text_socket<socketxx::base_unixsock> s (cli);
@@ -283,7 +283,7 @@ void* minecraft::mc_ftpd_auth_thread (void* arg) {
 	} catch (const socketxx::error& e) {
 		__log__(log_lvl::ERROR, "FTP", logstream << "Network error : " << e.what());
 	}
-	__log__(log_lvl::VERBOSE, "FTP", "Thread quit.");
+	__ldebug__("FTP", "Thread quit.");
 	return NULL;
 }
 

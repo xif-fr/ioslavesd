@@ -77,7 +77,7 @@ NSAttributedString* log_lvl_strs[] = {
 		NSFontAttributeName : MakeLogAttrFont(@"Menlo", 11, NSFontBoldTrait),
 		NSForegroundColorAttributeName : MakeLogAttrColor(255,255,255)
 	}),
-	[(int)log_lvl::VERBOSE] = MakeLogAttrStr(@" ", @{
+	[(int)log_lvl::_DEBUG] = MakeLogAttrStr(@" ", @{
 		NSFontAttributeName : MakeLogAttrFont(@"Menlo", 11, 0),
 		NSForegroundColorAttributeName : MakeLogAttrColor(255,255,255)
 	}),
@@ -569,7 +569,7 @@ NSAttributedString* log_master_strs[] = {
 }
 
 - (void)addLogLineAtTime:(time_t)time OfLevel:(xlog::log_lvl)lvl isLocal:(bool)local inPart:(std::string)part withMessage:(std::string)msg {
-	if (not local and [noVerboseLogCheckBox state] == NSOnState and msg.find("-- ") == 0) 
+	if (not local and lvl == log_lvl::_DEBUG and [debugCheckBox state] == NSOffState)
 		return;
 	if (time == LOG_TIME_NOW) {
 		timeval now;
@@ -639,7 +639,7 @@ NSAttributedString* log_master_strs[] = {
 					[delegate setState:AppState::StateLogLine];
 				[logDotWhite setHidden:NO];
 				break;
-			case xlog::log_lvl::VERBOSE:
+			case xlog::log_lvl::_DEBUG:
 				break;
 		}
 	}

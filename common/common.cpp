@@ -31,9 +31,9 @@ void pthread_mutex_log (void* obj, const char* action, pthread_mutex_t* mutex) {
 	thread_id = (pid_t)::syscall(SYS_gettid);
 #endif
 	if (obj == NULL)
-		__log__(xlog::log_lvl::VERBOSE, NULL, logstream << "Thread " << thread_id << " " << action << " mutex " << ::ixtoa((off_t)mutex,IX_HEX));
+		xlog::__ldebug__(NULL, logstream << "Thread " << thread_id << " " << action << " mutex " << ::ixtoa((off_t)mutex,IX_HEX));
 	else
-		__log__(xlog::log_lvl::VERBOSE, NULL, logstream << "[" << ::ixtoa((off_t)obj,IX_HEX) << "] Thread " << thread_id << " " << action << " mutex " << ::ixtoa((off_t)mutex,IX_HEX));
+		xlog::__ldebug__(NULL, logstream << "[" << ::ixtoa((off_t)obj,IX_HEX) << "] Thread " << thread_id << " " << action << " mutex " << ::ixtoa((off_t)mutex,IX_HEX));
 }
 #endif
 
@@ -233,33 +233,37 @@ std::pair<pid_t,pipe_proc_t> ioslaves::fork_exec (const char* cmd, const std::ve
 	int r;
 	fd_t pipes_in[2], pipes_out[2], pipes_err[2];
 	if (io_redir) {
-		r = ::pipe(pipes_in) | ::pipe(pipes_out) | ::pipe(pipes_err);							// Create pipes pairs
+			// Create pipes pairs
+		r = ::pipe(pipes_in) | ::pipe(pipes_out) | ::pipe(pipes_err);
 		if (r == -1)
 			throw xif::sys_error("can't create pipe pair for std in/out redirection with pipe()");
 	} else {
-		fd_t null = ::open("/dev/null", O_RDWR);														// Will redirect to /dev/null in place of pipes
+			// Will redirect to /dev/null instead of pipes
+		fd_t null = ::open("/dev/null", O_RDWR);
 		pipes_err[1] = pipes_out[1] = pipes_in[0] = null;
 	}
 	pid_t pid;
-	pid = ::fork();																							// Fork processus
+	pid = ::fork();
 	if (pid > 0) {
+			// Parent process here. Let the other end of the pipe free then return
 		::close(pipes_err[1]); ::close(pipes_out[1]); ::close(pipes_in[0]);
 		if (io_redir) 
 			return std::pair<pid_t,pipe_proc_t>(pid, pipe_proc_t({pipes_in[1], pipes_out[0], pipes_err[0]}));
 		else 
 			return std::pair<pid_t,pipe_proc_t>(pid, pipe_proc_t({0,0,0}));
 	} else if (pid == 0) {
+			// Child process here. Close then redirect std in/out/err to pipes
 		if (io_redir) {
 			::close(pipes_err[0]); ::close(pipes_out[0]); ::close(pipes_in[1]);
 		}
-		if (::dup2(pipes_err[1], STDERR_FILENO) == -1 ||											// Redirect std in/out/err to pipe
+		if (::dup2(pipes_err[1], STDERR_FILENO) == -1 ||
 			 ::dup2(pipes_out[1], STDOUT_FILENO) == -1 ||
-			 ::dup2(pipes_in[0], STDIN_FILENO) == -1 ) 
+			 ::dup2(pipes_in[0], STDIN_FILENO) == -1 )
 		{ 
 			::perror("fork_exec : can't redirect standard in/out with dup2()"); 
 			::exit(EXIT_FAILURE);
 		}
-		if (closefds) {                                                                  // Close all inherited fds
+		if (closefds) {  // Close all inherited fds
 #if HAS_CLOSEFROM
 			::closefrom(3);
 #else
@@ -270,36 +274,39 @@ std::pair<pid_t,pipe_proc_t> ioslaves::fork_exec (const char* cmd, const std::ve
 				::close(fd);
 #endif
 		}
-		r = ::setregid(gid, gid) | ::setreuid(uid, uid);                                 // Set real+effective user and group IDs (-1 for no change)
+			// Set real+effective user and group IDs (-1 : no change)
+		r = ::setregid(gid, gid) | ::setreuid(uid, uid);
 		if (r == -1) { 
 			::perror("fork_exec : can't set uid/gid"); 
 			::exit(EXIT_FAILURE);
 		}
-		if (wdir != NULL) {
-			r = ::chdir(wdir);																				// Change working directory
+		if (wdir != NULL) {  // Change working directory
+			r = ::chdir(wdir);
 			if (r == -1) { 
 				::perror("fork_exec : can't change working dir for java with chdir()"); 
 				::exit(EXIT_FAILURE);
 			}
 		}
 		if (disown) {
-			r = ::setsid();																					// Create empty process session/group
+				// Create empty process session/group to disown child process
+			r = ::setsid();
 			if (r == -1) { 
 				::perror("fork_exec : can't change process session"); 
 				::exit(EXIT_FAILURE);
 			}
 		}
-		size_t argsz = args.size();																		// Arguments
-		argsz++;																									// +1 for the first arg = cmd name
-		char* * xargs = new char*[argsz+1];																// +1 for the last NULL
+			// Copy arguments
+		size_t argsz = args.size()+1;
+		char* * xargs = new char*[argsz+1];
 		xargs[0] = new char[::strlen(cmd)+1];
 		::strcpy(xargs[0], cmd);
-		for (size_t i = 1; i < argsz; ++i) {															// Copy arguments
+		for (size_t i = 1; i < argsz; ++i) {
 			xargs[i] = new char[args[i-1].length()+1];
 			::strcpy(xargs[i], args[i-1].c_str());
 		}
 		xargs[argsz] = NULL;
-		r = ::execvp(cmd, xargs);																			// Execute
+			// Execute
+		r = ::execvp(cmd, xargs);
 		::perror("fork_exec : failed to execute command with execvp()"); 
 		::exit(EXIT_FAILURE);
 	} else 

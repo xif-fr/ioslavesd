@@ -118,7 +118,7 @@ extern "C" ioslaves::hash_t key_answer_challenge (std::string key_id, ioslaves::
 	}
 	RAII_AT_END({
 		if (not arduino_reuse_conn) {
-			__log__(log_lvl::VERBOSE, "ARDUINO", logstream << "Connection to arduino closed");
+			__ldebug__("ARDUINO", logstream << "Connection to arduino closed");
 			::close(serial);
 		}
 	});
@@ -166,7 +166,7 @@ fd_t arduino_get_connection (const char* device, arduino_auth_opcode op) {
 	else {
 		if (*serial_save_p == 0) {
 			arduino_reuse_conn = true;
-			__log__(log_lvl::VERBOSE, "ARDUINO", "Opening new reusable connection...");
+			__ldebug__("ARDUINO", "Opening new reusable connection...");
 			goto _connect;
 		} else if (*serial_save_p > 0) {
 			arduino_reuse_conn = true;

@@ -102,12 +102,12 @@ void ioslaves::api::euid_switch (uid_t uid, gid_t gid) {
 	uid_t curuid = ::geteuid();
 	gid_t curgid = ::getegid();
 	if (curuid == uid and curgid == gid) {
-		__log__(log_lvl::VERBOSE, "EUID", logstream << "Keeping uid " << ::geteuid() << "/gid " << ::getegid(), LOG_DEBUG);
+		__ldebug__("EUID", logstream << "Keeping uid " << ::geteuid() << "/gid " << ::getegid());
 		return;
 	}
 	if (uid != 0 and curuid != 0) 
 		ioslaves::api::euid_switch(0, 0);
-	__log__(log_lvl::VERBOSE, "EUID", logstream << "Setting uid/gid to " << uid << "/" << gid, LOG_DEBUG);
+	__ldebug__("EUID", logstream << "Setting uid/gid to " << uid << "/" << gid);
 	bool set = uid == 0;
 	long r = ::syscall( (set? SYS_setresuid32 : SYS_setresgid32), (int)-1, (int)(set? uid : gid), (int)-1 ) 
 	       | ::syscall( (set? SYS_setresgid32 : SYS_setresuid32), (int)-1, (int)(set? gid : uid), (int)-1 );
@@ -602,7 +602,7 @@ int main (int argc, const char* argv[]) {
 					case ioslaves::op_code::SERVICE_START: 
 					case ioslaves::op_code::SERVICE_STOP: {
 						bool start = opcode == ioslaves::op_code::SERVICE_START;
-						__log__(log_lvl::LOG, "OP", logstream << "Operation : " << (start?"Start":"Stop") << " service", silent& LOG_DEBUG);
+						__ldebug__("OP", logstream << "Operation : " << (start?"Start":"Stop") << " service");
 						std::string service = cli.i_str();
 						OpPermsCheck();
 						bool bydefault = (op_perms.props.find("*default*") == op_perms.props.end()) ? (perms.by_default) 
@@ -622,10 +622,10 @@ int main (int argc, const char* argv[]) {
 					case ioslaves::op_code::IGD_PORT_CLOSE: {
 						std::string descr;
 						if (opcode == ioslaves::op_code::IGD_PORT_OPEN) {
-							__log__(log_lvl::LOG, "OP", "Operation : Open port on IGD", silent& LOG_DEBUG);
+							__ldebug__("OP", "Operation : Open port on IGD");
 							descr = cli.i_str();
 						} else {
-							__log__(log_lvl::LOG, "OP", "Operation : Close port on IGD", silent& LOG_DEBUG);
+							__ldebug__("OP", "Operation : Close port on IGD");
 						}
 						char type = cli.i_char();
 						ioslaves::upnpPort::proto proto;
@@ -676,18 +676,18 @@ int main (int argc, const char* argv[]) {
 					} break;
 						/** ---------------------- Status ---------------------- **/
 					case ioslaves::op_code::GET_STATUS: {
-						__log__(log_lvl::LOG, "OP", "Operation : Get status", silent& LOG_DEBUG);
+						__log__(silent ? log_lvl::_DEBUG : log_lvl::LOG, "OP", "Operation : Get status");
 						xif::polyvar infos = ioslaves::getStatus(true);
 						cli.o_var(infos);
 					} break;
 					case ioslaves::op_code::PERM_STATUS: {
-						__log__(log_lvl::LOG, "OP", "Registering to the permanent status pool", silent& LOG_DEBUG);
+						__log__(silent ? log_lvl::_DEBUG : log_lvl::LOG, "OP", "Registering to the permanent status pool");
 						pthread_mutex_handle_lock(status_clients_mutex);
 						status_clients.insert(status_clients.begin(), cli);
 					} break;
 						/** ---------------------- Auto-shutdown control ---------------------- **/
 					case ioslaves::op_code::SHUTDOWN_CTRL: {
-						__log__(log_lvl::LOG, "OP", "Operation : change auto-shutdown time", silent& LOG_DEBUG);
+						__ldebug__("OP", "Operation : change auto-shutdown time");
 						time_t shutdown_in = cli.i_int<uint32_t>();
 						OpPermsCheck();
 						if (shutdown_in == 0) {
@@ -711,7 +711,7 @@ int main (int argc, const char* argv[]) {
 						/** ---------------------- API Service connection ---------------------- **/
 					case ioslaves::op_code::CALL_API_SERVICE: {
 						std::string service_name = cli.i_str();
-						__log__(log_lvl::VERBOSE, "OP", logstream << "Operation : Calling API service '" << service_name << "'", silent& LOG_DEBUG);
+						__log__(silent ? log_lvl::_DEBUG : log_lvl::LOG, "OP", logstream << "Operation : Calling API service '" << service_name << "'");
 						if (auth)
 							OpPermsCheck();
 						bool bydefault = (op_perms.props.find("*default*") == op_perms.props.end()) ? (perms.by_default) 
@@ -785,7 +785,7 @@ int main (int argc, const char* argv[]) {
 					} break;
 						/** ---------------------- Log async dispatch ---------------------- **/
 					case ioslaves::op_code::LOG_OBSERVE: {
-						__log__(log_lvl::LOG, "OP", logstream << "Operation : register master to async log dispatch");
+						__log__(silent ? log_lvl::_DEBUG : log_lvl::LOG, "OP", logstream << "Operation : register master to async log dispatch");
 						OpPermsCheck();
 						cli.o_char((char)ioslaves::answer_code::OK);
 						log_clients.insert(log_clients.end(), cli);
@@ -793,11 +793,11 @@ int main (int argc, const char* argv[]) {
 					} break;
 						/** ---------------------- Nothing ---------------------- **/
 					case ioslaves::op_code::NOP: {
-						__log__(log_lvl::LOG, "OP", logstream << "Operation : absolutely nothing");
+						__log__(silent ? log_lvl::_DEBUG : log_lvl::LOG, "OP", logstream << "Operation : absolutely nothing");
 						cli.o_char((char)ioslaves::answer_code::OK);
 					} break;
 					default:
-						__log__(log_lvl::NOTICE, "OP", logstream << "Unknown opcode '" << (char)opcode << "'");
+						__log__(log_lvl::OOPS, "OP", logstream << "Unknown opcode '" << (char)opcode << "'");
 						cli.o_char((char)ioslaves::answer_code::OP_NOT_DEF);
 						continue;
 				}
@@ -865,10 +865,10 @@ int main (int argc, const char* argv[]) {
 						sock.o_char((char)ioslaves::answer_code::OK);
 						dyndns_netfails = 0;
 					} catch (const socketxx::classic_error& e) {
-						log_lvl lvl = (e.get_errno()==EAGAIN) ? log_lvl::OOPS : log_lvl::ERROR;
+						log_lvl lvl = (e.get_errno()==EAGAIN) ? log_lvl::_DEBUG : log_lvl::ERROR;
 						++dyndns_netfails;
 						if (dyndns_netfails >= 5)
-							__log__(lvl, "DynDNS", logstream << "Network error with xifnetdyndns service : " << e.what(), lvl==log_lvl::OOPS?LOG_DEBUG:0);
+							__log__(lvl, "DynDNS", logstream << "Network error with xifnetdyndns service : " << e.what());
 					} catch (const master_err& e) {
 						__log__(log_lvl::ERROR, "DynDNS", logstream << "Master error while connecting to DynDNS : " << e.what());
 					}
@@ -991,7 +991,7 @@ void* status_thread (void*) {
 			}
 			
 		}
-		__log__(log_lvl::LOG, "THREAD", logstream << "Ejecting status clients and quit status thread", LOG_DEBUG);
+		__ldebug__("THREAD", logstream << "Ejecting status clients and quit status thread");
 		
 			// Eject permanant status clients
 		pthread_mutex_handle_lock(status_clients_mutex);
@@ -1020,7 +1020,7 @@ void* port_thread (void*) {
 			if (enable_upnp)
 				ioslaves::upnpReopen();
 		}
-		__log__(log_lvl::LOG, "THREAD", logstream << "Closing remaining ports and quit port thread", LOG_DEBUG);
+		__ldebug__("THREAD", logstream << "Closing remaining ports and quit port thread");
 		
 			// Close remaining ports
 		try {
@@ -1048,7 +1048,7 @@ void* signals_thread (void* _data) {
 	if (r == SOCKET_ERROR) throw xif::sys_error("signals : pipe() failed", false);
 	
 		// Block signals : this thread will NOT execute signal handler.
-		// Others threads than main shall not execute ::system()
+		// ::system() must be avoided
 	sigset_t sigs_main_blocked;
 	sigemptyset(&sigs_main_blocked);
 	for (size_t si = 0; sigs_to_block[si] != (int)NULL; ++si)
@@ -1436,13 +1436,13 @@ void ioslaves::controlService (ioslaves::service* s, bool start, const char* con
 		
 		//-------------- Start/Stop Systemctl service
 		case ioslaves::service::type::SYSTEMCTL: {
-			std::string systemctl_string = _S( "systemctl ",(start?"start ":"stop "),s->s_command,".service" );
 			int r;
-			{ sigchild_block(); asroot_block();
-				r = ::system(systemctl_string.c_str());
+			try { sigchild_block(); asroot_block();
+				r = ioslaves::exec_wait("systemctl", {(start?"start":"stop"), _S(s->s_command,".service")}, NULL, -1, -1);
+			} catch (const xif::sys_error& e) {
+				throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "SERVICE", logstream << "systemctl execution failed : " << e.what());
 			}
-			if (r == -1) throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "SERVICE", logstream << "system() failed to exec `systemctl` : " << ::strerror(errno));
-			if (r != 0) throw ioslaves::req_err(ioslaves::answer_code::EXTERNAL_ERROR, "SERVICE", logstream << "`" << systemctl_string << "` command failed !");
+			if (r != 0) throw ioslaves::req_err(ioslaves::answer_code::EXTERNAL_ERROR, "SERVICE", logstream << "systemctl command failed !");
 			s->ss_status_running = start;
 			s->ss_last_status_change = ::iosl_time();
 			__log__(log_lvl::DONE, "SERVICE", logstream << "Successfully " << (start?"started":"stopped") << " service '" << s->s_name << "' with systemctl");
@@ -1569,9 +1569,8 @@ void ioslaves::controlService (ioslaves::service* s, bool start, const char* con
 					}
 				__start_proc:
 					{ sigchild_block(); asroot_block();
-						r = ::system(s->s_command.c_str());
+						r = ioslaves::exec_wait("sh", {"-c", s->s_command}, NULL, -1, -1);
 					}
-					if (r == -1) throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "DAEMON", logstream << "system() failed to exec daemon command : " << ::strerror(errno));
 					if (r != 0) throw ioslaves::req_err(ioslaves::answer_code::EXTERNAL_ERROR, "DAEMON", logstream << "`" << s->s_command << "` command failed ! ($? = " << r << ")");
 				} else {
 					const char* daemon_dead_why = "?";
