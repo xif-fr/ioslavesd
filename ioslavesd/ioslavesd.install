@@ -1,7 +1,7 @@
 post_install() {
-	groupadd --system -g 290 ioslaves || true
-	useradd --system --uid 290 --gid ioslaves --home-dir /var/ioslaves --shell /bin/false ioslaves || true
-	chown -R ioslaves:ioslaves /var/ioslaves /etc/ioslavesd
+	getent group ioslaves &>/dev/null || groupadd --system -g 290 ioslaves
+	getent passwd ioslaves &>/dev/null || useradd --system --uid 290 --gid ioslaves --home-dir /var/ioslaves --shell /bin/false ioslaves
+	chown -R ioslaves:ioslaves /var/ioslaves /etc/ioslavesd/keys
 }
 
 post_upgrade() {

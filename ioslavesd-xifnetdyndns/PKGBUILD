@@ -1,7 +1,7 @@
 # Maintainer: Félix Faisant <xcodexif@xif.fr>
 
 pkgname=ioslavesd-xifnetdyndns
-pkgver=3.3
+pkgver=3.6.5
 pkgrel=1
 pkgdesc='Xif Network - ioslavesd plugin for XifNet Dynamic DNS, using NSD'
 license=('custom')
