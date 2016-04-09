@@ -82,6 +82,7 @@ in_port_t $port = 0;
 std::vector<in_port_t> $additional_ports;
 bool $start_temp_perm = false;
 bool $fixmap;
+std::string $exec_cmd;
 
 	// minecraft-master core functionnality functions
 time_t getLastSaveTime (std::string serv, std::string map);
@@ -100,6 +101,7 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 		void MServDelMap ();
 		void MServFixMap ();
 		void MServSaveMap ();
+		void MServExec ();
 		void MServCreate ();
 		void MServConsole ();
 		void MServFTPSess ();
@@ -114,11 +116,11 @@ void MPost (ioslaves::answer_code);
 #define OPTCTX_POSTFNCT_EXCEPT_T ioslaves::answer_code
 #define OPTCTX_POSTFNCT_EXCEPT_DEFAULT (ioslaves::answer_code)0
 
-#define OPTCTX_CTXS                              refuseServs     , mcserv                   , servStart        , servStop        , servCreate        , servStatus        , servPerm        , servConsole        , servDelMap        , servFixMap        , servSaveMap        , servFTPSess        , servKill
-#define OPTCTX_PARENTS                           ROOT            , ROOT                     , mcserv           , mcserv          , mcserv            , mcserv            , mcserv          , mcserv             , mcserv            , mcserv            , mcserv             , mcserv             , mcserv
-#define OPTCTX_PARENTS_NAMES  "action"         , NULL            , "server action"          , NULL             , NULL            , NULL              , NULL              , NULL            , NULL               , NULL              , NULL              , NULL               , NULL               , NULL
-#define OPTCTX_PARENTS_FNCTS  CTXFP(NULL,MPost), CTXFO(MRefuse)  , CTXFP(MServPre,MServPost), CTXFO(MServStart), CTXFO(MServStop), CTXFO(MServCreate), CTXFO(MServStatus), CTXFO(MServPerm), CTXFO(MServConsole), CTXFO(MServDelMap), CTXFO(MServFixMap), CTXFO(MServSaveMap), CTXFO(MServFTPSess), CTXFO(MServKill)
-#define OPTCTX_NAMES                             "--refuse-servs", "--server"               , "--start"        , "--stop"        , "--create"        , "--status"        , "--permanentize", "--console"        , "--del-world"     , "--fix-world"     , "--save-world"     , "--ftp-sess"       , "--kill"
+#define OPTCTX_CTXS                              refuseServs     , mcserv                   , servStart        , servStop        , servCreate        , servStatus        , servPerm        , servConsole        , servDelMap        , servFixMap        , servSaveMap        , servFTPSess        , servKill        , servExec
+#define OPTCTX_PARENTS                           ROOT            , ROOT                     , mcserv           , mcserv          , mcserv            , mcserv            , mcserv          , mcserv             , mcserv            , mcserv            , mcserv             , mcserv             , mcserv          , mcserv
+#define OPTCTX_PARENTS_NAMES  "action"         , NULL            , "server action"          , NULL             , NULL            , NULL              , NULL              , NULL            , NULL               , NULL              , NULL              , NULL               , NULL               , NULL            , NULL
+#define OPTCTX_PARENTS_FNCTS  CTXFP(NULL,MPost), CTXFO(MRefuse)  , CTXFP(MServPre,MServPost), CTXFO(MServStart), CTXFO(MServStop), CTXFO(MServCreate), CTXFO(MServStatus), CTXFO(MServPerm), CTXFO(MServConsole), CTXFO(MServDelMap), CTXFO(MServFixMap), CTXFO(MServSaveMap), CTXFO(MServFTPSess), CTXFO(MServKill), CTXFO(MServExec)
+#define OPTCTX_NAMES                             "--refuse-servs", "--server"               , "--start"        , "--stop"        , "--create"        , "--status"        , "--permanentize", "--console"        , "--del-world"     , "--fix-world"     , "--save-world"     , "--ftp-sess"       , "--kill"        , "--exec"
 
 #define OPTCTX_PROG_NAME "minecraft-master"
 #include <xifutils/optctx.hpp>
@@ -230,9 +232,10 @@ int main (int argc, char* const argv[]) {
 			{"fix-world", required_argument, NULL, '-'},
 			{"save-world", required_argument, NULL, 'v'},
 			{"console", no_argument, NULL, 'l'},
+			{"exec", required_argument, NULL, 'x'},
 			{"ftp-sess", required_argument, NULL, 'f'},
 			{"create", no_argument, NULL, 'c'},
-		{"refuse-servs", required_argument, NULL, 'x'},
+		{"refuse-servs", required_argument, NULL, 'n'},
 		{NULL, 0, NULL, 0}
 	};
 	
@@ -246,8 +249,8 @@ int main (int argc, char* const argv[]) {
 				       "General options :\n"
 				       "  -i, --no-interactive     Enbale HTML log and JSON outputs\n"
 				       "  -G, --granmaster         The real and principal purpose of minecraft-master : manage automagically\n"
-					   "                            slaves, servers and worlds : world saves, status tracking, fixed mode...\n"
-					   "                            Here minecraft-master supposes that it is the unique granmaster-mode master.\n"
+				       "                            slaves, servers and worlds : world saves, status tracking, fixed mode...\n"
+				       "                            Here minecraft-master supposes that it is the unique granmaster-mode master.\n"
 				       "  -w, --websocket=PORT     Wait a websocket client on PORT before executing commands and\n"
 				       "                            output log via this websocket client. Used also for live-console\n"
 				       "  -r, --refuse-save        Refuse incoming requests to save a world folder.\n"
@@ -278,7 +281,7 @@ int main (int argc, char* const argv[]) {
 				       "              --autoclose=TIME    Server will close after TIME sec. without players.\n"
 				       "                                   Default = 0 = disabled\n"
 				       "              --viewdist=CHUNKS   Minecraft view distance. Default = 7\n"
-					   "              --port=MC_TCP_PORT  Choice of Minecraft TCP listening port is no more left to slave.\n"
+				       "              --port=MC_TCP_PORT  Choice of Minecraft TCP listening port is no more left to slave.\n"
 				       "              --additional-ports=P1,P2…  Open additional TCP ports (for JSONAPI for exemple).\n"
 				       "                                   Should be attributed uniquely across the network.\n"
 				       "              --hint              Take [SALVE-ID] only as a hint for slave selection.\n"
@@ -291,6 +294,7 @@ int main (int argc, char* const argv[]) {
 				       "        --save-world=NAME       Force world save retrieval of the world [NAME] of the server.\n"
 				       "        --console               Bind the connection to the server LiveConsole. If used at\n"
 				       "                                 after server start action, early LiveConsole is activated.\n"
+				       "        --exec=COMMAND          Execute a Minecraft command (without leading '/').\n"
 				       "        --ftp-sess=USER:HASHPW  Create new FTP session for running world for user USER and\n"
 				       "                                 hashed password HASHPW. Returns ADDR:PORT of the FTP server.\n"
 				       "        --create                Create a new server in database.\n"
@@ -539,6 +543,10 @@ int main (int argc, char* const argv[]) {
 				if (!ioslaves::validateName($worldname))
 					try_help("--fix-world: invalid world name\n");
 			} break;
+			case 'x': {
+				optctx::optctx_set(optctx::servExec);
+				$exec_cmd = optarg;
+			} break;
 			case 'l':
 				if (optctx::optctx == optctx::servStart) {
 					if ($websocket_port == 0) 
@@ -553,7 +561,7 @@ int main (int argc, char* const argv[]) {
 				if (!$granmaster)
 					try_help("--create: only valid in granmaster mode\n");
 				break;
-			case 'x':
+			case 'n':
 				optctx::optctx_set(optctx::refuseServs);
 				if (_S("y") == optarg) 
 					$refuse_servs = true;
@@ -1349,6 +1357,23 @@ void MServSaveMap () {
 		throw o;
 	acceptFileSave(sock, $server_name, $worldname, $slave_id, false);
 	__log__ << LOG_ARROW_OK << "Done !" << std::flush;
+}
+
+/** ---------------------------- EXEC MC COMMAND ---------------------------- **/
+
+void MServExec () {
+	__log__ << LOG_ARROW << "Executing command '" << $exec_cmd << "' on server " << $server_name << "..." << std::flush;
+	granmasterSlaveSet();
+	ioslaves::answer_code o;
+	auto sock = getConnection($slave_id, $server_name, minecraft::op_code::COMM_SERVER, {2,0}, false, false);
+	if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK)
+		throw o;
+	__log__ << "Connected to thread" << std::flush;
+	sock.o_char((char)minecraft::serv_op_code::EXEC_MC_COMMAND);
+	sock.o_str($exec_cmd);
+	if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK)
+		throw o;
+	__log__ << LOG_ARROW_OK << "Command written to java." << std::flush;
 }
 
 /** ---------------------------- START ---------------------------- **/

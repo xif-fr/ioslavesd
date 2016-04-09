@@ -303,6 +303,8 @@ extern "C" xif::polyvar* ioslapi_status_info () {
 		{"#", servers.v().size()}, 
 		{"servers", servers}}
 	));
+	if (minecraft::refuse_mode == true)
+		info->m()["refuse-servs"] = "y";
 	return info;
 }
 
