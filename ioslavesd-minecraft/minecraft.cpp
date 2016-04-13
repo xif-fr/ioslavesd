@@ -859,7 +859,6 @@ bool minecraft::compressAndSend (socketxx::io::simple_socket<socketxx::base_sock
 	}
 	std::string fpath = _S( "/tmp/ioslaves-minecraft-send-",::ixtoa(::rand()),"-",servname,"-",mapname,".zip" );
 	__log__(log_lvl::LOG, "FILES", logstream << "Zipping dir '" << mapname << "'...", LOG_WAIT, &l);
-	r = ::unlink(_s( map_dir_path,"/server.log.lck" ));
 	r = ::unlink(_s( map_dir_path,"/server.log" ));
 	r = ::unlink(_s( map_dir_path,"/server.properties" ));
 	try {  ioslaves::rmdir_recurse(_s( map_dir_path+"/crash-reports" )); } catch (...) {}
@@ -896,14 +895,19 @@ void minecraft::deleteMapFolder (minecraft::serv* s) {
 
 // Delete lock files
 void minecraft::deleteLckFiles (std::string in_dir) {
+	int r;
 	DIR* dir = ::opendir(in_dir.c_str());
 	RAII_AT_END_L( ::closedir(dir) );
 	if (dir == NULL) 
 		throw xif::sys_error("deleteLckFiles : can't open dir");
 	dirent* dp = NULL;
 	while ((dp = ::readdir(dir)) != NULL) {
-		if (std::string(dp->d_name).find("lck") != std::string::npos) 
-			::unlink(dp->d_name);
+		if (std::string(dp->d_name).find(".lck") != std::string::npos) {
+			r = ::unlink(_s( in_dir,'/',dp->d_name ));
+			if (r == -1)
+				throw xif::sys_error(_S("failed to delete ",dp->d_name));
+			__ldebug__(NULL, logstream << "Deleted " << dp->d_name);
+		}
 	}
 }
 
@@ -1222,7 +1226,6 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 				throw ioslaves::req_err(ioslaves::answer_code::EXISTS, "FILES", MCLOGSCLI(s) << "Can't use temporary map '" << s->s_map << "' : a permanent server folder exists with this name", log_lvl::OOPS);
 				// Permanent map folder found
 				// Checking for .lck files
-			if (s->s_serv_type != minecraft::serv_type::FORGE)
 			{ DIR* dir = ::opendir(working_dir.c_str());
 				RAII_AT_END_L( ::closedir(dir) );
 				if (dir == NULL) 
@@ -1688,17 +1691,14 @@ void* minecraft::serv_thread (void* arg) {
 						char lbuf[1024];
 						fd_t out = FD_ISSET(java_pipes.err, &sel_set) ? java_pipes.err : java_pipes.out;
 						ssize_t rs = ::read(out, lbuf, sizeof(lbuf));
-						if (rs == 0) { 
-							if (stopInfo.why == (minecraft::whyStopped)0 or stopInfo.why == minecraft::whyStopped::NOT_STARTED) 
-								throw xif::sys_error("read from java pipe", "pipe closed");
-							else {
-								__log__(log_lvl::NOTICE, THLOGSCLI(s), "Java pipe closed during closing");
-								FD_CLR(java_pipes.out, &select_set);
-								FD_CLR(java_pipes.err, &select_set);
-								::close(java_pipes.in);
-								java_pipes.in = INVALID_HANDLE;
-								goto __retry;
-							}
+						if (rs == 0) {
+							__log__(log_lvl::NOTICE, THLOGSCLI(s), "Java pipe closed. Waiting for sigchild...");
+							#warning TO DO : Add timeout
+							FD_CLR(java_pipes.out, &select_set);
+							FD_CLR(java_pipes.err, &select_set);
+							::close(java_pipes.in);
+							java_pipes.in = INVALID_HANDLE;
+							goto __retry;
 						}
 						if (rs == -1)
 							throw xif::sys_error("read from java stdout failed");
@@ -1826,12 +1826,10 @@ void* minecraft::serv_thread (void* arg) {
 							case minecraft::internal_serv_op_code::KILL_JAVA: {
 								__log__(log_lvl::WARNING, THLOGSCLI(s), "Killing java !");
 								stopInfo.gracefully = false;
-								stopInfo.why = minecraft::whyStopped::ERROR_INTERNAL;
+								stopInfo.why = minecraft::whyStopped::KILLED;
 								{ asroot_block();
 									::kill(s->s_java_pid, SIGKILL);
 								}
-								minecraft::deleteLckFiles(_S( MINECRAFT_SRV_DIR,"/mc_",s->s_servid,'/',s->s_map ));
-								loop = false;
 							} break;
 							
 							case minecraft::internal_serv_op_code::GOT_SIGNAL: {
@@ -1939,7 +1937,7 @@ void* minecraft::serv_thread (void* arg) {
 				__log__(log_lvl::LOG, THLOGSCLI(s), logstream << "Run time : " << run_time << 'm');
 		}
 
-			// Maybe the server is closed. Else, close server ungracefully but softly with SIGHUP.
+			// Normally the server is already closed. Else, close server ungracefully but softly with SIGHUP.
 		{ asroot_block();
 			r = ::kill(s->s_java_pid, SIGHUP);
 		}
@@ -1949,7 +1947,7 @@ void* minecraft::serv_thread (void* arg) {
 			else throw xif::sys_error("kill java failed");
 		} else {
 			__log__(log_lvl::NOTICE, THLOGSCLI(s), logstream << "SIGHUP signal sent to java", LOG_WAIT, &l);
-			stopInfo.why = minecraft::whyStopped::ERROR_INTERNAL;
+			stopInfo.gracefully = false;
 		}
 		int status;
 		pid_t r_pid = ::waitpid(s->s_java_pid, &status, WUNTRACED);
@@ -1957,6 +1955,8 @@ void* minecraft::serv_thread (void* arg) {
 			log_lvl r_pid_lvl = (WEXITSTATUS(status) == 0) ? log_lvl::DONE : log_lvl::WARNING;
 			__log__(r_pid_lvl, NULL, logstream << "(ret code " << WEXITSTATUS(status) << ")", LOG_ADD, &l);
 		}
+			// Delete remaining .lck files
+		minecraft::deleteLckFiles(_S( MINECRAFT_SRV_DIR,"/mc_",s->s_servid,'/',s->s_map ));
 		
 		{ // Delete SRV entry on DNS
 			ioslaves::api::euid_switch(-1,-1);

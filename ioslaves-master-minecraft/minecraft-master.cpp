@@ -884,7 +884,7 @@ void handleReportRequest (socketxx::io::simple_socket<socketxx::base_socket> soc
 		case minecraft::whyStopped::DESIRED_INTERNAL: reason = "Stopped automatically by ioslavesd-minecraft"; break;
 		case minecraft::whyStopped::DESIRED_MASTER: reason = "Stopped by a master"; break;
 		case minecraft::whyStopped::ITSELF: reason = "Minecraft server stopped itself"; break;
-		case minecraft::whyStopped::ERROR_INTERNAL: reason = "Killed or halted by force"; break;
+		case minecraft::whyStopped::KILLED: reason = "Killed"; break;
 		case minecraft::whyStopped::NOT_STARTED: reason = "Server was not even started"; break;
 		default: reason = "Unknown";
 	}

@@ -48,7 +48,7 @@ namespace minecraft {
 	
 	enum class transferWhat : char { JAR = 'j', MAP = 'm', SERVFOLD = 's', BIGFILE = 'b' };
 	
-	enum class whyStopped : char { DESIRED_MASTER = 'M', DESIRED_INTERNAL = 'I', ERROR_INTERNAL = 'E', ITSELF = 'i', NOT_STARTED = 'N' };
+	enum class whyStopped : char { DESIRED_MASTER = 'M', DESIRED_INTERNAL = 'I', KILLED = 'E', ITSELF = 'i', NOT_STARTED = 'N' };
 	
 #ifdef IOSLAVESD_MINECRAFT
 
