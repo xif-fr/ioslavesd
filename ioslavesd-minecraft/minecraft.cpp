@@ -258,7 +258,12 @@ extern "C" void ioslapi_stop (void) {
 			report.add("why", libconfig::Setting::TypeInt) = (int)ss.why;
 		}
 		try {
-			savereports.writeFile(MINECRAFT_REPORTS_FILE);
+			block_as_mcjava();
+			FILE* f = ::fopen(MINECRAFT_REPORTS_FILE, "w");
+			if (f == NULL)
+				throw xif::sys_error("fopen save reports file");
+			RAII_AT_END_L( ::fclose(f) );
+			savereports.write(f);
 			__log__(log_lvl::DONE, NULL, "Done", LOG_ADD, &l);
 		} catch (const libconfig::FileIOException& e) {
 			__log__(log_lvl::ERROR, NULL, logstream << "Failed to save reports : " << e.what());
@@ -274,16 +279,15 @@ extern "C" bool ioslapi_shutdown_inhibit () {
 
 	// Returns a small resumé of the Minecraft service
 extern "C" xif::polyvar* ioslapi_status_info () {
-	std::map<std::string, socketxx::io::simple_socket<socketxx::base_fd>> pending_requests;
-	std::map<std::string, bool> servs_fixed;
+	std::map<std::string, std::tuple<socketxx::io::simple_socket<socketxx::base_fd>,bool,minecraft::serv_type>> pending_requests;
 	MUTEX_PRELOCK; ::pthread_mutex_lock(&minecraft::servs_mutex); MUTEX_POSTLOCK;
 	for (std::pair<std::string,minecraft::serv*> p : minecraft::servs) {
 		try {
 			socketxx::io::simple_socket<socketxx::base_fd> s_comm(socketxx::base_fd(p.second->s_sock_comm, SOCKETXX_MANUAL_FD));
 			s_comm.o_char((char)minecraft::internal_serv_op_code::GET_PLAYER_LIST);
-			pending_requests.insert({p.first, s_comm});
-			servs_fixed[p.first] = not 
+			bool fixed = not
 				ioslaves::infofile_get(_s( MINECRAFT_SRV_DIR,"/mc_",p.first,'/',p.second->s_map,"/fixed_map" ), true).empty();
+			pending_requests.insert({p.first, {s_comm, fixed, p.second->s_serv_type}});
 		} catch (...) {}
 	}
 	::pthread_mutex_unlock(&minecraft::servs_mutex); MUTEX_UNLOCKED;
@@ -291,12 +295,14 @@ extern "C" xif::polyvar* ioslapi_status_info () {
 	for (auto p : pending_requests) {
 		servers.v().push_back(p.first);
 		try {
-			if ((ioslaves::answer_code)p.second.i_char() == ioslaves::answer_code::OK) {
-				servers.v().back().s() += _S( " (",::ixtoa(p.second.i_int<int16_t>()),")" );
-				p.second.i_int<uint32_t>();
+			socketxx::io::simple_socket<socketxx::base_fd>& s_comm = std::get<0>(p.second);
+			if ((ioslaves::answer_code)s_comm.i_char() == ioslaves::answer_code::OK) {
+				servers.v().back().s() += _S( " (",::ixtoa(s_comm.i_int<int16_t>()),")" );
+				s_comm.i_int<uint32_t>();
 			}
 		} catch (...) {}
-		if (servs_fixed[p.first] == true) 
+		servers.v().back().s() += _S( " [",(char)std::get<2>(p.second),"]" );
+		if (std::get<1>(p.second) == true)
 			servers.v().back().s() += " fix";
 	}
 	xif::polyvar* info = new xif::polyvar(xif::polyvar::map({
@@ -389,13 +395,16 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 				cli.o_bool((bool)minecraft::servs.count(ss.serv));
 				cli.o_str(ss.map_to_save);
 				bool accept = cli.i_bool();
-				if (accept) {
+				if (accept) try {
 					if (not ss.map_to_save.empty()) {
 						block_as_mcjava();
 						minecraft::compressAndSend(cli, ss.serv, ss.map_to_save, true);
 					}
 					auto p_it = it++; minecraft::servs_stopped.erase(p_it);
-				} else 
+				} catch (const std::exception& e) {
+					__log__(log_lvl::ERROR, "COMM", logstream << "Error while sending accepted stop report : " << e.what() << ". Stop report deleted.");
+					auto p_it = it++; minecraft::servs_stopped.erase(p_it);
+				} else
 					++it;
 			}
 		}
@@ -1616,7 +1625,7 @@ void* minecraft::serv_thread (void* arg) {
 		std::list<interpret_request*> interpret_requests;
 		
 			// Autoclose & player listing
-		#define MINECRAFT_LIST_PATTERNS_BEG {"There are ", "Il y a "}
+		#define MINECRAFT_LIST_PATTERNS_BEG {"There are ", "Il y a ", "Total players online: "}
 		time_t first_0 = 0;
 		auto parse_list_players = [&s] (std::string msg, interpret_request* req) -> uint16_t {
 			if (s->s_serv_type == minecraft::serv_type::VANILLA) {
@@ -1656,7 +1665,10 @@ void* minecraft::serv_thread (void* arg) {
 					
 						// Autoclose server
 					if (s->s_delay_noplayers != 0 and ::time(NULL)%160 == 0) {
-						MC_write_command(s, java_pipes, "list");
+						if (s->s_serv_type == minecraft::serv_type::BUNGEECORD)
+							MC_write_command(s, java_pipes, "glist");
+						else
+							MC_write_command(s, java_pipes, "list");
 						interpret_request* int_req = new interpret_request;
 						int_req->data = int_req->sock = NULL;
 						int_req->patterns_beg = MINECRAFT_LIST_PATTERNS_BEG;
@@ -1778,7 +1790,10 @@ void* minecraft::serv_thread (void* arg) {
 							} break;
 							
 							case minecraft::internal_serv_op_code::GET_PLAYER_LIST: {
-								MC_write_command(s, java_pipes, "list");
+								if (s->s_serv_type == minecraft::serv_type::BUNGEECORD)
+									MC_write_command(s, java_pipes, "glist");
+								else
+									MC_write_command(s, java_pipes, "list");
 								interpret_request* int_req = new interpret_request;
 								int_req->data = NULL;
 								int_req->patterns_beg = MINECRAFT_LIST_PATTERNS_BEG;
@@ -1811,7 +1826,10 @@ void* minecraft::serv_thread (void* arg) {
 								MC_write_command(s, java_pipes, "say [AUTO] Fermeture depuis le panel");
 								::sleep(2);
 								stopInfo.why = minecraft::whyStopped::DESIRED_MASTER;
-								MC_write_command(s, java_pipes, "stop");
+								if (s->s_serv_type == minecraft::serv_type::BUNGEECORD)
+									MC_write_command(s, java_pipes, "end");
+								else
+									MC_write_command(s, java_pipes, "stop");
 								WriteEarlyState('s');
 							} break;
 							
@@ -1820,7 +1838,10 @@ void* minecraft::serv_thread (void* arg) {
 								MC_write_command(s, java_pipes, "say [AUTO] Le serveur doit se fermer immediatement (reboot ou shutdown machine)");
 								::sleep(2);
 								stopInfo.why = minecraft::whyStopped::DESIRED_INTERNAL;
-								MC_write_command(s, java_pipes, "stop");
+								if (s->s_serv_type == minecraft::serv_type::BUNGEECORD)
+									MC_write_command(s, java_pipes, "end");
+								else
+									MC_write_command(s, java_pipes, "stop");
 							} break;
 								
 							case minecraft::internal_serv_op_code::KILL_JAVA: {
@@ -2094,7 +2115,9 @@ std::string MC_log_interpret (const std::string line, minecraft::serv* s, minecr
 			}
 		}
 	}
-	if (m_msg.std::string::find("Done (") == 0) {
+	if (not stopInfo->doneDone
+	and (m_msg.std::string::find("Done (") == 0
+	or (s->s_serv_type == minecraft::serv_type::BUNGEECORD and m_msg.std::string::find("Listening on") == 0))) {
 		char _stat; WriteEarlyState('d');
 		stopInfo->doneDone = true;
 		stopInfo->why = (minecraft::whyStopped)0;

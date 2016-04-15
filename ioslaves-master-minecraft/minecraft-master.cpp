@@ -1808,6 +1808,7 @@ void MServConsole () {
 		throw o;
 	__log__ << "Connection between master and thread is now established for LiveConsole !" << ($websocket_port==0?"":" [accepting commands]") << std::flush;
 	if ($websocket_port == 0) {
+		sock.set_read_timeout(NULL_TIMEVAL);
 		while (true) {
 			time_t line_time = (time_t)sock.i_int<int64_t>();
 			if (line_time == -1) {
