@@ -109,6 +109,7 @@ NSAttributedString* log_master_strs[] = {
 		NSForegroundColorAttributeName : MakeLogAttrColor(255,255,255),
 	}),
 	[(int)log_lvl::LOG] = log_master_strs[(int)log_lvl::NOTICE],
+	[(int)log_lvl::_DEBUG] = log_master_strs[(int)log_lvl::NOTICE],
 	[(int)log_lvl::IMPORTANT] = MakeLogAttrStr(@"=>", @{
 		NSFontAttributeName : MakeLogAttrFont(@"Menlo", 11, NSFontBoldTrait),
 		NSForegroundColorAttributeName : MakeLogAttrColor(88,51,255),
@@ -583,6 +584,9 @@ NSAttributedString* log_master_strs[] = {
 			NSFontAttributeName : MakeLogAttrFont(@"Menlo", 11, NSFontItalicTrait),
 			NSForegroundColorAttributeName : [NSColor colorWithCalibratedWhite:0.8f alpha:1.f]
 		}];
+		if (textLine == nil) {
+			abort();
+		}
 		if (not part.empty())
 			[textLine addAttribute:NSFontAttributeName 
 			                 value:MakeLogAttrFont(@"Monaco", 10)

@@ -35,7 +35,7 @@ extern "C" void ioslapi_stop (void) {
 }
 
 	// We do not have childs
-extern "C" bool ioslapi_got_sigchld (pid_t pid, int pid_status) {
+extern "C" bool ioslapi_got_sigchld (pid_t, int) {
 	return false;
 }
 
@@ -68,10 +68,10 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 			return;
 		}
 		cli.o_char((char)ioslaves::answer_code::OK);
-		cli.o_int<uint16_t>(delay);
+		cli.o_int<uint16_t>((uint16_t)delay);
 		__log__(log_lvl::DONE, "WAKE", logstream << "Done. Announced delay : " << delay);
 		
 	} catch (const socketxx::error& e) {
-		__log__(log_lvl::NOTICE, "COMM", logstream << "Network error : " << e.what());
+		__log__(log_lvl::OOPS, "COMM", logstream << "Network error : " << e.what());
 	}
 }

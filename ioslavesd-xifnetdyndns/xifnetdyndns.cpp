@@ -82,7 +82,7 @@ extern "C" bool ioslapi_start (const char*) {
 	int r;
 	__log__(log_lvl::IMPORTANT, NULL, logstream << "Starting XifNet Dynamic DNS Service...", LOG_WAIT, &l);
 	{ sigchild_block(); asroot_block();
-		r = ioslaves::exec_wait("nsd-control", {"status"}, NULL, -1, -1);
+		r = ioslaves::exec_wait("nsd-control", {"status"}, NULL, (pid_t)-1, (gid_t)-1);
 	}
 	if (r != 0) {
 		__log__(log_lvl::FATAL, NULL, logstream << "NSD status check failed ($? = " << r << ")");
@@ -98,7 +98,7 @@ extern "C" void ioslapi_stop (void) {
 }
 
 	// We do not have childs
-extern "C" bool ioslapi_got_sigchld (pid_t pid, int pid_status) {
+extern "C" bool ioslapi_got_sigchld (pid_t, int) {
 	return false;
 }
 
@@ -279,7 +279,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 			}
 		}
 	} catch (const socketxx::error& e) {
-		__log__(log_lvl::NOTICE, "COMM", logstream << "Network error : " << e.what());
+		__log__(log_lvl::OOPS, "COMM", logstream << "Network error : " << e.what());
 	}
 }
 
@@ -291,7 +291,7 @@ void xdyndns::NSD_reload () {
 	errno = 0;
 	int r;
 	{ sigchild_block(); asroot_block();
-		r = ioslaves::exec_wait("nsd-control", {"reload"}, NULL, -1, -1);
+		r = ioslaves::exec_wait("nsd-control", {"reload"}, NULL, (pid_t)-1, (gid_t)-1);
 	}
 	if (r != 0) throw xif::sys_error("failed to reload NSD zones", (errno == 0 ? "nsd-control reload failed" : _s("system(nsd-control) failed : ",::strerror(errno))));
 }
@@ -359,7 +359,7 @@ void xdyndns::NSD_zone_parser (std::string domain, const std::list<xdyndns::srv_
 					else if (c == '\n' and buf.empty()) {
 						off = ::strlen("xxx.xxx.xxx.xxx")+1;
 						buf = socketxx::base_netsock::addr_info::addr2str(slave_ip_set->ip_addr);
-						buf = _S( slave_ip_set->hostname,"\tIN A\t",buf,std::string(off-buf.length(),' '),";\n\n; -- DYN -- ;\n" );
+						buf = _S( slave_ip_set->hostname,"\tIN A\t",buf,std::string((size_t)off-buf.length(),' '),";\n\n; -- DYN -- ;\n" );
 						::lseek(f, -1, SEEK_CUR);
 						if ( ::write(f, buf.c_str(), buf.length()) != (ssize_t)buf.length() ) goto __werror;
 						ctx = CTX_DYNPART_WRITE;

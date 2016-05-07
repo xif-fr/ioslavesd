@@ -55,7 +55,7 @@ bool arduino_reuse_conn;
 extern "C" void key_store (std::string key_id, ioslaves::key_t key, libconfig::Setting& data_write) {
 	__log__(log_lvl::LOG, "ARDUINO", logstream << "Storing key '" << key_id << "' on arduino authentication module...");
 	int r;
-	size_t rs;
+	ssize_t rs;
 	std::string device = 
 		ioslaves::infofile_get(_s(IOSL_MASTER_KEYSTORE_ARDUINO_DEVICE_PATH_FILE), true);
 	if (device.empty()) {
@@ -243,7 +243,7 @@ uint8_t arduino_read_byte (fd_t serial, timeval timeout) {
 		throw xif::sys_error("select() on serial fd failed");
 	}
 	uint8_t b;
-	size_t rs = ::read(serial, &b, sizeof(b));
+	ssize_t rs = ::read(serial, &b, sizeof(b));
 	if (rs != sizeof(b)) 
 		throw xif::sys_error("failed to read from arduino");
 	return b;

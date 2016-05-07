@@ -174,7 +174,7 @@ std::ostream __log__ (&_cwlog_buf);
 pthread_mutex_t xlog::logstream_impl::mutex = PTHREAD_MUTEX_INITIALIZER;
 std::ostringstream xlog::logstream_impl::stream;
 bool _log_wait_flag = false;
-void xlog::logstream_impl::log (log_lvl lvl, const char* part, std::string msg, int m, logl_t* lid) noexcept {
+void xlog::logstream_impl::log (log_lvl lvl, const char* part, std::string msg, int m, logl_t*) noexcept {
 	if (_log_wait_flag and not (m & LOG_ADD)) ::__log__ << std::flush;
 	_log_wait_flag = false;
 	switch (lvl) {
@@ -628,13 +628,13 @@ int main (int argc, char* const argv[]) {
 		if (not nopoll_conn_is_ok(listener)) {
 			std::cerr << LOG_AROBASE_ERR << "Failed to create listening websocket" << std::endl; EXIT_FAILURE = EXIT_FAILURE_SYSERR; return EXIT_FAILURE; }
 		struct _noPoll_callbacks {
-			static nopoll_bool onConnReady (noPollCtx* wsctx, noPollConn* conn, void* data) {
+			static nopoll_bool onConnReady (noPollCtx* wsctx, noPollConn* conn, void*) {
 				if ($websocket_conn != NULL) return false;
 				std::cerr << LOG_AROBASE_OK << "Websocket client is here !" << std::endl;
 				nopoll_conn_send_text(conn, "Hello websocket client !", -1);
 				return true;
 			}
-			static void onMsg (noPollCtx* wsctx, noPollConn* conn, noPollMsg* msg, noPollPtr data) {
+			static void onMsg (noPollCtx* wsctx, noPollConn* conn, noPollMsg* msg, noPollPtr) {
 				nopoll_loop_stop(wsctx);
 				$websocket_conn = conn;
 				std::string str ((const char*)nopoll_msg_get_payload(msg), nopoll_msg_get_payload_size(msg));
@@ -714,7 +714,7 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 		try {
 			try {
 				__log__ << LOG_ARROW << "Connecting to '" << slave << "'..." << std::flush;
-				return iosl_master::slave_api_service_connect(slave, $master_id, "minecraft", TIMEOUT_CONNECT);
+				return iosl_master::slave_api_service_connect(slave, $master_id, "minecraft", timeout);
 			} catch (const master_err& e) {
 				if (e.is_ioslaves_err() and e.o == ioslaves::answer_code::BAD_STATE and $granmaster and autoservice) {
 					__log__ << LOG_ARROW << "Minecraft service seems to be off. Starting it..." << std::flush;
@@ -726,7 +726,7 @@ socketxx::io::simple_socket<socketxx::base_socket> getConnection (std::string sl
 						__log__ << LOG_ARROW_ERR << "Failed to start Minecraft service : " << ioslaves::getAnswerCodeDescription(answ) << std::flush;
 						throw answ;
 					}
-					return iosl_master::slave_api_service_connect(slave, $master_id, "minecraft", TIMEOUT_CONNECT);
+					return iosl_master::slave_api_service_connect(slave, $master_id, "minecraft", timeout);
 				} else 
 					throw;
 			}
@@ -990,7 +990,7 @@ void MServPost (ioslaves::answer_code e) {
 }
 
 std::string getRunningOnSlave (std::string serv) {
-	std::string filename = _S( IOSLAVES_MINECRAFT_MASTER_DIR,'/',$server_name,"/running_on" );
+	std::string filename = _S( IOSLAVES_MINECRAFT_MASTER_DIR,'/',serv,"/running_on" );
 	std::string running_on_slave = ioslaves::infofile_get(filename.c_str(), false);
 	if (not running_on_slave.empty() and !ioslaves::validateSlaveName(running_on_slave))
 		throw std::runtime_error("invalid slave name in file 'running_on'");
@@ -998,7 +998,7 @@ std::string getRunningOnSlave (std::string serv) {
 }
 
 void setRunningOnSlave (std::string serv, std::string running_on_slave) {
-	std::string filename = _S( IOSLAVES_MINECRAFT_MASTER_DIR,'/',$server_name,"/running_on" );
+	std::string filename = _S( IOSLAVES_MINECRAFT_MASTER_DIR,'/',serv,"/running_on" );
 	__log__ << "Marking server '" << serv << "' as ";
 	if (running_on_slave.empty()) __log__ << " closed." << std::flush;
 	else                          __log__ << " opened on slave '" << running_on_slave << "'." << std::flush;
@@ -1189,7 +1189,7 @@ void MServStatus () {
 				std::cout << std::endl << xif::polyvar(xif::polyvar::map({{"running",false}})).to_json() << std::endl;
 		}
 	} else {
-		auto sock = getConnection($slave_id, $server_name, minecraft::op_code::SERV_STAT, {2,0}, false, false);
+		auto sock = getConnection($slave_id, $server_name, minecraft::op_code::SERV_STAT, TIMEOUT_CONNECT, false, false);
 		bool $status;
 		_retrieve_status_info_($slave_id, sock, $status);
 		__log__ << LOG_ARROW_OK << "Server '" << $server_name << "' on slave '" << $slave_id << "' is " << ($status?"running":"NOT running") << std::flush;
@@ -1207,7 +1207,7 @@ void MServStatus () {
 void MServPerm () {
 	__log__ << LOG_ARROW << "Permanentize map on server " << $server_name << "..." << std::flush;
 	granmasterSlaveSet();
-	auto sock = getConnection($slave_id, $server_name, minecraft::op_code::PERMANENTIZE, {2,0}, false, false);
+	auto sock = getConnection($slave_id, $server_name, minecraft::op_code::PERMANENTIZE, TIMEOUT_CONNECT, false, false);
 	std::string map = sock.i_str();
 	ioslaves::answer_code o;
 	if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) 
@@ -1226,7 +1226,7 @@ void MServPerm () {
 void MServFTPSess () {
 	__log__ << LOG_ARROW << "Create FTP session for user '" << $ftp_user << "' on server " << $server_name << " for current running world..." << std::flush;
 	granmasterSlaveSet();
-	auto sock = getConnection($slave_id, $server_name, minecraft::op_code::FTP_SESSION, {2,0}, false, false);
+	auto sock = getConnection($slave_id, $server_name, minecraft::op_code::FTP_SESSION, TIMEOUT_CONNECT, false, false);
 	std::string worldname = sock.i_str();
 	sock.o_str($ftp_user);
 	sock.o_str($ftp_hash_passwd);
@@ -1256,7 +1256,7 @@ void MServDelMap () {
 		$slave_id = lastsave_from;
 	}
 	__log__ << "Trying on " << $slave_id << "..." << std::flush;
-	auto sock = getConnection($slave_id, $server_name, minecraft::op_code::DELETE_MAP, {1,0}, false, true);
+	auto sock = getConnection($slave_id, $server_name, minecraft::op_code::DELETE_MAP, TIMEOUT_CONNECT, false, true);
 	sock.o_str($worldname);
 	ioslaves::answer_code o;
 	if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) 
@@ -1294,7 +1294,7 @@ void MServFixMap () {
 				throw EXCEPT_ERROR_IGNORE;
 			}
 		__log__ << LOG_ARROW << "Fixing world '" << $worldname << "' of server " << $server_name << " on slave '" << $slave_id << "'..." << std::flush;
-		auto sock = getConnection($slave_id, $server_name, minecraft::op_code::FIX_MAP, {2,0}, false, true);
+		auto sock = getConnection($slave_id, $server_name, minecraft::op_code::FIX_MAP, TIMEOUT_CONNECT, false, true);
 		sock.o_str($worldname);
 		sock.o_bool($fixmap);
 		if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) 
@@ -1320,7 +1320,7 @@ void MServFixMap () {
 			throw EXCEPT_ERROR_IGNORE;
 		}
 		__log__ << LOG_ARROW << "Unfixing world '" << $worldname << "' of server " << $server_name << " from slave '" << fixed_on << "'..." << std::flush;
-		auto sock = getConnection($slave_id, $server_name, minecraft::op_code::FIX_MAP, {2,0}, false, true);
+		auto sock = getConnection($slave_id, $server_name, minecraft::op_code::FIX_MAP, TIMEOUT_CONNECT, false, true);
 		sock.o_str($worldname);
 		sock.o_bool($fixmap);
 		if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) 
@@ -1365,7 +1365,7 @@ void MServExec () {
 	__log__ << LOG_ARROW << "Executing command '" << $exec_cmd << "' on server " << $server_name << "..." << std::flush;
 	granmasterSlaveSet();
 	ioslaves::answer_code o;
-	auto sock = getConnection($slave_id, $server_name, minecraft::op_code::COMM_SERVER, {2,0}, false, false);
+	auto sock = getConnection($slave_id, $server_name, minecraft::op_code::COMM_SERVER, TIMEOUT_CONNECT, false, false);
 	if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK)
 		throw o;
 	__log__ << "Connected to thread" << std::flush;
@@ -1420,7 +1420,7 @@ _try_start:
 			__log__ << "Checking on slave '" << running_on_slave << "' on which server should be running now..." << std::flush;
 			bool $status = checkSlaveStatus(running_on_slave);
 			if ($status) {
-				auto sock = getConnection(running_on_slave, $server_name, minecraft::op_code::SERV_STAT, {2,0}, false, true);
+				auto sock = getConnection(running_on_slave, $server_name, minecraft::op_code::SERV_STAT, TIMEOUT_CONNECT, false, true);
 				if (running_on_slave != ::getRunningOnSlave($server_name)) {
 					__log__ << LOG_ARROW << "Well... After report, server is now closed. Launching server..." << std::flush;
 					goto _continue_launch;
@@ -1539,7 +1539,7 @@ _try_start:
 	}
 	try {
 		sock = new socketxx::io::simple_socket<socketxx::base_socket> (
-			getConnection($slave_id, $server_name, minecraft::op_code::START_SERVER, {2,0}, !autoselect_slave or $hint, true)
+			getConnection($slave_id, $server_name, minecraft::op_code::START_SERVER, TIMEOUT_CONNECT, !autoselect_slave or $hint, true)
 		);
 	} catch (const ioslaves::answer_code) {
 		if (not $granmaster) throw;
@@ -1601,7 +1601,7 @@ _try_start:
 			__log__ << LOG_ARROW_ERR << "A permanent world named '" << $worldname << "' already exists on slave " << NICE_WARNING << " Delete it if wanted." << std::flush;
 			if (not $granmaster) throw o;
 			__log__ << LOG_AROBASE << "Refreshing status..." << std::flush;
-			auto sock = getConnection($slave_id, $server_name, minecraft::op_code::SERV_STAT, {1,0}, false, false);
+			auto sock = getConnection($slave_id, $server_name, minecraft::op_code::SERV_STAT, TIMEOUT_CONNECT, false, false);
 			bool stat = sock.i_bool();
 			if (stat) sock.o_bool(false);
 			verifyMapList($slave_id, $server_name, sock);
@@ -1742,7 +1742,7 @@ void MServStop () {
 	__log__ << LOG_ARROW << "Stopping server..." << std::flush;
 	granmasterSlaveSet();
 	ioslaves::answer_code o;
-	auto sock = getConnection($slave_id, $server_name, minecraft::op_code::STOP_SERVER, {2,0}, false, true);
+	auto sock = getConnection($slave_id, $server_name, minecraft::op_code::STOP_SERVER, TIMEOUT_CONNECT, false, true);
 	if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) {
 		if (o == ioslaves::answer_code::NOT_FOUND and $granmaster) {
 			__log__ << NICE_WARNING << COLOR_RED << "Server is not running on slave '" << $slave_id << "'" << COLOR_RESET << std::flush;
@@ -1782,7 +1782,7 @@ void MServKill() {
 	__log__ << LOG_ARROW << "Killing server..." << std::flush;
 	granmasterSlaveSet();
 	ioslaves::answer_code o;
-	auto sock = getConnection($slave_id, $server_name, minecraft::op_code::KILL_SERVER, {2,0}, false, false);
+	auto sock = getConnection($slave_id, $server_name, minecraft::op_code::KILL_SERVER, TIMEOUT_CONNECT, false, false);
 	if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK)
 		throw o;
 	__log__ << LOG_ARROW_OK << "Kill order sent." << std::flush;

@@ -430,7 +430,7 @@ int main (int argc, const char* argv[]) {
 			
 			std::string master_id = cli.i_str();
 			if (not master_id.empty() and not ioslaves::validateMasterID(master_id)) {
-				__log__(log_lvl::NOTICE, NULL, logstream << cli.addr.get_ip_str() << " : Invalid master ID");
+				__log__(log_lvl::OOPS, NULL, logstream << cli.addr.get_ip_str() << " : Invalid master ID");
 				continue;
 			}
 			bool auth = cli.i_bool();
@@ -475,7 +475,7 @@ int main (int argc, const char* argv[]) {
 				for (size_t i = 0; i < HASH_LEN; i++) {
 					if (expected_answer.bin[i] != master_answer.bin[i]) {
 						cli.o_char((char)ioslaves::answer_code::BAD_CHALLENGE_ANSWER);
-						__log__(log_lvl::NOTICE, "AUTH", logstream << "Authentication failed for " << cli.addr.get_ip_str() << " as '" << master_id << "' ! Bad answer to challenge.");
+						__log__(log_lvl::WARNING, "AUTH", logstream << "Authentication failed for " << cli.addr.get_ip_str() << " as '" << master_id << "' ! Bad answer to challenge.");
 						conn_next_delay[cli.addr.get_ip_addr().s_addr] = ::iosl_time() + IOSL_CLI_DELAY_FAIL_AUTH;
 						goto _abort_connect;
 					}
@@ -745,7 +745,7 @@ int main (int argc, const char* argv[]) {
 						cli.o_char((char)ioslaves::answer_code::OK);
 						try {
 							(*cli_call_f)(cli, master_id.c_str(), (auth ? &api_perms : NULL), cli.addr.get_ip_addr().s_addr);
-							ioslaves::api::euid_switch(-1,-1);
+							ioslaves::api::euid_switch((uid_t)-1,(gid_t)-1);
 						} catch (const ioslaves::req_err& e) {
 							throw;
 						} catch (const std::exception& e) {
@@ -893,7 +893,7 @@ int main (int argc, const char* argv[]) {
 									}
 									try {
 										bool inhib = (*inhib_f)();
-										ioslaves::api::euid_switch(-1,-1);
+										ioslaves::api::euid_switch((uid_t)-1,(gid_t)-1);
 										if (not inhib) 
 											continue;
 									} catch (const std::exception& e) {
@@ -984,7 +984,7 @@ void* status_thread (void*) {
 						(*it).o_var(infos);
 						++it;
 					} catch (const socketxx::error& e) {
-						__log__(log_lvl::NOTICE, "NET", logstream << "Erasing client from the status pool : " << e.what());
+						__log__(log_lvl::LOG, "NET", logstream << "Erasing client from the status pool : " << e.what());
 						auto p_it = it++; status_clients.erase(p_it);
 					}
 				}
@@ -1394,7 +1394,7 @@ xif::polyvar ioslaves::serviceStatus (const ioslaves::service* s) {
 			try {
 				xif::polyvar* info = (*call_f)();
 				RAII_AT_END_L( delete info );
-				ioslaves::api::euid_switch(-1,-1);
+				ioslaves::api::euid_switch((uid_t)-1,(gid_t)-1);
 				return *info;
 			} catch (const std::exception& e) {
 				throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "API", logstream << "Error in ioslapi_status_info for '" << s->s_name << "' : " << e.what());
@@ -1441,7 +1441,7 @@ void ioslaves::controlService (ioslaves::service* s, bool start, const char* con
 		case ioslaves::service::type::SYSTEMCTL: {
 			int r;
 			try { sigchild_block(); asroot_block();
-				r = ioslaves::exec_wait("systemctl", {(start?"start":"stop"), _S(s->s_command,".service")}, NULL, -1, -1);
+				r = ioslaves::exec_wait("systemctl", {(start?"start":"stop"), _S(s->s_command,".service")}, NULL, (uid_t)-1, (gid_t)-1);
 			} catch (const xif::sys_error& e) {
 				throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "SERVICE", logstream << "systemctl execution failed : " << e.what());
 			}
@@ -1472,7 +1472,7 @@ void ioslaves::controlService (ioslaves::service* s, bool start, const char* con
 				}
 				try {
 					bool ok = (*start_service_func)(controlling_master);
-					ioslaves::api::euid_switch(-1,-1);
+					ioslaves::api::euid_switch((uid_t)-1,(gid_t)-1);
 					if (not ok) 
 						throw std::runtime_error("failed");
 				} catch (const std::exception& e) {
@@ -1487,7 +1487,7 @@ void ioslaves::controlService (ioslaves::service* s, bool start, const char* con
 					throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "API", logstream << "Error getting function with dlsym(\"ioslapi_stop\") : " << ::dlerror());
 				try {
 					(*stop_func)();
-					ioslaves::api::euid_switch(-1,-1);
+					ioslaves::api::euid_switch((uid_t)-1,(gid_t)-1);
 				} catch (const std::exception& e) {
 					__log__(log_lvl::ERROR, "API", logstream << "Error in stop method of service '" << s->s_name << "' : " << e.what());
 				}
@@ -1572,7 +1572,7 @@ void ioslaves::controlService (ioslaves::service* s, bool start, const char* con
 					}
 				__start_proc:
 					{ sigchild_block(); asroot_block();
-						r = ioslaves::exec_wait("sh", {"-c", s->s_command}, NULL, -1, -1);
+						r = ioslaves::exec_wait("sh", {"-c", s->s_command}, NULL, (uid_t)-1, (gid_t)-1);
 					}
 					if (r != 0) throw ioslaves::req_err(ioslaves::answer_code::EXTERNAL_ERROR, "DAEMON", logstream << "`" << s->s_command << "` command failed ! ($? = " << r << ")");
 				} else {

@@ -43,7 +43,7 @@ typedef size_t logl_t;
 void __log__ (log_lvl, const char* part, std::ostream&, int flags = 0, logl_t* lid = NULL) noexcept;
 void __log__ (log_lvl, const char* part, std::string msg, int flags = 0, logl_t* lid = NULL) noexcept;
 inline void __ldebug__ (const char* part, std::string msg) noexcept { __log__(xlog::log_lvl::_DEBUG, part, msg); }
-inline void __ldebug__ (const char* part, std::ostream& os) noexcept { __log__(xlog::log_lvl::_DEBUG, part, xlog::logstream_retrieve()); }
+inline void __ldebug__ (const char* part, std::ostream&) noexcept { __log__(xlog::log_lvl::_DEBUG, part, xlog::logstream_retrieve()); }
 
 }
 

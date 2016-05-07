@@ -421,6 +421,21 @@ const std::string& __get_homedir__() {
 	return __homedir;
 }
 
+char __read_pipe_state__ (fd_t pipe, time_t tm_sec, char def) {
+	char _stat = def;
+	int r;
+_redo:
+	timeval tm = {tm_sec,0};
+	fd_set s; FD_ZERO(&s); FD_SET(pipe, &s);
+	r = ::select(pipe+1, &s, NULL, NULL, &tm);
+	if (r == -1 and errno == EINTR) goto _redo;
+	if (r == 1) {
+		::read(pipe, &_stat, 1);
+		if (_stat == def) goto _redo;
+	}
+	return _stat;
+}
+
 /** -----------------------------	**/
 /**          Info files         	**/
 /** -----------------------------	**/
@@ -432,15 +447,15 @@ std::string ioslaves::infofile_get (const char* path, bool nul_if_no_file) {
 		throw xif::sys_error(_S("can't open infofile ",path));
 	}
 	RAII_AT_END_L( ::close(f) );
-	size_t sz = ::lseek(f, 0, SEEK_END);
-	if (sz == 0)
+	off_t sz = ::lseek(f, 0, SEEK_END);
+	if (sz <= 0)
 		return std::string();
 	::lseek(f, 0, SEEK_SET);
-	char* info = new char[sz];
+	char* info = new char[(size_t)sz];
 	RAII_AT_END_N(info, {
 		delete[] info;
 	});
-	ssize_t rs = ::read(f, info, sz);
+	ssize_t rs = ::read(f, info, (size_t)sz);
 	if (rs != (ssize_t)sz) 
 		throw xif::sys_error("failed to read from infofile");
 	for (size_t i = 0; i < sz; i++) 

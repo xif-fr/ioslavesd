@@ -304,7 +304,7 @@ void minecraft::ftp_register_user (std::string username, std::string md5passwd, 
 	minecraft::ftp_auth sess;
 	sess.username = username;
 	for (size_t i = 0; i < md5passwd.length(); i++) 
-		md5passwd[i] = ::tolower(md5passwd[i]);
+		md5passwd[i] = (char)::tolower(md5passwd[i]);
 	sess.md5passwd = md5passwd;
 	sess.end_validity = ::time(NULL) + validity;
 	sess.path = _S( MINECRAFT_SRV_DIR,"/mc_",server,'/',map );

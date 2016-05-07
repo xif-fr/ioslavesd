@@ -70,7 +70,7 @@ void ioslaves::upnpInit () {
 			sz = (off_t)::lseek(f, 0, SEEK_END);
 			if (sz >= UPNP_URL_MIN_SZ) {
 				::lseek(f, 0, SEEK_SET);
-				char* url_str = new char[sz+1];
+				char* url_str = new char[(size_t)sz+1];
 				RAII_AT_END_L( delete[] url_str );
 				rs = ::read(f, url_str, (size_t)sz);
 				if (rs != sz) 

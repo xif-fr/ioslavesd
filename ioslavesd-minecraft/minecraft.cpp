@@ -32,7 +32,7 @@ using namespace xlog;
 	// Run a block of code as mcjava (errno is preserved, ioslaves uid/gid restored)
 struct _block_as_mcjava {
 	_block_as_mcjava () { ioslaves::api::euid_switch(minecraft::java_user_id, minecraft::java_user_id); }
-	~_block_as_mcjava () { ioslaves::api::euid_switch(-1,-1); }
+	~_block_as_mcjava () { ioslaves::api::euid_switch((uid_t)-1,(gid_t)-1); }
 };
 #define block_as_mcjava() _block_as_mcjava _block_as_mcjava_handle
 
@@ -155,7 +155,7 @@ extern "C" bool ioslapi_start (const char* by_master) {
 	if (_pwbufsz < 1) _pwbufsz = 100;
 	char pwbuf[_pwbufsz];
 	struct passwd userinfo, *_p_userinfo;
-	r = ::getpwnam_r(MINECRAFT_JAVA_USER, &userinfo, pwbuf, _pwbufsz, &_p_userinfo);
+	r = ::getpwnam_r(MINECRAFT_JAVA_USER, &userinfo, pwbuf, (size_t)_pwbufsz, &_p_userinfo);
 	if (r == -1 or _p_userinfo == NULL) {
 		__log__(log_lvl::FATAL, NULL, logstream << "Failed to get user id for executing java : " << (_p_userinfo==NULL ? "user not found" : ::strerror(errno)));
 		return false;
@@ -169,13 +169,13 @@ extern "C" bool ioslapi_start (const char* by_master) {
 	try {
 		conf.readFile(MINECRAFT_CONF_FILE);
 		{
-			minecraft::servs_port_range_beg = (int)conf.lookup("servs_port_range_beg");
-			minecraft::servs_port_range_sz = (int)conf.lookup("servs_port_range_sz");
-			minecraft::max_viewdist = (int)conf.lookup("max_viewdist");
-			minecraft::pure_ftpd_base_port = (int)conf.lookup("ftp_base_port");
-			minecraft::pure_ftpd_pasv_range_beg = (int)conf.lookup("ftp_pasv_range_beg");
-			minecraft::pure_ftpd_max_cli = (int)conf.lookup("ftp_max_cli");
-			minecraft::ignore_shutdown_time = (bool)conf.lookup("ignore_shutdown_time");
+			minecraft::servs_port_range_beg = (in_port_t)(int) conf.lookup("servs_port_range_beg");
+			minecraft::servs_port_range_sz = (in_port_t)(int) conf.lookup("servs_port_range_sz");
+			minecraft::max_viewdist = (uint8_t)(int) conf.lookup("max_viewdist");
+			minecraft::pure_ftpd_base_port = (in_port_t)(int) conf.lookup("ftp_base_port");
+			minecraft::pure_ftpd_pasv_range_beg = (in_port_t)(int) conf.lookup("ftp_pasv_range_beg");
+			minecraft::pure_ftpd_max_cli = (uint8_t)(int) conf.lookup("ftp_max_cli");
+			minecraft::ignore_shutdown_time = (bool) conf.lookup("ignore_shutdown_time");
 		}
 	} catch (const libconfig::ConfigException& ce) {
 		__log__(log_lvl::FATAL, "CONF", logstream << "Reading configuration file " << MINECRAFT_CONF_FILE << " failed : " << ce.what());
@@ -287,7 +287,7 @@ extern "C" xif::polyvar* ioslapi_status_info () {
 			s_comm.o_char((char)minecraft::internal_serv_op_code::GET_PLAYER_LIST);
 			bool fixed = not
 				ioslaves::infofile_get(_s( MINECRAFT_SRV_DIR,"/mc_",p.first,'/',p.second->s_map,"/fixed_map" ), true).empty();
-			pending_requests.insert({p.first, {s_comm, fixed, p.second->s_serv_type}});
+			pending_requests.insert({p.first, std::make_tuple(s_comm, fixed, p.second->s_serv_type)});
 		} catch (...) {}
 	}
 	::pthread_mutex_unlock(&minecraft::servs_mutex); MUTEX_UNLOCKED;
@@ -505,7 +505,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 					} else {
 						__log__(log_lvl::IMPORTANT, "SERV", logstream << "Unfixing world '" << map << "' of server '" << s_servid << "'...", LOG_WAIT, &l);
 						if (minecraft::servs.find(s_servid) != minecraft::servs.end() and minecraft::servs.find(s_servid)->second->s_map == map) {
-							__log__(log_lvl::NOTICE, NULL, logstream << "Server '" << s_servid << "' is running with this world : can't unfix");
+							__log__(log_lvl::OOPS, NULL, logstream << "Server '" << s_servid << "' is currently running with this world : can't unfix");
 							cli.o_char((char)ioslaves::answer_code::BAD_STATE);
 							return;
 						}
@@ -623,7 +623,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 				try {
 					minecraft::serv* s = minecraft::servs.at(s_servid);
 					if (s->s_is_perm_map) {
-						__log__(log_lvl::NOTICE, "COMM", logstream << "Map '" << s->s_map << "' is already permanent !");
+						__log__(log_lvl::OOPS, "COMM", logstream << "Map '" << s->s_map << "' is already permanent !");
 						cli.o_char((char)ioslaves::answer_code::BAD_TYPE);
 					} else {
 						cli.o_char((char)ioslaves::answer_code::OK);
@@ -645,7 +645,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 				logl_t l;
 				__log__(log_lvl::LOG, "COMM", logstream << "Master wants to delete map '" << map << "' on server '" << s_servid << "'.", LOG_WAIT, &l);
 				if (minecraft::servs.find(s_servid) != minecraft::servs.end() and minecraft::servs.find(s_servid)->second->s_map == map) {
-					__log__(log_lvl::NOTICE, "COMM", logstream << "Server is running with this map");
+					__log__(log_lvl::OOPS, "COMM", logstream << "Server is currently running with this map");
 					cli.o_char((char)ioslaves::answer_code::BAD_STATE);
 					return;
 				}
@@ -740,8 +740,8 @@ inline void assert_mcjava () {
 #endif
 }
 #ifndef __linux__
-	#define java_user_id -1
-	#define java_group_id -1
+	#define java_user_id (uid_t)-1
+	#define java_group_id (gid_t)-1
 #endif
 
 /// Transfer and map functions
@@ -818,7 +818,7 @@ void minecraft::transferAndExtract (socketxx::io::simple_socket<socketxx::base_s
 	else if (what == minecraft::transferWhat::JAR)
 		sock.o_bool(alt);
 	if (!sock.i_bool()) 
-		throw ioslaves::req_err(ioslaves::answer_code::DENY, "FILES", logstream << "Master refused sending file '" << name << "'");
+		throw ioslaves::req_err(ioslaves::answer_code::DENY, "FILES", logstream << "Master refused sending file '" << name << "'", log_lvl::OOPS);
 	std::string tempfile_name;
 	logl_t l;
 	__log__(log_lvl::LOG, "FILES", logstream << "Downloading file '" << name << "' of type '" << (char)what << "' from master...", LOG_WAIT, &l);
@@ -1005,14 +1005,14 @@ std::vector<minecraft::_BigFiles_entry> minecraft::getBigFilesIndex (std::string
 				if (c == '\n') { if (entry.name.empty()) continue; else goto __error; }
 				if (c == '/') goto __error;
 				if (c == '\t') fn = true;
-				else entry.name += c;
+				else entry.name += (char)c;
 			}
 			if (fn == true) {
 				if (entry.final_path.empty()) {
 					if (c == '\t') 
 						continue;
 					else if (type_c == 0) 
-						type_c = c;
+						type_c = (char)c;
 					else if (c == '/') 
 						entry.final_path += '/';
 					else 
@@ -1031,7 +1031,7 @@ std::vector<minecraft::_BigFiles_entry> minecraft::getBigFilesIndex (std::string
 						entry = _BigFiles_entry();
 						type_c = 0;
 					}
-					else entry.final_path += c;
+					else entry.final_path += (char)c;
 				}
 			}
 		}
@@ -1078,7 +1078,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 				pthread_mutex_handle_lock(minecraft::servs_mutex);
 				delete s;
 			}
-			ioslaves::api::euid_switch(-1,-1);
+			ioslaves::api::euid_switch((uid_t)-1,(gid_t)-1);
 		}
 	} __autodelete_serv(s);
 	
@@ -1377,7 +1377,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 		ioslaves::api::euid_switch(0,0);
 		__ldebug__(NULL, MCLOGSCLI(s) << "Correcting permissions...");
 		ioslaves::chown_recurse(working_dir.c_str(), minecraft::java_user_id, minecraft::java_group_id);
-		ioslaves::api::euid_switch(-1,-1);
+		ioslaves::api::euid_switch((uid_t)-1,(gid_t)-1);
 		
 			// End of file requests, we can now start server
 		__log__(log_lvl::IMPORTANT, NULL, MCLOGSCLI(s) << "All files are loaded, starting can start !");
@@ -1398,18 +1398,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 				s->s_early_pipe = INVALID_HANDLE;
 			}
 		} __autoclose_early_pipes({s,early_pipe_r});
-		char _stat;
-		auto _read_pipe_state_ = [&] (ushort tm_sec) {
-			_stat = '_';
-		_redo:
-			timeval tm = {tm_sec,0};
-			fd_set s; FD_ZERO(&s); FD_SET(early_pipe_r, &s);
-			r = ::select(early_pipe_r+1, &s, NULL, NULL, &tm);
-			if (r == -1 and errno == EINTR) goto _redo;
-			if (r == 1)
-				::read(early_pipe_r, &_stat, 1);
-		};
-		#define ReadEarlyStateIfNot(_excepted_char_, tm_sec) _read_pipe_state_(tm_sec); if (_excepted_char_ != _stat) 
+		#define ReadEarlyStateIfNot(_expected_char_, tm_sec) if (_expected_char_ != __read_pipe_state__(early_pipe_r, tm_sec, '_'))
 		
 		try {
 		try {
@@ -1445,9 +1434,8 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 				__log__(log_lvl::LOG, "START", "Quit thread monitoring in favor of early LiveConsole");
 				return;
 			}
-			do {
-				_read_pipe_state_(40);
-			} while (_stat == 'l');
+			char _stat;
+			while ( (_stat = __read_pipe_state__(early_pipe_r, 40, '_')) != 'l' );
 			if (_stat != 'd') {
 				throw ioslaves::req_err(ioslaves::answer_code::EXTERNAL_ERROR, "START", MCLOGCLI(servid) << "Didn't received ack of \"Done\"");
 			}
@@ -1598,7 +1586,7 @@ void* minecraft::serv_thread (void* arg) {
 		}
 		
 		{	// Add SRV entry on DNS
-			ioslaves::api::euid_switch(-1,-1);
+			ioslaves::api::euid_switch((uid_t)-1,(gid_t)-1);
 			RAII_AT_END_L( ioslaves::api::euid_switch(minecraft::java_user_id, minecraft::java_group_id) );
 			ioslaves::answer_code new_srv_answ = (*ioslaves::api::dns_srv_create)("minecraft", XIFNET_MC_DOM, s->s_servid, true, s->s_port, true);
 			if (new_srv_answ != ioslaves::answer_code::OK) 
@@ -1980,7 +1968,7 @@ void* minecraft::serv_thread (void* arg) {
 		minecraft::deleteLckFiles(_S( MINECRAFT_SRV_DIR,"/mc_",s->s_servid,'/',s->s_map ));
 		
 		{ // Delete SRV entry on DNS
-			ioslaves::api::euid_switch(-1,-1);
+			ioslaves::api::euid_switch((uid_t)-1,(gid_t)-1);
 			RAII_AT_END_L( ioslaves::api::euid_switch(minecraft::java_user_id, minecraft::java_group_id) );
 			__ldebug__(THLOGSCLI(s), logstream << "Closing SRV entry...");
 			(*ioslaves::api::dns_srv_del)("minecraft", XIFNET_MC_DOM, s->s_servid, true);
@@ -1989,8 +1977,10 @@ void* minecraft::serv_thread (void* arg) {
 			// Close additional ports
 		if (s->s_oth_ports.size() != 0) 
 			__log__(log_lvl::LOG, THLOGSCLI(s), logstream << "Closing additional ports...");
-		for (in_port_t port : s->s_oth_ports) 
+		for (in_port_t port : s->s_oth_ports) {
+			if (s->s_early_pipe != INVALID_HANDLE) { WriteEarlyState('_'); }
 			(*ioslaves::api::close_port)(port, 1, true);
+		}
 		
 	} catch (const xif::sys_error& sys_err) {
 		__log__(log_lvl::ERROR, THLOGSCLI(s), logstream << "Error in `starting java` state : " << sys_err.what());
@@ -2151,17 +2141,7 @@ void minecraft::stopServer (socketxx::io::simple_socket<socketxx::base_socket> c
 				__ldebug__("STOP", logstream << "Close late pipe " << r << "/" << w);
 			}
 		} __autoclose_late_pipes({late_pipes[0],late_pipes[1]});
-		char _stat;
-		auto _read_pipe_state_ = [&] (ushort tm_sec) {
-			_stat = '_';
-		_redo:
-			timeval tm = {tm_sec,0};
-			fd_set s; FD_ZERO(&s); FD_SET(late_pipes[0], &s);
-			int r = ::select(late_pipes[0]+1, &s, NULL, NULL, &tm);
-			if (r == -1 and errno == EINTR) goto _redo;
-			if (r == 1)
-				::read(late_pipes[0], &_stat, 1);
-		};
+		#define ReadLateStateIfNot(_expected_char_, tm_sec) if (_expected_char_ != __read_pipe_state__(late_pipes[0], tm_sec, '_'))
 		
 			// Sending stop command and release mutex
 		socketxx::io::simple_socket<socketxx::base_fd> s_comm(socketxx::base_fd(s->s_sock_comm, SOCKETXX_MANUAL_FD));
@@ -2169,15 +2149,16 @@ void minecraft::stopServer (socketxx::io::simple_socket<socketxx::base_socket> c
 		_mutex_handle_.soon_unlock();
 		
 			// Waiting for stop
-		ReadEarlyStateIfNot('s',5) {
+		ReadLateStateIfNot('s',5) {
 			throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "STOP", MCLOGCLI(servid) << "Didn't received stop command ack");
 		}
 		cli.o_char((char)ioslaves::answer_code::OK);
+		char _stat;
 		time_t timeout = ::time(NULL)+35;
 		do {
 			errno = 0;
-			_read_pipe_state_(6);
-			if (_stat == 'S') 
+			_stat = __read_pipe_state__(late_pipes[0], 6, '_');
+			if (_stat == 'S')
 				timeout += 15;
 			if (timeout < ::time(NULL)) 
 				break;
@@ -2189,7 +2170,7 @@ void minecraft::stopServer (socketxx::io::simple_socket<socketxx::base_socket> c
 			else
 				throw ioslaves::req_err(ioslaves::answer_code::ERROR, "STOP", MCLOGSCLI(s) << "Didn't received sigchild ack (" << _stat << ")");
 		}
-		ReadEarlyStateIfNot('E',6) {
+		ReadLateStateIfNot('E',6) {
 			throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "STOP", MCLOGSCLI(s) << "Didn't received ack of thread secondary cleanup");
 		}
 		

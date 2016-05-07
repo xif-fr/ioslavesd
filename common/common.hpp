@@ -46,6 +46,7 @@ const std::string& __get_homedir__();
 #include <socket++/base_io.hpp>
 #include <socket++/base_inet.hpp>
 struct pipe_proc_t { fd_t in; fd_t out; fd_t err; };
+char __read_pipe_state__ (fd_t pipe, time_t tm_sec, char def);
 
 	// Log
 #include "log.h"
@@ -125,9 +126,9 @@ namespace ioslaves {
 		ioslaves::answer_code answ_code;
 		std::string descr;
 		req_err (answer_code answ, std::string msg) noexcept : answ_code(answ), descr(msg) {}
-		req_err (answer_code answ, std::ostream& s) noexcept : answ_code(answ), descr(xlog::logstream_retrieve()) {}
+		req_err (answer_code answ, std::ostream&) noexcept : answ_code(answ), descr(xlog::logstream_retrieve()) {}
 		req_err (answer_code answ, const char* part, std::string msg, xlog::log_lvl lvl = xlog::log_lvl::ERROR) noexcept : answ_code(answ), descr(msg) { xlog::__log__(lvl, part, msg); }
-		req_err (answer_code answ, const char* part, std::ostream& s, xlog::log_lvl lvl = xlog::log_lvl::ERROR) noexcept : answ_code(answ), descr(xlog::logstream_retrieve()) { xlog::__log__(lvl, part, descr); }
+		req_err (answer_code answ, const char* part, std::ostream&, xlog::log_lvl lvl = xlog::log_lvl::ERROR) noexcept : answ_code(answ), descr(xlog::logstream_retrieve()) { xlog::__log__(lvl, part, descr); }
 		virtual const char* what () const noexcept { return descr.c_str(); }
 		virtual ~req_err() {}
 	};

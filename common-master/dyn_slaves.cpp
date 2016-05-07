@@ -88,11 +88,11 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::gather_infos (std::vec
 			caracts_grp.assertType(libconfig::Setting::TypeGroup);
 			info._sl_categs_infos = std::make_tuple(0,INT32_MIN,0.f,INT32_MIN,0,INT32_MIN,INT32_MIN,INT32_MIN);
 			info.sl_total_points = (points_t)INT32_MIN;
-			info.sl_start_delay = (int)cfg.lookup("start_delay");
-			info.sl_power_use_idle = (int)caracts_grp["pelec_idle"];
-			info.sl_power_use_full = (int)caracts_grp["pelec_full"];
-			info.sl_usable_mem = (int)caracts_grp["tot_mem"];
-			info.sl_proc_threads = (int)caracts_grp["proc_threads"];
+			info.sl_start_delay = (uint16_t)(int)cfg.lookup("start_delay");
+			info.sl_power_use_idle = (power_watt_t)(int)caracts_grp["pelec_idle"];
+			info.sl_power_use_full = (power_watt_t)(int)caracts_grp["pelec_full"];
+			info.sl_usable_mem = (ram_megs_t)(int)caracts_grp["tot_mem"];
+			info.sl_proc_threads = (uint8_t)(int)caracts_grp["proc_threads"];
 			info.sl_usable_proc = (float)caracts_grp["proc_power"];
 			libconfig::Setting& other_indices_group = caracts_grp["other_indices"];
 			other_indices_group.assertType(libconfig::Setting::TypeGroup);
@@ -275,7 +275,6 @@ time_t iosl_master::slave_start (std::string slave_id, std::string master_id) {
 	time_t $start_delay = 0;
 	std::string $on_mac;
 	std::string $on_gateway;
-	uint16_t $on_psu_id = -1;
 	std::string fname = _S( IOSLAVES_MASTER_SLAVES_DIR,"/",slave_id,".conf" );
 	if (::access(fname.c_str(), F_OK) == -1) 
 		throw ioslaves::req_err(answer_code::NOT_FOUND, logstream << "Slave settings file not found for '" << slave_id << "'");
@@ -295,9 +294,6 @@ time_t iosl_master::slave_start (std::string slave_id, std::string master_id) {
 			$poweron_type = iosl_master::on_type::WoW;
 			$on_mac = poweron_grp["mac"].operator std::string();
 			$on_addr = socketxx::base_netsock::addr_info( 9, poweron_grp["disthost"].operator std::string() );
-		} else if (type == "psu") {
-			$poweron_type = iosl_master::on_type::PSU;
-			$on_psu_id = (int)poweron_grp["psuid"];
 		} else if (type == "gateway") {
 			$poweron_type = iosl_master::on_type::GATEWAY;
 			$on_gateway = poweron_grp["gateway"].operator std::string();
@@ -336,10 +332,6 @@ time_t iosl_master::slave_start (std::string slave_id, std::string master_id) {
 			throw ioslaves::req_err(answer_code::ERROR, logstream << "Master error while connecting to wake-gateway service : " << e.what());
 		}
 		__log__(log_lvl::DONE, "WAKE", "Start request relayed !");
-	} 
-	else if ($poweron_type == iosl_master::on_type::PSU) {
-		__log__(log_lvl::LOG, "WAKE", logstream << "via serial PSU #" << $on_psu_id << "...", LOG_ADD, &l);
-		#warning TO DO : serial psu module
 	}
 	return $start_delay;
 }

@@ -57,8 +57,8 @@ std::string xlog::logstream_retrieve () noexcept {
 	// Signal
 #include <signal.h>
 sig_atomic_t loop = true;
-void _sigend (int param);
-void _sigend (int param) {
+void _sigend (int);
+void _sigend (int) {
 	loop = false;
 }
 

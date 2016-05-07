@@ -89,7 +89,6 @@ std::string $service_name;
 iosl_master::on_type $poweron_type = iosl_master::on_type::_AUTO;
 std::string $on_mac;
 std::string $on_gateway;
-uint16_t $on_psu_id = -1;
 std::string $new_key_file_path;
 std::string $api_co_unix_sock_path;
 bool $auth = false;
@@ -254,11 +253,9 @@ int main (int argc, char* const argv[]) {
 				       "                                        hostname instead of the broadcast addr of the local network.\n"
 				       "                                       If sent to the WAN, the router must support it.\n"
 				       "                            GATEWAY: tell the 'wake-gateway' ioslavesd plugin of a slave on the same\n"
-				       "                                      network to relay the start request (WoL, another relay, PSU...).\n"
+				       "                                      network to relay the start request (WoL, another relay...).\n"
 				       "                                      Used if magic packets cannot traverse the NAT, or for\n"
 				       "                                      hierarchical organizations. Takes the name or address of the gateway.\n"
-				       "                            SERIAL_PSU: command a centralized PSU via serial port using xif serial PSU\n"
-				       "                                        protocol. Takes the output ID of the PSU.\n"
 				       "  -J, --to-json            Convert slave info file ~/ioslaves-master/slaves/[slave].conf into JSON.\n"
 				       "\n");
 				return EXIT_SUCCESS;
@@ -467,16 +464,7 @@ int main (int argc, char* const argv[]) {
 					if (not ioslaves::validateSlaveName($on_gateway))
 						try_help("--on=GATEWAY : invalid gateway name\n"); 
 				} 
-				else if (on_str_type == "SERIAL_PSU") {
-					$poweron_type = iosl_master::on_type::PSU;
-					if (optind == argc or argv[optind][0] == '-') 
-						try_help("--on=SERIAL_PSU must take PSU output ID as argument\n");
-					try {
-						$on_psu_id = ::atoix<uint16_t>(argv[optind++]);
-					} catch (const std::runtime_error) {
-						try_help("--on=SERIAL_PSU : PSU output ID must be a number\n");
-					}
-				} else if (not on_str_type.empty()) {
+				else if (not on_str_type.empty()) {
 					try_help("--on : invalid mode\n");
 				}
 			} break;
@@ -803,8 +791,6 @@ void IPowerup () {
 			}
 			time_t dist_delay = sock.i_int<uint16_t>();
 			std::cout << "Announced delay : " << dist_delay << std::endl;
-		} else if ($poweron_type == iosl_master::on_type::PSU) {
-			#warning TO DO : serial psu module
 		}
 		std::cout << COLOR_GREEN << "Done." << COLOR_RESET << std::endl;
 	}

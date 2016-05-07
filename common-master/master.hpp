@@ -51,8 +51,8 @@ class master_err : public std::runtime_error {
 	public: int ret;
 	ioslaves::answer_code o;
 	master_err (std::string descr, int retcode) : std::runtime_error(descr), ret(retcode), o((ioslaves::answer_code)0) {}
-	master_err (int retcode, std::ostream& s) : std::runtime_error(xlog::logstream_retrieve()), ret(retcode), o((ioslaves::answer_code)0) {}
-	master_err (int retcode, std::ostream& s, ioslaves::answer_code o) : std::runtime_error(xlog::logstream_retrieve()), ret(retcode), o(o) {}
+	master_err (int retcode, std::ostream&) : std::runtime_error(xlog::logstream_retrieve()), ret(retcode), o((ioslaves::answer_code)0) {}
+	master_err (int retcode, std::ostream&, ioslaves::answer_code o) : std::runtime_error(xlog::logstream_retrieve()), ret(retcode), o(o) {}
 	bool is_ioslaves_err() const { return (o != (ioslaves::answer_code)0); }
 };
 #define EXIT_FAILURE_CONN   90  // Connection failure with slave
@@ -72,7 +72,7 @@ namespace iosl_master {
 		// Test if a slave is up
 	bool slave_test (std::string slave_id);
 		// Start slave
-	enum class on_type { _AUTO, WoL, WoW, GATEWAY, PSU };
+	enum class on_type { _AUTO, WoL, WoW, GATEWAY };
 	time_t slave_start (std::string slave_id, std::string master_id); // Automatically choose a start method with slave files and try to start slave
 
 		// Connection
