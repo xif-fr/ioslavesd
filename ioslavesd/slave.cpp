@@ -53,7 +53,7 @@ using namespace xlog;
 	// Threads and signals
 #include <signal.h>
 #include <sys/wait.h>
-fd_t serv_stop_pipe[2] = {INVALID_HANDLE,INVALID_HANDLE};
+fd_t serv_stop_pipe[2] = { -1, -1 };
 void* signals_thread (void* _data);
 
 	// Services
@@ -405,7 +405,7 @@ int main (int argc, const char* argv[]) {
 	
 		// Create stop pipe
 	r = ::pipe(serv_stop_pipe);
-	if (r == SOCKET_ERROR) throw xif::sys_error("pipe() failed", false);
+	if (r == -1) throw xif::sys_error("pipe() failed", false);
 	
 		// Launch status thread
 	r = ::pthread_create(&status_thread_handle, NULL, status_thread, NULL);
@@ -1040,12 +1040,12 @@ void* port_thread (void*) {
 	/// Signals thread
 void _stop_serv (int);
 void _sigchild (int);
-fd_t _sig_pipe[2] = {INVALID_HANDLE,INVALID_HANDLE};
-void* signals_thread (void* _data) {
+fd_t _sig_pipe[2] = { -1, -1 };
+void* signals_thread (void*) {
 	
 		// Create signal pipe
 	int r = ::pipe(_sig_pipe);
-	if (r == SOCKET_ERROR) throw xif::sys_error("signals : pipe() failed", false);
+	if (r == -1) throw xif::sys_error("signals : pipe() failed", false);
 	
 		// Block signals : this thread will NOT execute signal handler.
 		// ::system() must be avoided
@@ -1107,7 +1107,7 @@ void* signals_thread (void* _data) {
 			}
 		}
 		else if (c == 'S') { // SIG{INT,QUIT,HUP,TERM}
-			if (serv_stop_pipe[1] == INVALID_HANDLE) 
+			if (serv_stop_pipe[1] == -1)
 				::exit(EXIT_FAILURE);
 			rs = ::write(serv_stop_pipe[1], "", 1);
 			if (rs != 1) throw xif::sys_error("signals thread : write stop byte failed");
@@ -1117,13 +1117,13 @@ void* signals_thread (void* _data) {
 	}
 	
 }
-void _stop_serv (int param) {
+void _stop_serv (int) {
 	if (::isatty(STDOUT_FILENO))
 		::fputc('\n', stdout);
 	ssize_t rs = ::write(_sig_pipe[1], "S", 1);
 	if (rs < 1) ::abort();
 }
-void _sigchild (int param) {
+void _sigchild (int) {
 	if (not *signal_catch_sigchild_p) return;
 	int status;
 	pid_t pid = ::waitpid((pid_t)-1, &status, WUNTRACED|WNOHANG);
@@ -1139,10 +1139,14 @@ void _sigchild (int param) {
 
 /// Log
 void ioslaves::api::report_log (ioslaves::service* _service, log_lvl _lvl, const char* _part, std::string& _msg, int _m, logl_t* _lid) noexcept {
-	std::string partstr = _S("API:", _service->s_name, ((_part == NULL) ? std::string() : _S("] [", _part)));
-	char* part = new char[partstr.length()+1]; // Leak, but log history is kept until exit
-	::strcpy(part, partstr.c_str());
-	return __log__(_lvl, part, _msg, _m, _lid);
+	decltype(_service->s_log_part_cache)::iterator it;
+	if ((it = _service->s_log_part_cache.find(_part)) == _service->s_log_part_cache.end()) {
+		std::string partstr = _S("API:", _service->s_name, ((_part == NULL) ? std::string() : _S("] [", _part)));
+		char* part = new char[partstr.length()+1];
+		::strcpy(part, partstr.c_str());
+		it = _service->s_log_part_cache.insert({_part,part}).first;
+	}
+	return __log__(_lvl, it->second, _msg, _m, _lid);
 }
 
 /// SRV entry requests
@@ -1369,6 +1373,8 @@ ioslaves::service::~service () {
 		delete[] this->spec.exec.pid_file;
 		delete[] this->spec.exec.execnam;
 	}
+	for (std::pair<const char*, char*> p : s_log_part_cache)
+		delete [] p.second;
 }
 
 	/// Get service by name
@@ -1483,8 +1489,8 @@ void ioslaves::controlService (ioslaves::service* s, bool start, const char* con
 			} else {
 				dl_t dl_handle = s->spec.plugin.handle;
 				__extension__ ioslaves::api::stop_f stop_func = (ioslaves::api::stop_f) ::dlsym(dl_handle, "ioslapi_stop");
-				if (stop_func == NULL) 
-					throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "API", logstream << "Error getting function with dlsym(\"ioslapi_stop\") : " << ::dlerror());
+				if (stop_func == NULL)
+					__log__(log_lvl::ERROR, "API", logstream << "Error getting function with dlsym(\"ioslapi_stop\") : " << ::dlerror());
 				try {
 					(*stop_func)();
 					ioslaves::api::euid_switch((uid_t)-1,(gid_t)-1);
@@ -1504,7 +1510,7 @@ void ioslaves::controlService (ioslaves::service* s, bool start, const char* con
 			std::function<pid_t()> file_get_pid = [&]()-> pid_t {
 				ssize_t rs;
 				fd_t pid_f = ::open(s->spec.exec.pid_file, O_RDONLY);
-				if (pid_f == INVALID_HANDLE) {
+				if (pid_f == -1) {
 					if (errno == ENOENT) 
 						return -ENOENT;
 					else 

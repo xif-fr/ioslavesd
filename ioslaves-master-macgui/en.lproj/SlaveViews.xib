@@ -189,6 +189,7 @@
 						<string key="NSFrame">{{312, 8}, {16, 16}}</string>
 						<reference key="NSSuperview" ref="652961229"/>
 						<reference key="NSWindow"/>
+						<reference key="NSNextKeyView"/>
 						<int key="NSpiFlags">28938</int>
 					</object>
 					<object class="NSImageView" id="494251467">
@@ -299,6 +300,35 @@
 				<reference key="NSNextResponder"/>
 				<int key="NSvFlags">268</int>
 				<array class="NSMutableArray" key="NSSubviews">
+					<object class="NSButton" id="389743684">
+						<reference key="NSNextResponder" ref="539237006"/>
+						<int key="NSvFlags">268</int>
+						<string key="NSFrame">{{332, 5}, {32, 28}}</string>
+						<reference key="NSSuperview" ref="539237006"/>
+						<reference key="NSWindow"/>
+						<reference key="NSNextKeyView" ref="444546491"/>
+						<string key="NSReuseIdentifierKey">_NS:9</string>
+						<bool key="NSEnabled">YES</bool>
+						<object class="NSButtonCell" key="NSCell" id="342339634">
+							<int key="NSCellFlags">67108864</int>
+							<int key="NSCellFlags2">134348800</int>
+							<string key="NSContents">-</string>
+							<object class="NSFont" key="NSSupport" id="26">
+								<bool key="IBIsSystemFont">YES</bool>
+								<double key="NSSize">11</double>
+								<int key="NSfFlags">3100</int>
+							</object>
+							<string key="NSCellIdentifier">_NS:9</string>
+							<reference key="NSControlView" ref="389743684"/>
+							<int key="NSButtonFlags">-2038153216</int>
+							<int key="NSButtonFlags2">129</int>
+							<string key="NSAlternateContents"/>
+							<string key="NSKeyEquivalent"/>
+							<int key="NSPeriodicDelay">200</int>
+							<int key="NSPeriodicInterval">25</int>
+						</object>
+						<bool key="NSAllowsLogicalLayoutDirection">NO</bool>
+					</object>
 					<object class="NSButton" id="590653054">
 						<reference key="NSNextResponder" ref="539237006"/>
 						<int key="NSvFlags">268</int>
@@ -329,23 +359,19 @@
 					<object class="NSSegmentedControl" id="125239693">
 						<reference key="NSNextResponder" ref="539237006"/>
 						<int key="NSvFlags">268</int>
-						<string key="NSFrame">{{20, 10}, {322, 19}}</string>
+						<string key="NSFrame">{{16, 10}, {318, 19}}</string>
 						<reference key="NSSuperview" ref="539237006"/>
 						<reference key="NSWindow"/>
-						<reference key="NSNextKeyView" ref="444546491"/>
+						<reference key="NSNextKeyView" ref="389743684"/>
 						<bool key="NSEnabled">YES</bool>
 						<object class="NSSegmentedCell" key="NSCell" id="849250767">
 							<int key="NSCellFlags">75497472</int>
 							<int key="NSCellFlags2">131072</int>
-							<object class="NSFont" key="NSSupport" id="26">
-								<bool key="IBIsSystemFont">YES</bool>
-								<double key="NSSize">11</double>
-								<int key="NSfFlags">3100</int>
-							</object>
+							<reference key="NSSupport" ref="26"/>
 							<reference key="NSControlView" ref="125239693"/>
 							<array class="NSMutableArray" key="NSSegmentImages">
 								<object class="NSSegmentItem">
-									<double key="NSSegmentItemWidth">320</double>
+									<double key="NSSegmentItemWidth">316</double>
 									<string key="NSSegmentItemLabel">SSH Preset Selector</string>
 									<int key="NSSegmentItemImageScaling">0</int>
 								</object>
@@ -469,7 +495,7 @@
 					<object class="NSButton" id="355099310">
 						<reference key="NSNextResponder" ref="539237006"/>
 						<int key="NSvFlags">268</int>
-						<string key="NSFrame">{{427, 8}, {83, 25}}</string>
+						<string key="NSFrame">{{434, 8}, {76, 25}}</string>
 						<reference key="NSSuperview" ref="539237006"/>
 						<reference key="NSWindow"/>
 						<reference key="NSNextKeyView" ref="372405718"/>
@@ -496,7 +522,7 @@
 					<object class="NSButton" id="444546491">
 						<reference key="NSNextResponder" ref="539237006"/>
 						<int key="NSvFlags">268</int>
-						<string key="NSFrame">{{350, 8}, {69, 25}}</string>
+						<string key="NSFrame">{{367, 8}, {64, 25}}</string>
 						<reference key="NSSuperview" ref="539237006"/>
 						<reference key="NSWindow"/>
 						<reference key="NSNextKeyView" ref="355099310"/>
@@ -526,6 +552,7 @@
 						<string key="NSFrame">{{629, 8}, {104, 25}}</string>
 						<reference key="NSSuperview" ref="539237006"/>
 						<reference key="NSWindow"/>
+						<reference key="NSNextKeyView"/>
 						<bool key="NSEnabled">YES</bool>
 						<object class="NSButtonCell" key="NSCell" id="849710751">
 							<int key="NSCellFlags">-2080374784</int>
@@ -554,7 +581,7 @@
 				<string key="NSClassName">NSView</string>
 			</object>
 			<object class="NSCustomView" id="927515176">
-				<reference key="NSNextResponder"/>
+				<nil key="NSNextResponder"/>
 				<int key="NSvFlags">268</int>
 				<array class="NSMutableArray" key="NSSubviews">
 					<object class="NSBox" id="678532231">
@@ -566,12 +593,10 @@
 								<int key="NSvFlags">274</int>
 								<string key="NSFrameSize">{753, 3}</string>
 								<reference key="NSSuperview" ref="678532231"/>
-								<reference key="NSWindow"/>
 							</object>
 						</array>
 						<string key="NSFrameSize">{753, 3}</string>
 						<reference key="NSSuperview" ref="927515176"/>
-						<reference key="NSWindow"/>
 						<reference key="NSNextKeyView" ref="523118206"/>
 						<string key="NSOffsets">{0, 0}</string>
 						<object class="NSTextFieldCell" key="NSTitleCell">
@@ -605,13 +630,11 @@
 								<int key="NSvFlags">274</int>
 								<string key="NSFrameSize">{753, 3}</string>
 								<reference key="NSSuperview" ref="876743753"/>
-								<reference key="NSWindow"/>
 								<reference key="NSNextKeyView" ref="477864842"/>
 							</object>
 						</array>
 						<string key="NSFrame">{{0, 519}, {753, 3}}</string>
 						<reference key="NSSuperview" ref="927515176"/>
-						<reference key="NSWindow"/>
 						<reference key="NSNextKeyView" ref="23470048"/>
 						<string key="NSOffsets">{0, 0}</string>
 						<object class="NSTextFieldCell" key="NSTitleCell">
@@ -649,7 +672,6 @@
 										<int key="NSvFlags">2322</int>
 										<string key="NSFrameSize">{738, 509}</string>
 										<reference key="NSSuperview" ref="11795402"/>
-										<reference key="NSWindow"/>
 										<reference key="NSNextKeyView" ref="239118091"/>
 										<object class="NSTextContainer" key="NSTextContainer" id="1015185700">
 											<object class="NSLayoutManager" key="NSLayoutManager">
@@ -711,7 +733,6 @@
 								</array>
 								<string key="NSFrameSize">{738, 509}</string>
 								<reference key="NSSuperview" ref="477864842"/>
-								<reference key="NSWindow"/>
 								<reference key="NSNextKeyView" ref="296604817"/>
 								<reference key="NSDocView" ref="296604817"/>
 								<object class="NSColor" key="NSBGColor">
@@ -725,7 +746,6 @@
 								<int key="NSvFlags">256</int>
 								<string key="NSFrame">{{738, 0}, {15, 509}}</string>
 								<reference key="NSSuperview" ref="477864842"/>
-								<reference key="NSWindow"/>
 								<reference key="NSNextKeyView" ref="678532231"/>
 								<bool key="NSAllowsLogicalLayoutDirection">NO</bool>
 								<reference key="NSTarget" ref="477864842"/>
@@ -738,7 +758,6 @@
 								<int key="NSvFlags">-2147483392</int>
 								<string key="NSFrame">{{-100, -100}, {500, 15}}</string>
 								<reference key="NSSuperview" ref="477864842"/>
-								<reference key="NSWindow"/>
 								<reference key="NSNextKeyView" ref="11795402"/>
 								<bool key="NSAllowsLogicalLayoutDirection">NO</bool>
 								<int key="NSsFlags">1</int>
@@ -750,7 +769,6 @@
 						</array>
 						<string key="NSFrame">{{0, 6}, {753, 509}}</string>
 						<reference key="NSSuperview" ref="927515176"/>
-						<reference key="NSWindow"/>
 						<reference key="NSNextKeyView" ref="11795402"/>
 						<int key="NSsFlags">133136</int>
 						<reference key="NSVScroller" ref="605468408"/>
@@ -762,8 +780,6 @@
 					</object>
 				</array>
 				<string key="NSFrameSize">{753, 521}</string>
-				<reference key="NSSuperview"/>
-				<reference key="NSWindow"/>
 				<reference key="NSNextKeyView" ref="876743753"/>
 				<string key="NSClassName">XifNetSlaveLogView</string>
 			</object>
@@ -932,6 +948,22 @@
 				</object>
 				<object class="IBConnectionRecord">
 					<object class="IBOutletConnection" key="connection">
+						<string key="label">slaveSshDelPreset</string>
+						<reference key="source" ref="1021"/>
+						<reference key="destination" ref="389743684"/>
+					</object>
+					<int key="connectionID">726</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">sshDelPreset:</string>
+						<reference key="source" ref="1021"/>
+						<reference key="destination" ref="389743684"/>
+					</object>
+					<int key="connectionID">727</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBOutletConnection" key="connection">
 						<string key="label">slaveNameLabel</string>
 						<reference key="source" ref="652961229"/>
 						<reference key="destination" ref="537489176"/>
@@ -1073,12 +1105,13 @@
 							<reference ref="988396199"/>
 							<reference ref="900127904"/>
 							<reference ref="398334380"/>
-							<reference ref="355099310"/>
 							<reference ref="372405718"/>
 							<reference ref="125239693"/>
 							<reference ref="634118676"/>
 							<reference ref="590653054"/>
+							<reference ref="355099310"/>
 							<reference ref="444546491"/>
+							<reference ref="389743684"/>
 						</array>
 						<reference key="parent" ref="0"/>
 					</object>
@@ -1246,6 +1279,19 @@
 						<reference key="object" ref="977036039"/>
 						<reference key="parent" ref="590653054"/>
 					</object>
+					<object class="IBObjectRecord">
+						<int key="objectID">724</int>
+						<reference key="object" ref="389743684"/>
+						<array class="NSMutableArray" key="children">
+							<reference ref="342339634"/>
+						</array>
+						<reference key="parent" ref="539237006"/>
+					</object>
+					<object class="IBObjectRecord">
+						<int key="objectID">725</int>
+						<reference key="object" ref="342339634"/>
+						<reference key="parent" ref="389743684"/>
+					</object>
 				</array>
 			</object>
 			<dictionary class="NSMutableDictionary" key="flattenedProperties">
@@ -1267,6 +1313,7 @@
 				<string key="569.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
 				<string key="627.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
 				<string key="628.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
+				<reference key="630.IBNSViewMetadataGestureRecognizers" ref="0"/>
 				<string key="630.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
 				<string key="631.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
 				<string key="632.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
@@ -1294,12 +1341,14 @@
 				<string key="716.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
 				<string key="720.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
 				<string key="721.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
+				<string key="724.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
+				<string key="725.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
 			</dictionary>
 			<dictionary class="NSMutableDictionary" key="unlocalizedProperties"/>
 			<nil key="activeLocalization"/>
 			<dictionary class="NSMutableDictionary" key="localizations"/>
 			<nil key="sourceID"/>
-			<int key="maxID">723</int>
+			<int key="maxID">727</int>
 		</object>
 		<object class="IBClassDescriber" key="IBDocument.Classes">
 			<array class="NSMutableArray" key="referencedPartialClassDescriptions">
@@ -1311,6 +1360,7 @@
 						<string key="connectSSH:">id</string>
 						<string key="connectSSHFS:">id</string>
 						<string key="reconnect:">id</string>
+						<string key="sshDelPreset:">id</string>
 					</dictionary>
 					<dictionary class="NSMutableDictionary" key="actionInfosByName">
 						<object class="IBActionInfo" key="clearLog:">
@@ -1327,6 +1377,10 @@
 						</object>
 						<object class="IBActionInfo" key="reconnect:">
 							<string key="name">reconnect:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="sshDelPreset:">
+							<string key="name">sshDelPreset:</string>
 							<string key="candidateClassName">id</string>
 						</object>
 					</dictionary>
@@ -1348,6 +1402,7 @@
 						<string key="slaveReconnectButton">NSButton</string>
 						<string key="slaveSSHButton">NSButton</string>
 						<string key="slaveSSHFSButton">NSButton</string>
+						<string key="slaveSshDelPreset">NSButton</string>
 						<string key="slaveSshPresets">NSSegmentedControl</string>
 						<string key="slaveStatusImage">NSImageView</string>
 						<string key="slaveSubmenuView">NSView</string>
@@ -1421,6 +1476,10 @@
 							<string key="name">slaveSSHFSButton</string>
 							<string key="candidateClassName">NSButton</string>
 						</object>
+						<object class="IBToOneOutletInfo" key="slaveSshDelPreset">
+							<string key="name">slaveSshDelPreset</string>
+							<string key="candidateClassName">NSButton</string>
+						</object>
 						<object class="IBToOneOutletInfo" key="slaveSshPresets">
 							<string key="name">slaveSshPresets</string>
 							<string key="candidateClassName">NSSegmentedControl</string>
@@ -1446,6 +1505,7 @@
 						<string key="connectSSH:">id</string>
 						<string key="connectSSHFS:">id</string>
 						<string key="reconnect:">id</string>
+						<string key="sshDelPreset:">id</string>
 					</dictionary>
 					<dictionary class="NSMutableDictionary" key="actionInfosByName">
 						<object class="IBActionInfo" key="clearLog:">
@@ -1462,6 +1522,10 @@
 						</object>
 						<object class="IBActionInfo" key="reconnect:">
 							<string key="name">reconnect:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="sshDelPreset:">
+							<string key="name">sshDelPreset:</string>
 							<string key="candidateClassName">id</string>
 						</object>
 					</dictionary>

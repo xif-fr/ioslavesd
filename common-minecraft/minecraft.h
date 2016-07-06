@@ -78,7 +78,8 @@ namespace minecraft {
 	extern uid_t java_user_id;
 	extern gid_t java_group_id;
 	
-	extern in_port_t servs_port_range_beg, servs_port_range_sz;
+	extern in_port_t servs_port_range_beg;
+	extern uint8_t servs_port_range_sz;
 	#define MINECRAFT_PORT_RANGE_BEG servs_port_range_beg
 	#define MINECRAFT_PORT_RANGE_SZ servs_port_range_sz
 	

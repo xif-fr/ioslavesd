@@ -14,6 +14,7 @@ std::ostringstream xlog::logstream_impl::stream;
 
 	// File
 #include <stdio.h>
+#include <fcntl.h>
 #include <unistd.h>
 
 	// General and utils

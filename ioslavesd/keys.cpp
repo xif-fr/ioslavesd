@@ -15,6 +15,7 @@ using namespace xlog;
 
 	// Files
 #include <stdio.h>
+#include <fcntl.h>
 #include <sys/stat.h>
 #define private public
 #include <libconfig.h++>

@@ -14,6 +14,7 @@
 #include "common.hpp"
 #include <list>
 #include <vector>
+#include <map>
 
 	// Network
 #include <socket++/base_inet.hpp>
@@ -99,7 +100,7 @@ namespace ioslaves {
 		bool ss_status_running;
 		bool ss_shutdown_inhibit;
 		time_t ss_last_status_change;
-		
+		std::map<const char*, char*> s_log_part_cache;
 		service () {};
 		service (const service&) = delete;
 		~service ();

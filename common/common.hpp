@@ -45,6 +45,7 @@ const std::string& __get_homedir__();
 #include <../lib/socket++/include/config.h>
 #include <socket++/base_io.hpp>
 #include <socket++/base_inet.hpp>
+#define INVALID_HANDLE (-1)
 struct pipe_proc_t { fd_t in; fd_t out; fd_t err; };
 char __read_pipe_state__ (fd_t pipe, time_t tm_sec, char def);
 

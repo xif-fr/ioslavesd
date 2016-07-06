@@ -139,7 +139,7 @@ NSAttributedString* log_master_strs[] = {
 - (id)initWithSlaveID:(std::string)slaveId fullName:(NSString*)fullName {
 	self = [super init];
 	if (self) {
-		stopFD = INVALID_HANDLE;
+		stopFD = -1;
 		slaveID = slaveId;
 		slaveFullName = [fullName retain];
 		[NSBundle loadNibNamed:@"SlaveViews" owner:self];
@@ -248,11 +248,26 @@ NSAttributedString* log_master_strs[] = {
 	return [sshPresets objectAtIndex:[slaveSshPresets selectedSegment]-1];
 }
 
+- (IBAction)sshDelPreset:(id)sender {
+	NSInteger preset = [slaveSshPresets selectedSegment];
+	if (preset <= 0) return;
+	NSUserDefaults* prefs = [NSUserDefaults standardUserDefaults];
+	NSMutableDictionary* prefsSlaves = [NSMutableDictionary dictionaryWithDictionary:[prefs dictionaryForKey:@"slaves"]];
+	NSMutableDictionary* slavePrefs = [NSMutableDictionary dictionaryWithDictionary:[prefsSlaves objectForKey:[NSString stringWithStdString:self->slaveID]]];
+	NSMutableArray* sshPresets = [NSMutableArray arrayWithArray:[slavePrefs objectForKey:@"ssh"]];
+	[sshPresets removeObjectAtIndex:preset-1];
+	[slavePrefs setObject:sshPresets forKey:@"ssh"];
+	[prefsSlaves setObject:slavePrefs forKey:[NSString stringWithStdString:self->slaveID]];
+	[prefs setObject:prefsSlaves forKey:@"slaves"];
+	[prefs synchronize];
+	[self loadSshPresets];
+}
+
 - (IBAction)connectSSH:(id)sender {
 	NSDictionary* preset = [self sshGetPreset];
-	if (preset == nil) 
+	if (preset == nil)
 		return;
-	NSString* script = [NSString stringWithFormat:@"ssh %@@%s.net.xif.fr %@", 
+	NSString* script = [NSString stringWithFormat:@"ssh %@@%s.net.xif.fr %@",
 	                         [preset objectForKey:@"user"], self->slaveID.c_str(), [preset objectForKey:@"args"]];
 	[NSThread detachNewThreadSelector:@selector(SSHSessionThread:) 
 	                         toTarget:self
@@ -471,8 +486,12 @@ NSAttributedString* log_master_strs[] = {
 		::pipe(stop_pipes);
 		self->stopFD = stop_pipes[1];
 		iosl_master::$silent = false;
-		socketxx::base_netsock::addr_info addr ( _s(self->slaveID,'.',XIFNET_SLAVES_DOM), 
-		                                         [&] () -> in_port_t { return iosl_master::slave_get_port_dns(self->slaveID); });
+		socketxx::base_netsock::addr_info addr ( _s(self->slaveID,'.',XIFNET_SLAVES_DOM),
+			[&] () -> in_port_t {
+				in_port_t port = iosl_master::slave_get_port_dns(self->slaveID);
+				[self addLogLineAtTime:LOG_TIME_NOW OfLevel:(log_lvl::_DEBUG) isLocal:true inPart:"" withMessage:logstream << "Connecting to " << self->slaveID << "." << XIFNET_SLAVES_DOM << ":" << port << logstr];
+				return port;
+			} );
 		::dispatch_sync(dispatch_get_main_queue(), ^{
 			[self->slaveIPLabel setStringValue:[NSString stringWithStdString:addr.get_ip_str()]];
 		});

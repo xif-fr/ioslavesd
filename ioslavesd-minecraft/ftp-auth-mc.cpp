@@ -22,6 +22,7 @@ using namespace xlog;
 #include <socket++/base_unixsock.hpp>
 #include <socket++/handler/socket_server.hpp>
 #include <socket++/io/text_buffered.hpp>
+#include <fcntl.h>
 #define PURE_AUTHD_AUTH_SOCK_PATH "/var/run/pure-authd-mc.sock"
 pid_t minecraft::pure_ftpd_pid = -1;
 std::string minecraft::ftp_serv_addr;

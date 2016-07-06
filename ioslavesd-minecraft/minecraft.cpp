@@ -26,6 +26,8 @@ using namespace xlog;
 #include <iomanip>
 #include <time.h>
 #include <sys/time.h>
+#include <fcntl.h>
+#include <math.h>
 
 	// User
 #include <pwd.h>
@@ -113,7 +115,8 @@ namespace minecraft {
 		// Vars
 	uid_t java_user_id = 0;
 	gid_t java_group_id = 0;
-	in_port_t servs_port_range_beg = 25566, servs_port_range_sz = 33;
+	in_port_t servs_port_range_beg = 25566;
+	uint8_t servs_port_range_sz = 33;
 	uint8_t max_viewdist = 6;
 	bool ignore_shutdown_time = false;
 	bool refuse_mode = false;
@@ -144,7 +147,7 @@ namespace minecraft {
 /** -----------------------	**/
 
 	// Start Minecraft service
-extern "C" bool ioslapi_start (const char* by_master) {
+extern "C" bool ioslapi_start (const char*) {
 	logl_t l;
 	__log__(log_lvl::IMPORTANT, NULL, logstream << "Starting Minecraft Servers Distributed Hosting...");
 	
@@ -170,7 +173,7 @@ extern "C" bool ioslapi_start (const char* by_master) {
 		conf.readFile(MINECRAFT_CONF_FILE);
 		{
 			minecraft::servs_port_range_beg = (in_port_t)(int) conf.lookup("servs_port_range_beg");
-			minecraft::servs_port_range_sz = (in_port_t)(int) conf.lookup("servs_port_range_sz");
+			minecraft::servs_port_range_sz = (uint8_t)(int) conf.lookup("servs_port_range_sz");
 			minecraft::max_viewdist = (uint8_t)(int) conf.lookup("max_viewdist");
 			minecraft::pure_ftpd_base_port = (in_port_t)(int) conf.lookup("ftp_base_port");
 			minecraft::pure_ftpd_pasv_range_beg = (in_port_t)(int) conf.lookup("ftp_pasv_range_beg");
@@ -1115,7 +1118,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 		
 			// Check free memory
 		xif::polyvar::map sysinfo = *ioslaves::api::common_vars->system_stat;
-		int16_t usable_mem = (float)(int16_t)sysinfo["mem_usable"] + MC_SWAP_FACTOR*(float)(int16_t)sysinfo["mem_swap"];
+		int16_t usable_mem = (int16_t)lroundf( (float)(int16_t)sysinfo["mem_usable"] + MC_SWAP_FACTOR*(float)(int16_t)sysinfo["mem_swap"] );
 		if (s->s_megs_ram < MC_MIN_SERV_RAM) s->s_megs_ram = MC_MIN_SERV_RAM;
 		if (usable_mem < (int16_t)(s->s_megs_ram*MC_FREE_RAM_FACTOR)) 
 			throw ioslaves::req_err(ioslaves::answer_code::LACK_RSRC, "SERV", MCLOGSCLI(s) << "Server needs at least " << s->s_megs_ram << "MB of memory, but only " << usable_mem << "MB of RAM is usable. " << "Refusing start request.", log_lvl::OOPS);
@@ -1642,7 +1645,7 @@ void* minecraft::serv_thread (void* arg) {
 				timeval select_timeout = {1,0};
 				r = ::select(select_max+1, &sel_set, NULL, NULL, &select_timeout);
 				
-				if (r == SOCKET_ERROR) {
+				if (r == -1) {
 					throw xif::sys_error("error during select() in minecraft service server thread");
 				}
 					// Timeout
@@ -1679,7 +1682,7 @@ void* minecraft::serv_thread (void* arg) {
 							return true;
 						};
 						int_req->req_end = ::time(NULL)+1;
-						int_req->f_expire = [&first_0] (void*, interpret_request* req) { first_0 = 0; };
+						int_req->f_expire = [&first_0] (void*, interpret_request*) { first_0 = 0; };
 						interpret_requests.insert(interpret_requests.end(), int_req);
 					}
 				}
@@ -1801,7 +1804,7 @@ void* minecraft::serv_thread (void* arg) {
 									return true;
 								};
 								int_req->req_end = ::time(NULL)+1;
-								int_req->f_expire = [] (decltype(int_req->sock) s, interpret_request* req) {
+								int_req->f_expire = [] (decltype(int_req->sock) s, interpret_request*) {
 									try {
 										s->o_char((char)ioslaves::answer_code::ERROR);
 									} catch (...) {}
@@ -2146,6 +2149,7 @@ void minecraft::stopServer (socketxx::io::simple_socket<socketxx::base_socket> c
 			// Sending stop command and release mutex
 		socketxx::io::simple_socket<socketxx::base_fd> s_comm(socketxx::base_fd(s->s_sock_comm, SOCKETXX_MANUAL_FD));
 		s_comm.o_char((char)minecraft::internal_serv_op_code::STOP_SERVER_CLI);
+		__log__(log_lvl::LOG, "STOP", MCLOGSCLI(s) << "Stop command sent to thread");
 		_mutex_handle_.soon_unlock();
 		
 			// Waiting for stop
@@ -2173,6 +2177,7 @@ void minecraft::stopServer (socketxx::io::simple_socket<socketxx::base_socket> c
 		ReadLateStateIfNot('E',6) {
 			throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "STOP", MCLOGSCLI(s) << "Didn't received ack of thread secondary cleanup");
 		}
+		__log__(log_lvl::LOG, "STOP", MCLOGSCLI(s) << "Thread clean-up done. Waiting for exit...");
 		
 			// Wait thread cleanup/exit and get back the thread structure
 		minecraft::serv* s_th = NULL;

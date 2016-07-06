@@ -39,6 +39,7 @@
 	IBOutlet NSButton* slaveReconnectButton;
 	IBOutlet NSButton* slaveSSHButton;
 	IBOutlet NSButton* slaveSSHFSButton;
+	IBOutlet NSButton* slaveSshDelPreset;
 	IBOutlet NSSegmentedControl* slaveSshPresets;
 	IBOutlet NSButton* shutUpCheckBox;
 	IBOutlet NSButton* debugCheckBox;
@@ -54,6 +55,7 @@
 - (NSDictionary*)sshGetPreset;
 - (IBAction)connectSSH:(id)sender;
 - (IBAction)connectSSHFS:(id)sender;
+- (IBAction)sshDelPreset:(id)sender;
 - (IBAction)reconnect:(id)sender;
 - (IBAction)clearLog:(id)sender;
 
