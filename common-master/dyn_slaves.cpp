@@ -140,7 +140,7 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::gather_infos (std::vec
 			} 
 			catch (const socketxx::dns_resolve_error&) { info.sl_status = -1; return NULL; }
 			catch (const socketxx::end::client_connect_error& e) { info.sl_status = -1; return NULL; }
-			catch (const socketxx::classic_error& e) { info.sl_status = e.get_errno(); return NULL; }
+			catch (const socketxx::classic_error& e) { info.sl_status = e.std_errno; return NULL; }
 			catch (const iosl_master::ldns_error&) { info.sl_status = -1; return NULL; }
 			catch (...) { info.sl_status = -3; return NULL; }
 			try { // Fill the info struct with fresh infos from slave
@@ -204,7 +204,7 @@ void iosl_dyn_slaves::select_slaves (std::vector<slave_info>& slaves_list,
 			#define RAM_MaxPTs 150
 			#define RAM_AntiexpPw 1.004f
 			#define RAM_LinF 0.016f
-			points_t ram_pt = -pow(RAM_AntiexpPw, -diff + log(RAM_MaxPTs)/log(RAM_AntiexpPw)) + RAM_MaxPTs + RAM_LinF*diff;
+			points_t ram_pt = ::lroundf( -powf(RAM_AntiexpPw, -diff + logf(RAM_MaxPTs)/logf(RAM_AntiexpPw)) + RAM_MaxPTs + RAM_LinF*diff );
 			std::get<1>(info._sl_categs_infos) = ram_pt;
 			pt += ram_pt;
 		}
@@ -218,7 +218,7 @@ void iosl_dyn_slaves::select_slaves (std::vector<slave_info>& slaves_list,
 			#define PROC_LinF 15.0f
 			#define PROC_StepPTs 133
 			#define PROC_StepPw 250.0f
-			points_t proc_pt = PROC_InvF*(-1/ratio + 1) + PROC_LinF*(ratio-1) + (2*PROC_StepPTs*( pow(PROC_StepPw, ratio)/(PROC_StepPw+pow(PROC_StepPw, ratio)) ) - PROC_StepPTs);
+			points_t proc_pt = ::lroundf( PROC_InvF*(-1/ratio + 1) + PROC_LinF*(ratio-1) + (2*PROC_StepPTs*( powf(PROC_StepPw, ratio)/(PROC_StepPw+powf(PROC_StepPw, ratio)) ) - PROC_StepPTs) );
 			std::get<3>(info._sl_categs_infos) = proc_pt;
 			pt += proc_pt;
 		}
@@ -231,7 +231,7 @@ void iosl_dyn_slaves::select_slaves (std::vector<slave_info>& slaves_list,
 			};
 			float mqproc = std::min(mean_power/info.sl_usable_proc, 1.f);
 			if (info.sl_status == 0) info.sl_power_use_idle = 0;
-			power_watt_t estimated_power = mqproc*info.sl_power_use_full + (1.f-mqproc)*info.sl_power_use_idle;
+			power_watt_t estimated_power = (power_watt_t)::lroundf(  mqproc*info.sl_power_use_full + (1.f-mqproc)*info.sl_power_use_idle );
 			std::get<4>(info._sl_categs_infos) = estimated_power;
 			points_t watt_pt = estimated_power * penaltyPerWatt[eff];
 			std::get<5>(info._sl_categs_infos) = -watt_pt;

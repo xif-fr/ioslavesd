@@ -35,8 +35,11 @@ struct _block_sigchild {
 };
 #define sigchild_block() _block_sigchild _block_sigchild_handle
 
+	// Commons and network
 #include "common.hpp"
 #include <xifutils/polyvar.hpp>
+#include <socket++/base_io.hpp>
+#include <netinet/in.h>
 
 /// Common ioslavesd data and variables
 namespace ioslaves { namespace api {

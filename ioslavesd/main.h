@@ -17,6 +17,7 @@
 #include <map>
 
 	// Network
+#include <socket++/base_io.hpp>
 #include <socket++/base_inet.hpp>
 #include <socket++/io/simple_socket.hpp>
 #include <socket++/quickdefs.h>

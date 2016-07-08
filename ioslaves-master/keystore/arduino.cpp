@@ -20,6 +20,7 @@ typedef void* dl_t;
 
 	// General
 #include <iostream>
+#include <fcntl.h>
 
 	// Key file
 #define private public

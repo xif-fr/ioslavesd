@@ -1671,7 +1671,7 @@ void* minecraft::serv_thread (void* arg) {
 										first_0 = ::iosl_time();
 									} else {
 										if (::iosl_time()- first_0 > s->s_delay_noplayers) {
-											__log__(log_lvl::IMPORTANT, THLOGSCLI(s), logstream << "There were no players for " << (::iosl_time()-first_0) << "s. Closing server...");
+											__log__(log_lvl::MAJOR, THLOGSCLI(s), logstream << "There were no players for " << (::iosl_time()-first_0) << "s. Closing server...");
 											stopInfo.why = minecraft::whyStopped::DESIRED_INTERNAL;
 											MC_write_command(s, java_pipes, "stop");
 										}

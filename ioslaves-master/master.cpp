@@ -55,7 +55,7 @@ typedef void* dl_t;
 pthread_mutex_t xlog::logstream_impl::mutex = PTHREAD_MUTEX_INITIALIZER;
 std::ostringstream xlog::logstream_impl::stream;
 bool _log_wait_flag = false;
-void xlog::logstream_impl::log (log_lvl lvl, const char* part, std::string msg, int m, logl_t* lid) noexcept {
+void xlog::logstream_impl::log (log_lvl lvl, const char*, std::string msg, int m, logl_t*) noexcept {
 	if (_log_wait_flag and not (m & LOG_ADD)) std::clog << std::endl;
 	_log_wait_flag = false;
 	switch (lvl) {

@@ -10,6 +10,7 @@
 #include "common.hpp"
 
 	// Various
+#include <netinet/in.h>
 #define MC_MAP_PERM 0640
 #define MC_LASTSAVETIME_FORCE (time_t)-1
 #define MC_LASTSAVETIME_NOSAVE (time_t)0

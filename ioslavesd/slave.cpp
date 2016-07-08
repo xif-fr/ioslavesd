@@ -116,7 +116,7 @@ void ioslaves::api::euid_switch (uid_t uid, gid_t gid) {
 	errno = errsave;
 }
 #else
-void ioslaves::api::euid_switch (uid_t uid, gid_t gid) {
+void ioslaves::api::euid_switch (uid_t, gid_t) {
 	#warning No thread-specific EUID switching possible
 }
 #endif
@@ -285,7 +285,7 @@ int main (int argc, const char* argv[]) {
 			}
 			ioslavesd_listening_port = (in_port_t)(int)conf.lookup("listening_port");
 			try {
-				ip_refresh_dyndns_interval = (int)conf.lookup("dyndns_refresh_interval");
+				ip_refresh_dyndns_interval = (short)(int)conf.lookup("dyndns_refresh_interval");
 			} catch (...) {}
 			if (ip_refresh_dyndns_interval >= 0) {
 				try {
@@ -865,7 +865,7 @@ int main (int argc, const char* argv[]) {
 						sock.o_char((char)ioslaves::answer_code::OK);
 						dyndns_netfails = 0;
 					} catch (const socketxx::classic_error& e) {
-						log_lvl lvl = (e.get_errno()==EAGAIN) ? log_lvl::_DEBUG : log_lvl::ERROR;
+						log_lvl lvl = (e.std_errno == EAGAIN) ? log_lvl::_DEBUG : log_lvl::ERROR;
 						++dyndns_netfails;
 						if (dyndns_netfails >= 5)
 							__log__(lvl, "DynDNS", logstream << "Network error with xifnetdyndns service : " << e.what());
