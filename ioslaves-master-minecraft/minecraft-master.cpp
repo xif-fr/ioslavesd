@@ -628,7 +628,7 @@ int main (int argc, char* const argv[]) {
 		if (not nopoll_conn_is_ok(listener)) {
 			std::cerr << LOG_AROBASE_ERR << "Failed to create listening websocket" << std::endl; EXIT_FAILURE = EXIT_FAILURE_SYSERR; return EXIT_FAILURE; }
 		struct _noPoll_callbacks {
-			static nopoll_bool onConnReady (noPollCtx* wsctx, noPollConn* conn, void*) {
+			static nopoll_bool onConnReady (noPollCtx*, noPollConn* conn, void*) {
 				if ($websocket_conn != NULL) return false;
 				std::cerr << LOG_AROBASE_OK << "Websocket client is here !" << std::endl;
 				nopoll_conn_send_text(conn, "Hello websocket client !", -1);
@@ -879,16 +879,17 @@ void handleReportRequest (socketxx::io::simple_socket<socketxx::base_socket> soc
 	std::string servname = sock.i_str();
 	__log__ << LOG_AROBASE << "Handling stop report request for server '" << servname << "' from slave " << slave << "..." << std::flush;
 	minecraft::whyStopped why_stopped = (minecraft::whyStopped)sock.i_char();
-	const char* reason = NULL;
+	const char* reason = NULL; const char* json_reason = NULL;
 	switch (why_stopped) {
-		case minecraft::whyStopped::DESIRED_INTERNAL: reason = "Stopped automatically by ioslavesd-minecraft"; break;
-		case minecraft::whyStopped::DESIRED_MASTER: reason = "Stopped by a master"; break;
-		case minecraft::whyStopped::ITSELF: reason = "Minecraft server stopped itself"; break;
-		case minecraft::whyStopped::KILLED: reason = "Killed"; break;
-		case minecraft::whyStopped::NOT_STARTED: reason = "Server was not even started"; break;
+		case minecraft::whyStopped::DESIRED_INTERNAL: reason = "Stopped automatically by ioslavesd-minecraft"; json_reason = "auto_internal"; break;
+		case minecraft::whyStopped::DESIRED_MASTER: reason = "Stopped by a master"; json_reason = "by_master"; break;
+		case minecraft::whyStopped::ITSELF: reason = "Minecraft server stopped itself"; json_reason = "by_server"; break;
+		case minecraft::whyStopped::KILLED: reason = "Killed"; json_reason = "killed"; break;
+		case minecraft::whyStopped::NOT_STARTED: reason = "Server was not even started"; json_reason = "start_fail"; break;
 		default: reason = "Unknown";
 	}
 	bool gracefully_stopped = sock.i_bool();
+	time_t date = (time_t)sock.i_int<uint64_t>();
 	bool current_state_running = sock.i_bool();
 	std::string map_to_save = sock.i_str();
 	__log__ << "Server was stopped " << (gracefully_stopped?"":"un") << "gracefully. Reason : " << reason << ".";
@@ -922,6 +923,11 @@ void handleReportRequest (socketxx::io::simple_socket<socketxx::base_socket> soc
 			::unlink(lockpath.c_str());
 		}
 	});
+	std::string stopinfos = xif::polyvar(xif::polyvar::map({{"reason",json_reason},
+	                                                        {"date",date},
+	                                                        {"slave",slave},
+	                                                        {"gracefully",gracefully_stopped}})).to_json();
+	ioslaves::infofile_set(_s( IOSLAVES_MINECRAFT_MASTER_DIR,'/',servname,"/stop_infos" ), stopinfos);
 	if (not map_to_save.empty()) 
 		__log__ << " Saving world '" << map_to_save << "'..." << std::flush;
 	else __log__ << std::flush;
@@ -1086,6 +1092,8 @@ void MServStatus () {
 	bool s_is_perm_map = true;
 	time_t s_time_start = 0;
 	std::string s_map = "";
+	xif::polyvar ftpstatus;
+	time_t no_player_since = 0;
 	auto _retrieve_status_info_ = [&] (std::string slave, socketxx::io::simple_socket<socketxx::base_socket>& sock, bool& $status) {
 		$status = sock.i_bool();
 		if ($status) {
@@ -1096,6 +1104,8 @@ void MServStatus () {
 			n_players = sock.i_int<int32_t>();
 			zero_players_since = sock.i_int<uint32_t>();
 			s_port = sock.i_int<in_port_t>();
+			ftpstatus = sock.i_var();
+			no_player_since = sock.i_int<uint64_t>();
 			if (not optctx::interactive)
 				std::cout << std::endl << xif::polyvar(xif::polyvar::map({{"running",true},
 				                                                          {"slave",slave},
@@ -1104,7 +1114,9 @@ void MServStatus () {
 				                                                          {"port",s_port},
 				                                                          {"is_perm_map",s_is_perm_map},
 				                                                          {"map",s_map},
-				                                                          {"start_time",s_time_start}
+				                                                          {"start_time",s_time_start},
+				                                                          {"ftp_status",ftpstatus},
+				                                                          {"no_player_since",no_player_since}
 				})).to_json() << std::endl;
 		}
 		verifyMapList(slave, $server_name, sock);
@@ -1472,7 +1484,7 @@ _try_start:
 					for (const std::string& sl : excluded_slaves) 
 						if (info.sl_name == sl) return INT32_MIN;
 					if (lastsave_from == info.sl_name) return +200;
-					uint32_t net_upload = info.sl_fixed_indices.at("net_upload");
+					uint32_t net_upload = (uint32_t)info.sl_fixed_indices.at("net_upload");
 					#define NET_Frontier 100
 					if (net_upload < NET_Frontier) 
 						return (net_upload - NET_Frontier);
@@ -1481,7 +1493,7 @@ _try_start:
 					#define NET_LinF 0.0023f
 					#define NET_StepPTs 100
 					#define NET_InvShift 508.5f
-					return std::max<points_t>( NET_InvF/(-net_upload-NET_InvShift) + NET_StepPTs + NET_LinF*net_upload , NET_MaxPoints );
+					return std::max<points_t>( ::lround(NET_InvF/(-net_upload-NET_InvShift) + NET_StepPTs + NET_LinF*net_upload) , NET_MaxPoints );
 				}
 			);
 			{ // Nice html table
@@ -1771,8 +1783,14 @@ void MServStop () {
 			handleReportRequest(sock, $slave_id);
 		else throw o;
 	}
-	if ($granmaster) 
+	if ($granmaster) {
 		::setRunningOnSlave($server_name, "");
+		std::string stopinfos = xif::polyvar(xif::polyvar::map({{"reason","by_master"},
+		                                                        {"date",::time(NULL)},
+		                                                        {"slave",$slave_id},
+		                                                        {"gracefully",true}})).to_json();
+		ioslaves::infofile_set(_s( IOSLAVES_MINECRAFT_MASTER_DIR,'/',$server_name,"/stop_infos" ), stopinfos);
+	}
 	__log__ << LOG_ARROW_OK << "Done ! Server is stopped" << std::flush;
 }
 

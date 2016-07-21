@@ -10,6 +10,7 @@
 #include "common.hpp"
 
 	// Various
+#include <xifutils/polyvar.hpp>
 #include <netinet/in.h>
 #define MC_MAP_PERM 0640
 #define MC_LASTSAVETIME_FORCE (time_t)-1
@@ -20,7 +21,7 @@
 #define MINECRAFT_SERV_MASTER_MAX_DELAY_CONSIDERED_EQUAL 4
 
 	// Protocol version
-#define IOSLAVES_MINECRAFT_PROTO_VERS 0x27
+#define IOSLAVES_MINECRAFT_PROTO_VERS 0x28
 
 	// Minecraft service
 namespace minecraft {
@@ -91,6 +92,7 @@ namespace minecraft {
 	void ftp_stop_thead (int why);
 	void ftp_register_user (std::string username, std::string md5passwd, std::string server, std::string map, time_t validity);
 	void ftp_del_sess_for_serv (std::string server, time_t terminal_valididy);
+	xif::polyvar ftp_status_for_serv (std::string server);
 	
 	extern std::string ftp_serv_addr;
 #endif

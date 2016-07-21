@@ -96,7 +96,8 @@ namespace minecraft {
 		STOP_SERVER_CLI,
 		GOT_SIGNAL,
 		KILL_JAVA,
-		GET_PLAYER_LIST
+		GET_PLAYER_LIST,
+		STATUS
 	};
 	
 	struct serv_stopped { 
@@ -105,8 +106,9 @@ namespace minecraft {
 		minecraft::whyStopped why;
 		bool gracefully;
 		bool doneDone;
+		time_t date;
 	};
-	std::list<serv_stopped> servs_stopped;
+	std::list<serv_stopped*> servs_stopped;
 	std::list<minecraft::serv*> opening_servs;
 	std::map<std::string,minecraft::serv*> servs;
 	pthread_mutex_t servs_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -195,13 +197,14 @@ extern "C" bool ioslapi_start (const char*) {
 			for (int i = 0; i < replist.getLength(); i++) {
 				libconfig::Setting& rep = replist[i];
 				rep.assertType(libconfig::Setting::TypeGroup);
-				minecraft::serv_stopped ss;
-				ss.serv = std::string(rep.getName());
-				ss.map_to_save = rep["maptosave"].operator std::string();
-				ss.why = (minecraft::whyStopped)(int)rep["why"];
-				ss.gracefully = (bool)rep["gracefully"];
+				minecraft::serv_stopped* ss = new minecraft::serv_stopped;
+				ss->serv = std::string(rep.getName());
+				ss->map_to_save = rep["maptosave"].operator std::string();
+				ss->why = (minecraft::whyStopped)(int)rep["why"];
+				ss->gracefully = (bool)rep["gracefully"];
+				ss->date = (long long)rep["date"];
 				minecraft::servs_stopped.push_back(ss);
-				__log__(log_lvl::LOG, NULL, ss.serv, LOG_ADD|LOG_WAIT, &l);
+				__log__(log_lvl::LOG, NULL, ss->serv, LOG_ADD|LOG_WAIT, &l);
 			}
 			__log__(log_lvl::DONE, NULL, "Done", LOG_ADD, &l);
 		} catch (const libconfig::SettingException& e) {
@@ -253,12 +256,14 @@ extern "C" void ioslapi_stop (void) {
 		__log__(log_lvl::NOTICE, NULL, logstream << "Saving " << minecraft::servs_stopped.size() << " stop reports...", LOG_WAIT, &l);
 		libconfig::Config savereports;
 		libconfig::Setting& replist = savereports.getRoot();
-		for (minecraft::serv_stopped& ss : minecraft::servs_stopped) {
-			__log__(log_lvl::LOG, NULL, ss.serv, LOG_ADD|LOG_WAIT, &l);
-			libconfig::Setting& report = replist.add(ss.serv, libconfig::Setting::TypeGroup);
-			report.add("gracefully", libconfig::Setting::TypeBoolean) = ss.gracefully;
-			report.add("maptosave", libconfig::Setting::TypeString) = ss.map_to_save;
-			report.add("why", libconfig::Setting::TypeInt) = (int)ss.why;
+		for (minecraft::serv_stopped* ss : minecraft::servs_stopped) {
+			__log__(log_lvl::LOG, NULL, ss->serv, LOG_ADD|LOG_WAIT, &l);
+			libconfig::Setting& report = replist.add(ss->serv, libconfig::Setting::TypeGroup);
+			report.add("gracefully", libconfig::Setting::TypeBoolean) = ss->gracefully;
+			report.add("maptosave", libconfig::Setting::TypeString) = ss->map_to_save;
+			report.add("why", libconfig::Setting::TypeInt) = (int)ss->why;
+			report.add("date", libconfig::Setting::TypeInt64) = (long long)ss->date;
+			delete ss;
 		}
 		try {
 			block_as_mcjava();
@@ -282,11 +287,12 @@ extern "C" bool ioslapi_shutdown_inhibit () {
 
 	// Returns a small resumé of the Minecraft service
 extern "C" xif::polyvar* ioslapi_status_info () {
-	std::map<std::string, std::tuple<socketxx::io::simple_socket<socketxx::base_fd>,bool,minecraft::serv_type>> pending_requests;
+	std::map<std::string, std::tuple< socketxx::io::simple_socket<socketxx::base_socket>, bool, minecraft::serv_type >> pending_requests;
 	MUTEX_PRELOCK; ::pthread_mutex_lock(&minecraft::servs_mutex); MUTEX_POSTLOCK;
 	for (std::pair<std::string,minecraft::serv*> p : minecraft::servs) {
 		try {
-			socketxx::io::simple_socket<socketxx::base_fd> s_comm(socketxx::base_fd(p.second->s_sock_comm, SOCKETXX_MANUAL_FD));
+			socketxx::io::simple_socket<socketxx::base_socket> s_comm = socketxx::base_socket(p.second->s_sock_comm, SOCKETXX_MANUAL_FD);
+			s_comm.set_read_timeout({2,0});
 			s_comm.o_char((char)minecraft::internal_serv_op_code::GET_PLAYER_LIST);
 			bool fixed = not
 				ioslaves::infofile_get(_s( MINECRAFT_SRV_DIR,"/mc_",p.first,'/',p.second->s_map,"/fixed_map" ), true).empty();
@@ -298,7 +304,7 @@ extern "C" xif::polyvar* ioslapi_status_info () {
 	for (auto p : pending_requests) {
 		servers.v().push_back(p.first);
 		try {
-			socketxx::io::simple_socket<socketxx::base_fd>& s_comm = std::get<0>(p.second);
+			socketxx::io::simple_socket<socketxx::base_socket>& s_comm = std::get<0>(p.second);
 			if ((ioslaves::answer_code)s_comm.i_char() == ioslaves::answer_code::OK) {
 				servers.v().back().s() += _S( " (",::ixtoa(s_comm.i_int<int16_t>()),")" );
 				s_comm.i_int<uint32_t>();
@@ -327,7 +333,8 @@ extern "C" bool ioslapi_got_sigchld (pid_t pid, int pid_status) {
 	std::function<bool(minecraft::serv*)> test_serv = [&] (minecraft::serv* s) -> bool {
 		if (s->s_java_pid == pid) {
 			try {
-				socketxx::io::simple_socket<socketxx::base_fd> s_comm (socketxx::base_fd(s->s_sock_comm, SOCKETXX_MANUAL_FD));
+				socketxx::io::simple_socket<socketxx::base_socket> s_comm = socketxx::base_socket(s->s_sock_comm, SOCKETXX_MANUAL_FD);
+				s_comm.set_read_timeout({2,0});
 				s_comm.o_char((char)minecraft::internal_serv_op_code::GOT_SIGNAL);
 				s_comm.o_int<int>(pid_status);
 			} catch (const socketxx::error& e) {
@@ -343,7 +350,7 @@ extern "C" bool ioslapi_got_sigchld (pid_t pid, int pid_status) {
 	return false;
 }
 
-extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const char* masterid, ioslaves::api::api_perm_t* perms, in_addr_t) {
+extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const char*, ioslaves::api::api_perm_t* perms, in_addr_t) {
 	int r;
 	logl_t l;
 	
@@ -388,13 +395,14 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 			// Report server stop-reports to master, if able to handle it
 		if (opp != minecraft::op_code::FIX_MAP) 
 		for (auto it = minecraft::servs_stopped.begin(); it != minecraft::servs_stopped.end();) {
-			minecraft::serv_stopped& ss = *it;
+			minecraft::serv_stopped& ss = **it;
 			if (s_servid == ss.serv or is_a_gran_master) {
 				__log__(log_lvl::IMPORTANT, "COMM", logstream << "Reporting stop of server '" << ss.serv << "' to master");
 				cli.o_char((char)ioslaves::answer_code::WANT_REPORT);
 				cli.o_str(ss.serv);
 				cli.o_char((char)ss.why);
 				cli.o_bool(ss.gracefully);
+				cli.o_int<uint64_t>(ss.date);
 				cli.o_bool((bool)minecraft::servs.count(ss.serv));
 				cli.o_str(ss.map_to_save);
 				bool accept = cli.i_bool();
@@ -403,9 +411,11 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 						block_as_mcjava();
 						minecraft::compressAndSend(cli, ss.serv, ss.map_to_save, true);
 					}
+					delete *it;
 					auto p_it = it++; minecraft::servs_stopped.erase(p_it);
 				} catch (const std::exception& e) {
 					__log__(log_lvl::ERROR, "COMM", logstream << "Error while sending accepted stop report : " << e.what() << ". Stop report deleted.");
+					delete *it;
 					auto p_it = it++; minecraft::servs_stopped.erase(p_it);
 				} else
 					++it;
@@ -550,6 +560,8 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 						time_t start_time = ::time(NULL) - (::iosl_time() - s->s_start_iosl_time);
 						cli.o_int<uint64_t>(start_time);
 						socketxx::io::simple_socket<socketxx::base_fd> s_comm(socketxx::base_fd(s->s_sock_comm, SOCKETXX_MANUAL_FD));
+						s_comm.o_char((char)minecraft::internal_serv_op_code::STATUS);
+						time_t no_player_since = s_comm.i_int<uint64_t>();
 						s_comm.o_char((char)minecraft::internal_serv_op_code::GET_PLAYER_LIST);
 						_mutex_handle_.soon_unlock();
 						ioslaves::answer_code o = (ioslaves::answer_code)s_comm.i_char();
@@ -561,6 +573,9 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 							cli.o_int<uint32_t>(0);
 						}
 						cli.o_int<in_port_t>(port);
+						xif::polyvar ftp_status = minecraft::ftp_status_for_serv(s_servid);
+						cli.o_var(ftp_status);
+						cli.o_int<uint64_t>(no_player_since);
 					}
 				} catch (const std::out_of_range) {
 					__log__(log_lvl::_DEBUG, "COMM", ": Not running", LOG_ADD, &l);
@@ -1163,6 +1178,9 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 					goto __new_port;
 			}
 			errno = 0;
+			bool available = (*ioslaves::api::check_port)(s->s_port, true);
+			if (not available)
+				goto __new_port;
 			ioslaves::answer_code open_port_answ = (*ioslaves::api::open_port)(s->s_port, true, s->s_port, 1, port_descr);
 			if (open_port_answ != ioslaves::answer_code::OK) {
 				if (open_port_answ == ioslaves::answer_code::EXISTS or errno == 718 /*ConflictInMappingEntry*/)
@@ -1438,9 +1456,9 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 				return;
 			}
 			char _stat;
-			while ( (_stat = __read_pipe_state__(early_pipe_r, 40, '_')) != 'l' );
+			while ( (_stat = __read_pipe_state__(early_pipe_r, 40, '_')) == 'l' );
 			if (_stat != 'd') {
-				throw ioslaves::req_err(ioslaves::answer_code::EXTERNAL_ERROR, "START", MCLOGCLI(servid) << "Didn't received ack of \"Done\"");
+				throw ioslaves::req_err(ioslaves::answer_code::EXTERNAL_ERROR, "START", MCLOGCLI(servid) << "Didn't received ack of \"Done\" (" << _stat << ")");
 			}
 			__log__(log_lvl::DONE, "START", MCLOGCLI(servid) << "Minecraft wrote \"Done !\"");
 			
@@ -1696,7 +1714,6 @@ void* minecraft::serv_thread (void* arg) {
 						ssize_t rs = ::read(out, lbuf, sizeof(lbuf));
 						if (rs == 0) {
 							__log__(log_lvl::NOTICE, THLOGSCLI(s), "Java pipe closed. Waiting for sigchild...");
-							#warning TO DO : Add timeout
 							FD_CLR(java_pipes.out, &select_set);
 							FD_CLR(java_pipes.err, &select_set);
 							::close(java_pipes.in);
@@ -1740,7 +1757,7 @@ void* minecraft::serv_thread (void* arg) {
 						minecraft::internal_serv_op_code opp = (minecraft::internal_serv_op_code)comms.i_char();
 						__ldebug__(THLOGSCLI(s), logstream << "Internal request on socket [" << comm_socket << "]<->" << s->s_sock_comm);
 						switch (opp) {
-								
+							
 							case minecraft::internal_serv_op_code::CHAT_WITH_CLIENT: {
 								socketxx::base_netsock cli_sock = socketxx::base_netsock(socketxx::base_socket( comms.i_sock() ));
 								socketxx::io::simple_socket<socketxx::base_netsock> cli = cli_sock;
@@ -1811,8 +1828,18 @@ void* minecraft::serv_thread (void* arg) {
 								};
 								interpret_requests.insert(interpret_requests.end(), int_req);
 							} break;
-								
+							
+							case minecraft::internal_serv_op_code::STATUS: {
+								time_t no_player_since = (s->s_delay_noplayers == 0) ? (time_t)0 : first_0;
+								comms.o_int<uint64_t>(no_player_since);
+							} break;
+							
 							case minecraft::internal_serv_op_code::STOP_SERVER_CLI: {
+								if (not stopInfo.doneDone) {
+									__log__(log_lvl::MAJOR, THLOGSCLI(s), "Can't stop server, server isn't started yet (didn't recieved \"Done\").");
+									comms.o_char((char)ioslaves::answer_code::BAD_STATE);
+								} else
+									comms.o_char((char)ioslaves::answer_code::OK);
 								__log__(log_lvl::MAJOR, THLOGSCLI(s), "Stopping server...");
 								MC_write_command(s, java_pipes, "say [AUTO] Fermeture depuis le panel");
 								::sleep(2);
@@ -1834,7 +1861,7 @@ void* minecraft::serv_thread (void* arg) {
 								else
 									MC_write_command(s, java_pipes, "stop");
 							} break;
-								
+							
 							case minecraft::internal_serv_op_code::KILL_JAVA: {
 								__log__(log_lvl::WARNING, THLOGSCLI(s), "Killing java !");
 								stopInfo.gracefully = false;
@@ -2003,7 +2030,8 @@ void* minecraft::serv_thread (void* arg) {
 		minecraft::servs.erase(s->s_servid);
 	} catch (...) {}
 	if (stopInfo.why != minecraft::whyStopped::DESIRED_MASTER and stopInfo.why != minecraft::whyStopped::NOT_STARTED) {
-		minecraft::servs_stopped.push_back(stopInfo);
+		stopInfo.date = ::time(NULL);
+		minecraft::servs_stopped.push_back( new minecraft::serv_stopped(stopInfo) );
 		__log__(log_lvl::NOTICE, THLOGSCLI(s), logstream << "Stop report saved");
 	}
 
@@ -2149,6 +2177,9 @@ void minecraft::stopServer (socketxx::io::simple_socket<socketxx::base_socket> c
 			// Sending stop command and release mutex
 		socketxx::io::simple_socket<socketxx::base_fd> s_comm(socketxx::base_fd(s->s_sock_comm, SOCKETXX_MANUAL_FD));
 		s_comm.o_char((char)minecraft::internal_serv_op_code::STOP_SERVER_CLI);
+		ioslaves::answer_code o = (ioslaves::answer_code)s_comm.i_char();
+		if (o != ioslaves::answer_code::OK)
+			throw ioslaves::req_err(o, "STOP", MCLOGCLI(servid) << "Thread can't send stop command");
 		__log__(log_lvl::LOG, "STOP", MCLOGSCLI(s) << "Stop command sent to thread");
 		_mutex_handle_.soon_unlock();
 		
@@ -2197,6 +2228,7 @@ void minecraft::stopServer (socketxx::io::simple_socket<socketxx::base_socket> c
 			cli.o_str(s->s_servid);
 			cli.o_char((char)minecraft::whyStopped::DESIRED_MASTER);
 			cli.o_bool(true);
+			cli.o_int<uint64_t>(::time(NULL));
 			cli.o_bool(false);
 			bool fixedworld = not ioslaves::infofile_get(_s( MINECRAFT_SRV_DIR,"/mc_",s->s_servid,'/',s->s_map,"/fixed_map" ), true).empty();
 			cli.o_str( fixedworld ? std::string() : s->s_map );

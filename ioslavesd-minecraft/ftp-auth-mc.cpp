@@ -334,3 +334,13 @@ void minecraft::ftp_del_sess_for_serv (std::string server, time_t terminal_valid
 			++it;
 	}
 }
+
+	// Report FTP session status for a server
+xif::polyvar minecraft::ftp_status_for_serv (std::string server) {
+	xif::polyvar list = xif::polyvar::map();
+	for (auto it = minecraft::ftp_sessions.begin(); it != minecraft::ftp_sessions.end(); it++) {
+		if (it->server == server and it->end_validity >= ::time(NULL))
+			list.m().insert({it->username, (it->end_validity-::time(NULL))});
+	}
+	return list;
+}
