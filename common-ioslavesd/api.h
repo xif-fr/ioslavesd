@@ -73,6 +73,7 @@ namespace ioslaves { namespace api {
 	
 	typedef void (*report_log_f) (ioslaves::service*, xlog::log_lvl, const char*, std::string&, int, xlog::logl_t*); // Report a log line
 	typedef ioslaves::answer_code (*open_port_f) (in_port_t, bool, in_port_t, uint16_t, std::string); // Open port on gateway
+	typedef bool (*check_port_f) (in_port_t, bool); // Check on gateway if port is available
 	typedef void (*close_port_f) (in_port_t, uint16_t, bool); // Close port on gateway
 	typedef ioslaves::answer_code (*dns_srv_create_f) (const char*, std::string, std::string, bool, in_port_t, bool); // Create SRV entry (must be under ioslaves user for auth)
 	typedef void (*dns_srv_del_f) (const char*, std::string, std::string, bool); // Delete SRV entry (must be under ioslaves user for auth)
@@ -88,7 +89,7 @@ namespace ioslaves { namespace api {
 	typedef bool (*start_f) (const char* by_master);
 	typedef void (*set_callbacks_f) (ioslaves::service*, sig_atomic_t*, const char*, common_vars_t*,
 	                                 ioslaves::api::report_log_f, 
-	                                 ioslaves::api::open_port_f, ioslaves::api::close_port_f,
+	                                 ioslaves::api::open_port_f, ioslaves::api::check_port_f, ioslaves::api::close_port_f,
 	                                 ioslaves::api::dns_srv_create_f, ioslaves::api::dns_srv_del_f,
 	                                 ioslaves::api::euid_switch_f);
 	typedef void (*net_client_call_f) (socketxx::base_socket&, const char* masterid, api_perm_t*, in_addr_t);
@@ -101,13 +102,15 @@ namespace ioslaves { namespace api {
 	#define IOSLAVED_API_MAIN_PROG_CALLBACKS_TO_SET                               \
 		(ioslaves::api::report_log_f)ioslaves::api::report_log,                   \
 		(ioslaves::api::open_port_f)ioslaves::api::open_port,                     \
+		(ioslaves::api::check_port_f)ioslaves::api::check_port,                   \
 		(ioslaves::api::close_port_f)ioslaves::api::close_port,                   \
 		(ioslaves::api::dns_srv_create_f)ioslaves::api::dns_srv_create,           \
 		(ioslaves::api::dns_srv_del_f)ioslaves::api::dns_srv_del,                 \
 		(ioslaves::api::euid_switch_f)ioslaves::api::euid_switch                  \
 		
 	void report_log (ioslaves::service*, xlog::log_lvl, const char* part, std::string& msg, int f, xlog::logl_t*) noexcept;
-	ioslaves::answer_code open_port (in_port_t ext, bool is_tcp, in_port_t loc, uint16_t range_sz, std::string descr) noexcept;
+	ioslaves::answer_code open_port (in_port_t ext, bool is_tcp, in_port_t local, uint16_t range_sz, std::string descr) noexcept;
+	bool check_port (in_port_t ext, bool tcp) noexcept;
 	void close_port (in_port_t ext, uint16_t range_sz, bool is_tcp) noexcept;
 	ioslaves::answer_code dns_srv_create (const char* service_name, std::string domain, std::string host, bool with_cname, in_port_t port, bool is_tcp) noexcept;
 	void dns_srv_del (const char* service_name, std::string domain, std::string host, bool is_tcp) noexcept;
@@ -127,7 +130,7 @@ extern "C" {
 		// Set callbacks
 	void ioslapi_set_callbacks (ioslaves::service*, sig_atomic_t* _sigchild_p, const char* hostname, ioslaves::api::common_vars_t*,
 	                            ioslaves::api::report_log_f, 
-	                            ioslaves::api::open_port_f, ioslaves::api::close_port_f,
+	                            ioslaves::api::open_port_f, ioslaves::api::check_port_f, ioslaves::api::close_port_f,
 	                            ioslaves::api::dns_srv_create_f, ioslaves::api::dns_srv_del_f,
 	                            ioslaves::api::euid_switch_f);
 	bool ioslapi_start (const char* by_master); // Called at service start, when callbacks are defined (by_master = NULL if autostarted)
@@ -151,6 +154,7 @@ namespace ioslaves { namespace api {
 	IOSLAVESD_API_SERVICE_EXTERN_SYMBOL common_vars_t* common_vars;
 	IOSLAVESD_API_SERVICE_EXTERN_SYMBOL ioslaves::api::report_log_f report_log;
 	IOSLAVESD_API_SERVICE_EXTERN_SYMBOL ioslaves::api::open_port_f open_port;
+	IOSLAVESD_API_SERVICE_EXTERN_SYMBOL ioslaves::api::check_port_f check_port;
 	IOSLAVESD_API_SERVICE_EXTERN_SYMBOL ioslaves::api::close_port_f close_port;
 	IOSLAVESD_API_SERVICE_EXTERN_SYMBOL ioslaves::api::dns_srv_create_f dns_srv_create;
 	IOSLAVESD_API_SERVICE_EXTERN_SYMBOL ioslaves::api::dns_srv_del_f dns_srv_del;
@@ -161,7 +165,7 @@ namespace ioslaves { namespace api {
 
 extern "C" void ioslapi_set_callbacks (ioslaves::service* _me, sig_atomic_t* _sigchild_p, const char* hostname, ioslaves::api::common_vars_t* _common_vars,
 	                                   ioslaves::api::report_log_f _report_log, 
-	                                   ioslaves::api::open_port_f _open_port, ioslaves::api::close_port_f _close_port,
+	                                   ioslaves::api::open_port_f _open_port, ioslaves::api::check_port_f _check_port, ioslaves::api::close_port_f _close_port,
 	                                   ioslaves::api::dns_srv_create_f _dns_srv_create, ioslaves::api::dns_srv_del_f _dns_srv_del,
 	                                   ioslaves::api::euid_switch_f _euid_switch) {
 	ioslaves::api::service_me = _me;
@@ -170,6 +174,7 @@ extern "C" void ioslapi_set_callbacks (ioslaves::service* _me, sig_atomic_t* _si
 	ioslaves::api::common_vars = _common_vars;
 	ioslaves::api::report_log = _report_log;
 	ioslaves::api::open_port = _open_port;
+	ioslaves::api::check_port = _check_port;
 	ioslaves::api::close_port = _close_port;
 	ioslaves::api::dns_srv_create = _dns_srv_create;
 	ioslaves::api::dns_srv_del = _dns_srv_del;

@@ -146,11 +146,9 @@ void ioslaves::upnpInit () {
 	/// Private impl functions
 void upnp_ports_open (ioslaves::upnpPort& p, bool silent);
 void upnp_ports_close (ioslaves::upnpPort p, bool silent);
-bool upnp_port_check (in_port_t p_ext_port, ioslaves::upnpPort::proto p_proto);
+bool upnp_port_check (in_port_t p_ext_port, ioslaves::upnpPort::proto p_proto, bool silent);
 
 void upnp_ports_open (ioslaves::upnpPort& p, bool silent) {
-	if (p.p_range_sz == 0) throw std::range_error("null port range");
-	if (UINT16_MAX-p.p_range_sz < p.p_int_port or UINT16_MAX-p.p_range_sz < p.p_ext_port) throw std::range_error("port range out of range");
 	logl_t l;
 	if (not silent) {
 		if (p.p_range_sz == 1)
@@ -174,7 +172,7 @@ void upnp_ports_open (ioslaves::upnpPort& p, bool silent) {
 			}
 		}
 			// Verify if the first port of the range is opened
-		bool ok = upnp_port_check(p.p_ext_port, p.p_proto);
+		bool ok = upnp_port_check(p.p_ext_port, p.p_proto, true);
 		if (not ok) 
 			throw ioslaves::upnpError("Failed to add port redirection : verification failed");
 		p._is_verifiable = true;
@@ -197,8 +195,6 @@ void upnp_ports_open (ioslaves::upnpPort& p, bool silent) {
 }
 
 void upnp_ports_close (ioslaves::upnpPort p, bool silent) {
-	if (p.p_range_sz == 0) throw std::range_error("null port range");
-	if (UINT16_MAX-p.p_range_sz < p.p_ext_port) throw std::range_error("port range out of range");
 	logl_t l;
 	if (not silent) {
 		if (p.p_range_sz == 1)
@@ -220,14 +216,17 @@ void upnp_ports_close (ioslaves::upnpPort p, bool silent) {
 		// Verify if the first port of the range is still opened
 	::usleep(100000);
 	try {
-		if (upnp_port_check(p.p_ext_port, p.p_proto))
+		if (upnp_port_check(p.p_ext_port, p.p_proto, true))
 			__log__(log_lvl::WARNING, "UPnP", logstream << "Port " << p.p_ext_port << " is still opened after deletion !");
 	} catch (const ioslaves::upnpError) {}
 	if (not silent) 
 		__log__(log_lvl::DONE, "UPnP", "Closed", LOG_ADD, &l);
 }
 
-bool upnp_port_check (in_port_t p_ext_port, ioslaves::upnpPort::proto p_prot) {
+bool upnp_port_check (in_port_t p_ext_port, ioslaves::upnpPort::proto p_prot, bool silent) {
+	logl_t l;
+	if (not silent)
+		__log__(log_lvl::LOG, "UPnP", logstream << "Checking if port " << (char)p_prot << p_ext_port << " is opened...", LOG_WAIT, &l);
 	errno_autoreset_handle();
 	int r;
 		// Verify if port is opened and belongs to us
@@ -235,12 +234,23 @@ bool upnp_port_check (in_port_t p_ext_port, ioslaves::upnpPort::proto p_prot) {
 	char verif_int_port[6], verif_int_ip[16], verif_duration[16], verif_enabled[4];
 	const char* proto = (p_prot == ioslaves::upnpPort::TCP) ? "TCP" : "UDP";
 	r = UPNP_GetSpecificPortMappingEntry(upnp_device_url.controlURL, upnp_device_data.first.servicetype, e_port.c_str(), proto, NULL, verif_int_ip, verif_int_port, NULL, verif_enabled, verif_duration);
-	if (r == 714) 
+	if (r == 714) {
+		if (not silent)
+			__log__(log_lvl::LOG, "UPnP", logstream << "Closed", LOG_ADD, &l);
 		return false;
-	if (r != UPNPCOMMAND_SUCCESS) 
+	}
+	if (r != UPNPCOMMAND_SUCCESS) {
+		if (not silent)
+			__log__(log_lvl::ERROR, "UPnP", logstream << "Error", LOG_ADD, &l);
 		throw ioslaves::upnpError(logstream << "Failed to verify port status : " << strupnperror(r) << logstr, r, false);
-	if (_S(verif_int_ip) != _S(upnp_lanIP)) 
+	}
+	if (_S(verif_int_ip) != _S(upnp_lanIP)) {
+		if (not silent)
+			__log__(log_lvl::LOG, "UPnP", logstream << "Opened but no towards us", LOG_ADD, &l);
 		throw ioslaves::upnpError(logstream << "Checking for port status : Port " << e_port << " doesn't belong to us, but to " << verif_int_ip << logstr, -1, false);
+	}
+	if (not silent)
+		__log__(log_lvl::LOG, "UPnP", logstream << "Opened", LOG_ADD, &l);
 	return true;
 }
 
@@ -268,9 +278,9 @@ inline bool ports_table_check_collision (in_port_t p_ext_port, uint16_t p_range_
 	}
 	return false;
 }
-inline void port_verify_range_validity (in_port_t ext_port, uint16_t range_sz) {
+inline void port_verify_range_validity (in_port_t port, uint16_t range_sz) {
 	if (range_sz == 0) throw std::range_error("null port range");
-	if (UINT16_MAX-range_sz < ext_port) throw std::range_error("port range out of range");
+	if (UINT16_MAX-range_sz < port) throw std::range_error("port range out of range");
 }
 
 	// Add a port into refresh ports table with time, after port opening. mutex must be locked.
@@ -312,7 +322,7 @@ void ioslaves::upnpReopen () {
 			time_t diff = tmdiff(before, port._lastopen)/1000000;
 			if (port._is_verifiable) {
 				if ((ports_reopen_interval and diff > ports_reopen_interval-10) or (ports_check_interval and ::time(NULL)%ports_check_interval == 0)) {
-					if (not upnp_port_check(port.p_ext_port, port.p_proto)) {
+					if (not upnp_port_check(port.p_ext_port, port.p_proto, true)) {
 						__log__(log_lvl::LOG, "UPnP", logstream << "Reopening just closed port '" << port.p_descr << "' after " << diff << "s...", LOG_WAIT, &l);
 						reopening = true;
 						upnp_ports_open(port, true);
@@ -357,42 +367,71 @@ void ioslaves::upnpReopen () {
 	}
 }
 
-	/// API services interface
+	/**--------------  API services interface, noexcept  --------------**/
 
-	// Opening function for API services
+	// Public function for API services to open ports
 ioslaves::answer_code ioslaves::api::open_port (in_port_t ext_port, bool is_tcp, in_port_t int_port, uint16_t range_sz, std::string descr) noexcept {
-	if (not enable_upnp) return ioslaves::answer_code::OK;
+	try {
+		port_verify_range_validity(ext_port, range_sz);
+		port_verify_range_validity(int_port, range_sz);
+	} catch (...) {
+		return ioslaves::answer_code::INVALID_DATA;
+	}
 	pthread_mutex_handle_lock(upnp_map_mutex);
 	ioslaves::upnpPort::proto proto = is_tcp ? ioslaves::upnpPort::TCP : ioslaves::upnpPort::UDP;
 	ioslaves::upnpPort p = {ext_port, proto, int_port, range_sz, descr};
-	try {
-		if (ports_table_check_collision(ext_port, range_sz, proto))
-			return ioslaves::answer_code::EXISTS;
-		upnp_ports_open(p, false);
-	} catch (const ioslaves::upnpError& upnperr) {
-		errno = upnperr.ret;
-		if (upnperr.fatal)
-			return ioslaves::answer_code::UPNP_ERROR;
+	if (ports_table_check_collision(ext_port, range_sz, proto))
+		return ioslaves::answer_code::EXISTS;
+	if (enable_upnp) {
+		try {
+			upnp_ports_open(p, false);
+		} catch (const ioslaves::upnpError& upnperr) {
+			errno = upnperr.ret;
+			if (upnperr.fatal)
+				return ioslaves::answer_code::UPNP_ERROR;
+		}
 	}
 	ports_table_add(p);
 	return ioslaves::answer_code::OK;
 }
 
-	// Closing function for API services
+	// Public function for API services to close ports
 void ioslaves::api::close_port (in_port_t ext_port, uint16_t range_sz, bool is_tcp) noexcept {
-	if (not enable_upnp) return;
+	try {
+		port_verify_range_validity(ext_port, range_sz);
+	} catch (...) { return; }
 	pthread_mutex_handle_lock(upnp_map_mutex);
 	ioslaves::upnpPort::proto proto = is_tcp ? ioslaves::upnpPort::TCP : ioslaves::upnpPort::UDP;
 	ports_table_del(ext_port, proto);
+	if (not enable_upnp) return;
 	try {
 		upnp_ports_close(ioslaves::upnpPort({ext_port, proto, ext_port, range_sz}), false);
 	} catch (const ioslaves::upnpError& eu) {}
 }
 
-	/// ioslaves interface, aware of enable_upnp
+
+	// Public function for API services to check if port is available
+bool ioslaves::api::check_port (in_port_t ext_port, bool is_tcp) noexcept {
+	pthread_mutex_handle_lock(upnp_map_mutex);
+	ioslaves::upnpPort::proto proto = is_tcp ? ioslaves::upnpPort::TCP : ioslaves::upnpPort::UDP;
+	if (ports_table_check_collision(ext_port, 1, proto))
+		return false;
+	if (enable_upnp) {
+		try {
+			bool opened = upnp_port_check(ext_port, proto, false);
+			return !opened;
+		} catch (const ioslaves::upnpError& upnperr) {
+			return false;
+		}
+	} else
+		return true;
+}
+
+	/**--------------  ioslaves interface, unaware of enable_upnp  --------------**/
 
 void ioslaves::upnpOpenPort (upnpPort p) {
 	port_verify_range_validity(p.p_ext_port, p.p_range_sz);
+	port_verify_range_validity(p.p_int_port, p.p_range_sz);
 	pthread_mutex_handle_lock(upnp_map_mutex);
 	if (ports_table_check_collision(p.p_ext_port, p.p_range_sz, p.p_proto)) 
 		throw ioslaves::upnpError("Can't open : Port collision in table !", -1, true);
@@ -410,7 +449,7 @@ void ioslaves::upnpClosePort (ioslaves::upnpPort p) {
 	port_verify_range_validity(p.p_ext_port, p.p_range_sz);
 	pthread_mutex_handle_lock(upnp_map_mutex);
 	if (not ports_table_exist(p)) 
-		throw ioslaves::upnpError("Can't close : Port not found in table !", -1, true);
+		throw ioslaves::upnpError("Can't close : Port range not found in table !", -1, true);
 	ports_table_del(p.p_ext_port, p.p_proto);
 	upnp_ports_close(p, false);
 }
