@@ -1624,7 +1624,9 @@ _try_start:
 			if (not $forced_file.empty() and (what == minecraft::transferWhat::SERVFOLD or what == minecraft::transferWhat::MAP)) {
 				__log__ << LOG_AROBASE << " Want get map : sending forced file" << std::flush;
 				sock->o_bool(true);
-				sock->o_file($forced_file.c_str());
+				                                             retreivingProgressionShow(0,0);
+				sock->o_file($forced_file.c_str(), std::bind(retreivingProgressionShow, std::placeholders::_1,std::placeholders::_2));
+				                                             retreivingProgressionShow(1,0);
 			}
 			else if ($granmaster and what == minecraft::transferWhat::JAR) {
 				__log__ << LOG_AROBASE << " Want get jar" << std::flush;
@@ -1677,7 +1679,9 @@ _try_start:
 						EXIT_FAILURE = EXIT_FAILURE_EXTERR;
 						throw EXCEPT_ERROR_IGNORE;
 					}
-					sock->o_file(tempmap_path.c_str());
+					                                             retreivingProgressionShow(0,0);
+					sock->o_file(tempmap_path.c_str(), std::bind(retreivingProgressionShow, std::placeholders::_1,std::placeholders::_2));
+					                                             retreivingProgressionShow(1,0);
 				} else {
 					std::string mapfold = _S( IOSLAVES_MINECRAFT_MASTER_DIR,'/',$server_name,"/maps/",$worldname );
 					if (what != minecraft::transferWhat::SERVFOLD) {
@@ -1698,7 +1702,9 @@ _try_start:
 					__log__ << "sending server folder save " << $worldname << std::flush;
 					sock->o_bool(true);
 					std::string map_path = _S( mapfold,'/',$worldname,'_',::ixtoa(lastsavetime,IX_HEX_MAJ),".zip" );
-					sock->o_file(map_path.c_str());
+					                                         retreivingProgressionShow(0,0);
+					sock->o_file(map_path.c_str(), std::bind(retreivingProgressionShow, std::placeholders::_1,std::placeholders::_2));
+					                                         retreivingProgressionShow(1,0);
 				}
 			} else {
 				sock->o_bool(false);
