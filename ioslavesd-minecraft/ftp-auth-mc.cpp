@@ -166,6 +166,9 @@ void* minecraft::mc_ftpd_auth_thread (void* arg) {
 			return NULL;
 		}
 	__scan:
+		bool available = (*ioslaves::api::check_port)(ftp_port, true);
+		if (not available)
+			goto __new_port;
 		errno = 0;
 		ioslaves::answer_code open_port_answ = (*ioslaves::api::open_port)(ftp_port, true, ftp_port, 1, "minecraft ftp server");
 		if (open_port_answ != ioslaves::answer_code::OK) {
@@ -185,6 +188,9 @@ void* minecraft::mc_ftpd_auth_thread (void* arg) {
 			return NULL;
 		}
 	__test_range:
+		available = (*ioslaves::api::check_port)(ftp_ports_pasv_beg, true);
+		if (not available)
+			goto __new_range;
 		errno = 0;
 		open_port_answ = (*ioslaves::api::open_port)(ftp_ports_pasv_beg, true, ftp_ports_pasv_beg, PURE_FTPD_PASV_RANGE_SZ, "minecraft ftp server pasv");
 		if (open_port_answ != ioslaves::answer_code::OK) {

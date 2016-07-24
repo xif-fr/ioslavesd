@@ -71,7 +71,7 @@ void ioslaves::statusFrame () {
 		system_stat["mem_free"] = mem.m_free/MiB;
 		system_stat["mem_swap"] = mem.m_swapUsed/MiB;
 		system_stat["mem_used"] = (mem.m_total - mem.m_free)/MiB;
-		system_stat["mem_usable"] = (mem.m_usable-mem.m_swapUsed)/MiB;
+		system_stat["mem_usable"] = (mem.m_usable > mem.m_swapUsed ? mem.m_usable-mem.m_swapUsed : 0)/MiB;
 		system_stat["memK"] = (mem.m_kernel + mem.m_buffers)/MiB;
 		system_stat["memA"] = (mem.m_activeCache + mem.m_activeAnon)/MiB;
 			system_stat["memAc"] = mem.m_activeCache/MiB;

@@ -1151,22 +1151,29 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 		} __autorm_opening_state;
 		
 		{ pthread_mutex_handle_lock(minecraft::servs_mutex);
+			if (minecraft::servs.find(servid) != minecraft::servs.end())
+				throw ioslaves::req_err(ioslaves::answer_code::BAD_STATE, "SERV", MCLOGSCLI(s) << "Server already opened", log_lvl::OOPS);
 			std::string port_descr = _s("minecraft server ",servid);
 			::srand((unsigned int)::time(NULL));
-			int8_t itry = -0xF;
+			uint8_t itry = 0;
+			bool tried[MINECRAFT_PORT_RANGE_SZ];
+			for (uint8_t i = 0; i < MINECRAFT_PORT_RANGE_SZ; i++) tried[i] = false;
 			if (s->s_port != 0) {
 				if (s->s_port < MINECRAFT_PORT_RANGE_BEG) 
 					throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "PORT", "Master-chosen port outside allowed range", log_lvl::ERROR);
-				itry = MINECRAFT_PORT_RANGE_SZ-1;
 				goto __test_port;
 			}
 		__new_port:
+			if (itry == 0)
+				throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "PORT", "Master-chosen port already used !", log_lvl::ERROR);
 			if (++itry == MINECRAFT_PORT_RANGE_SZ)
 				throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "PORT", "Port range entierly used !", log_lvl::SEVERE);
-			s->s_port = ::rand()%MINECRAFT_PORT_RANGE_SZ + MINECRAFT_PORT_RANGE_BEG;
+			do {
+				s->s_port = ::rand()%MINECRAFT_PORT_RANGE_SZ;
+			} while (tried[s->s_port] == true);
+			tried[s->s_port] = true;
+			s->s_port += MINECRAFT_PORT_RANGE_BEG;
 		__test_port:
-			if (minecraft::servs.find(servid) != minecraft::servs.end())
-				throw ioslaves::req_err(ioslaves::answer_code::BAD_STATE, "SERV", MCLOGSCLI(s) << "Server already opened", log_lvl::OOPS);
 			for (std::pair<std::string,minecraft::serv*> p : minecraft::servs) {
 				if (p.second->s_port == s->s_port) 
 					goto __new_port;
@@ -1177,10 +1184,10 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 				if (oth_s->s_port == s->s_port)
 					goto __new_port;
 			}
-			errno = 0;
 			bool available = (*ioslaves::api::check_port)(s->s_port, true);
 			if (not available)
 				goto __new_port;
+			errno = 0;
 			ioslaves::answer_code open_port_answ = (*ioslaves::api::open_port)(s->s_port, true, s->s_port, 1, port_descr);
 			if (open_port_answ != ioslaves::answer_code::OK) {
 				if (open_port_answ == ioslaves::answer_code::EXISTS or errno == 718 /*ConflictInMappingEntry*/)
@@ -1691,7 +1698,10 @@ void* minecraft::serv_thread (void* arg) {
 										if (::iosl_time()- first_0 > s->s_delay_noplayers) {
 											__log__(log_lvl::MAJOR, THLOGSCLI(s), logstream << "There were no players for " << (::iosl_time()-first_0) << "s. Closing server...");
 											stopInfo.why = minecraft::whyStopped::DESIRED_INTERNAL;
-											MC_write_command(s, java_pipes, "stop");
+											if (s->s_serv_type == minecraft::serv_type::BUNGEECORD)
+												MC_write_command(s, java_pipes, "end");
+											else
+												MC_write_command(s, java_pipes, "stop");
 										}
 									}
 								} else 
@@ -1836,8 +1846,9 @@ void* minecraft::serv_thread (void* arg) {
 							
 							case minecraft::internal_serv_op_code::STOP_SERVER_CLI: {
 								if (not stopInfo.doneDone) {
-									__log__(log_lvl::MAJOR, THLOGSCLI(s), "Can't stop server, server isn't started yet (didn't recieved \"Done\").");
+									__log__(log_lvl::ERROR, THLOGSCLI(s), "Can't stop server, server isn't started yet (didn't recieved \"Done\").");
 									comms.o_char((char)ioslaves::answer_code::BAD_STATE);
+									break;
 								} else
 									comms.o_char((char)ioslaves::answer_code::OK);
 								__log__(log_lvl::MAJOR, THLOGSCLI(s), "Stopping server...");
