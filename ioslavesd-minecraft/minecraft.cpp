@@ -559,18 +559,27 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 						cli.o_str(s->s_map);
 						time_t start_time = ::time(NULL) - (::iosl_time() - s->s_start_iosl_time);
 						cli.o_int<uint64_t>(start_time);
-						socketxx::io::simple_socket<socketxx::base_fd> s_comm(socketxx::base_fd(s->s_sock_comm, SOCKETXX_MANUAL_FD));
-						s_comm.o_char((char)minecraft::internal_serv_op_code::STATUS);
-						time_t no_player_since = s_comm.i_int<uint64_t>();
-						s_comm.o_char((char)minecraft::internal_serv_op_code::GET_PLAYER_LIST);
+						time_t no_player_since;
+						socketxx::io::simple_socket<socketxx::base_socket> s_comm(socketxx::base_socket(s->s_sock_comm, SOCKETXX_MANUAL_FD));
+						s_comm.set_read_timeout({4,0});
 						_mutex_handle_.soon_unlock();
-						ioslaves::answer_code o = (ioslaves::answer_code)s_comm.i_char();
-						if (o == ioslaves::answer_code::OK) {
-							cli.o_int<int32_t>(s_comm.i_int<int16_t>()); // # of players
-							cli.o_int<uint32_t>(s_comm.i_int<uint32_t>()); // 0 players since
-						} else {
-							cli.o_int<int32_t>(-1);
-							cli.o_int<uint32_t>(0);
+						try {
+							s_comm.o_char((char)minecraft::internal_serv_op_code::STATUS);
+							no_player_since = s_comm.i_int<uint64_t>();
+							s_comm.o_char((char)minecraft::internal_serv_op_code::GET_PLAYER_LIST);
+							ioslaves::answer_code o = (ioslaves::answer_code)s_comm.i_char();
+							if (o == ioslaves::answer_code::OK) {
+								cli.o_int<int32_t>(s_comm.i_int<int16_t>()); // # of players
+								cli.o_int<uint32_t>(s_comm.i_int<uint32_t>()); // 0 players since
+							} else {
+								cli.o_int<int32_t>(-1);
+								cli.o_int<uint32_t>(0);
+							}
+						} catch (const socketxx::io_error& e) {
+							if (e.is_timeout_error()) {
+								__log__(log_lvl::ERROR, "COMM", logstream << "Failed to get server status : internal pipe timed out !");
+								break;
+							} else throw;
 						}
 						cli.o_int<in_port_t>(port);
 						xif::polyvar ftp_status = minecraft::ftp_status_for_serv(s_servid);
@@ -1184,9 +1193,11 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 				if (oth_s->s_port == s->s_port)
 					goto __new_port;
 			}
-			bool available = (*ioslaves::api::check_port)(s->s_port, true);
-			if (not available)
-				goto __new_port;
+			if (itry != 0) {
+				bool available = (*ioslaves::api::check_port)(s->s_port, true);
+				if (not available)
+					goto __new_port;
+			}
 			errno = 0;
 			ioslaves::answer_code open_port_answ = (*ioslaves::api::open_port)(s->s_port, true, s->s_port, 1, port_descr);
 			if (open_port_answ != ioslaves::answer_code::OK) {
