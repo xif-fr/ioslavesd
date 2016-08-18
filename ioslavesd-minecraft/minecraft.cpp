@@ -1173,7 +1173,7 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 				goto __test_port;
 			}
 		__new_port:
-			if (itry == 0)
+			if (itry == 0 and s->s_port != 0)
 				throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "PORT", "Master-chosen port already used !", log_lvl::ERROR);
 			if (++itry == MINECRAFT_PORT_RANGE_SZ)
 				throw ioslaves::req_err(ioslaves::answer_code::INTERNAL_ERROR, "PORT", "Port range entierly used !", log_lvl::SEVERE);
@@ -1585,9 +1585,14 @@ void* minecraft::serv_thread (void* arg) {
 /*#ifdef __x86_64__
 			"-d64",
 #endif*/
-			"-XX:+UseParallelGC",
+			"-XX:+UseG1GC",
+			"-XX:MaxGCPauseMillis=300",
+			"-XX:+PrintGC",
 			"-XX:MaxPermSize=200M",
-			_S("-Xmx",::ixtoa(s->s_megs_ram),"M"), _S("-Xms",::ixtoa(s->s_megs_ram),"M"),
+			"-XX:MaxHeapFreeRatio=40",
+			"-XX:MinHeapFreeRatio=10",
+			"-Xms256M",
+			_S("-Xmx",::ixtoa(s->s_megs_ram),"M"),
 			"-jar", s->s_jar_path,
 			"--world", s->s_map,
 		};
