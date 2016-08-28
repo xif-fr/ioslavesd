@@ -183,7 +183,7 @@ void iosl_master::authenticate (socketxx::io::simple_socket<socketxx::base_netso
 	o = (ioslaves::answer_code)slave_sock.i_char();
 	if (o == ioslaves::answer_code::OK) {
 		if (not iosl_master::$silent)
-			__log__(log_lvl::DONE, "AUTH", logstream << "Authentication with key '" << key_id << "' succeded !");
+			__log__(log_lvl::DONE, "AUTH", logstream << "Authenticated with key '" << key_id << "'.");
 	} else 
 		throw master_err(EXIT_FAILURE_AUTH, logstream << "Authentication failed : " << ioslaves::getAnswerCodeDescription(o), o);
 }

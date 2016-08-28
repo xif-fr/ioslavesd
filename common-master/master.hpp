@@ -112,7 +112,7 @@ namespace iosl_dyn_slaves {
 	typedef float proc_power_t;
 	typedef uint16_t power_watt_t;
 	enum efficiency_ratio_t { REGARDLESS, FOR_HOURS_MEDIUM, FOR_DAY_HIGH, FOR_DAYS_HIGHEST };
-	typedef int32_t points_t; // negative for depreciate
+	typedef int32_t points_t; // negative to depreciate
 	
 	struct slave_info {
 		std::string sl_name;
@@ -128,7 +128,7 @@ namespace iosl_dyn_slaves {
 		std::vector<std::string> sl_tags;
 		xif::polyvar _sl_raw_infos;
 		std::tuple<off_t,points_t, float,points_t, power_watt_t,points_t, points_t, points_t> _sl_categs_infos;
-					/*    mem            proc                elec. power       wait     custom */
+		        /*    mem            proc                elec. power       wait     custom */
 		bool operator< (const slave_info& o) const { return this->sl_total_points > o.sl_total_points; }
 	};
 	

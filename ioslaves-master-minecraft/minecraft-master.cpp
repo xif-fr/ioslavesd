@@ -1243,7 +1243,7 @@ void MServFTPSess () {
 	sock.o_str($ftp_user);
 	sock.o_str($ftp_hash_passwd);
 	bool fixed = not ioslaves::infofile_get(_s( IOSLAVES_MINECRAFT_MASTER_DIR,"/",$server_name,"/maps/",worldname,"/fixed_on" ), true).empty();
-	uint32_t sess_validity = fixed ? 60*60*24 : 60*15;
+	uint32_t sess_validity = fixed ? 60*60*24 : 60*60*1;
 	sock.o_int<uint32_t>(sess_validity);
 	ioslaves::answer_code o;
 	if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) 
@@ -1770,8 +1770,14 @@ void MServStop () {
 		} else 
 			throw o;
 	}
-	if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) 
-		throw o;
+	if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) {
+		if (o == ioslaves::answer_code::BAD_STATE) {
+			__log__ << LOG_ARROW_ERR << "Server seems to be still starting : can't stop it." << std::flush;
+			EXIT_FAILURE = EXIT_FAILURE_EXTERR;
+			throw EXCEPT_ERROR_IGNORE;
+		} else
+			throw o;
+	}
 	__log__ << LOG_ARROW_OK << "Server is stopping..." << std::flush;
 	sock.set_read_timeout(TIMEOUT_STOP_SERVER);
 	if ((o = (ioslaves::answer_code)sock.i_char()) != ioslaves::answer_code::OK) {
