@@ -39,43 +39,37 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::gather_infos (std::vec
 			delete p.second;
 	});
 	
-	size_t ni;
-	DIR* slaves_dir = ::opendir(IOSLAVES_MASTER_SLAVES_DIR);
-	if (slaves_dir == NULL) 
-		throw xif::sys_error("dyn_slaves : can't open slaves dir");
-	dirent* dp, *dentr = (dirent*) ::malloc(
-		(size_t)offsetof(struct dirent, d_name) + std::max(sizeof(dirent::d_name), (size_t)::fpathconf(dirfd(slaves_dir),_PC_NAME_MAX)) +1);
-	RAII_AT_END_N(dir, {
-		::closedir(slaves_dir);
-		::free(dentr);
-	});
-	int rr;
-	while ((rr = ::readdir_r(slaves_dir, dentr, &dp)) != -1 and dp != NULL) {
-		for (ni = 1; ni <= 5; ni++)
-			if (dp->d_name[::strlen(dp->d_name)-ni] != ".conf"[5-ni]) 
-				goto __dp_loop_next;
-		{
-			std::string fname = _S( IOSLAVES_MASTER_SLAVES_DIR,"/",std::string(dp->d_name) );
-			iosl_dyn_slaves::slave_info info;
-			info.sl_name = std::string(dp->d_name).substr(0, ::strlen(dp->d_name)-ni+1);
-			if (info.sl_name.length() < 3 or !ioslaves::validateSlaveName(info.sl_name)) continue;
-			FILE* ser_f = ::fopen(fname.c_str(), "r");
-			if (ser_f == NULL)
-				throw xif::sys_error(_S("failed to open slave info file for ",info.sl_name));
-			libconfig::Config* conf = new libconfig::Config;
-			try {
-				conf->read(ser_f);
-			} catch (const libconfig::ParseException& e) {
-				throw ioslaves::req_err(answer_code::INVALID_DATA, logstream << "Parse error in slave file of " << info.sl_name << " at line " << e.getLine() << " : " << e.getError());
+	{	size_t ni;
+		DIR* slaves_dir = ::opendir(IOSLAVES_MASTER_SLAVES_DIR);
+		if (slaves_dir == NULL) 
+			throw xif::sys_error("dyn_slaves : can't open slaves dir");
+		RAII_AT_END_L( ::closedir(slaves_dir) );
+		dirent* dp = NULL;
+		while ((dp = ::readdir(slaves_dir)) != NULL) {
+			for (ni = 1; ni <= 5; ni++)
+				if (dp->d_name[::strlen(dp->d_name)-ni] != ".conf"[5-ni]) 
+					goto __dp_loop_next;
+			{
+				std::string fname = _S( IOSLAVES_MASTER_SLAVES_DIR,"/",std::string(dp->d_name) );
+				iosl_dyn_slaves::slave_info info;
+				info.sl_name = std::string(dp->d_name).substr(0, ::strlen(dp->d_name)-ni+1);
+				if (info.sl_name.length() < 3 or !ioslaves::validateSlaveName(info.sl_name)) continue;
+				FILE* ser_f = ::fopen(fname.c_str(), "r");
+				if (ser_f == NULL)
+					throw xif::sys_error(_S("failed to open slave info file for ",info.sl_name));
+				libconfig::Config* conf = new libconfig::Config;
+				try {
+					conf->read(ser_f);
+				} catch (const libconfig::ParseException& e) {
+					throw ioslaves::req_err(answer_code::INVALID_DATA, logstream << "Parse error in slave file of " << info.sl_name << " at line " << e.getLine() << " : " << e.getError());
+				}
+				slaves_list_cfg.push_back( std::pair<slave_info,libconfig::Config*>( info, conf ) );
+				::fclose(ser_f);
 			}
-			slaves_list_cfg.push_back( std::pair<slave_info,libconfig::Config*>( info, conf ) );
-			::fclose(ser_f);
+		__dp_loop_next:
+			continue;
 		}
-	__dp_loop_next:
-		continue;
 	}
-	if (rr == -1)
-		throw xif::sys_error("slaves dir : readdir_r");
 	
 		/// Pre-fill the info strcut
 	std::vector<iosl_dyn_slaves::slave_info> slaves_list;

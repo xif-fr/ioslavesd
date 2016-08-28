@@ -604,16 +604,10 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 						}
 						throw xif::sys_error("can't open global server dir for listing maps");
 					}
-					dirent* dp, *dentr = (dirent*) ::malloc(
-						(size_t)offsetof(struct dirent, d_name) + std::max(sizeof(dirent::d_name), (size_t)::fpathconf(dirfd(dir),_PC_NAME_MAX)) +1
-					);
-					RAII_AT_END({ 
-						::closedir(dir);
-						::free(dentr);
-					});
-					int rr;
-					while ((rr = ::readdir_r(dir, dentr, &dp)) != -1 and dp != NULL) {
-						std::string map = std::string(dentr->d_name);
+					RAII_AT_END_L( ::closedir(dir) );
+					dirent* dp = NULL;
+					while ((dp = ::readdir(dir)) != NULL) {
+						std::string map = std::string(dp->d_name);
 						if (ioslaves::validateName(map) and not (s != NULL and s->s_map == map)) {
 							std::string lastsavetime_path = _S( MINECRAFT_SRV_DIR,"/mc_",s_servid,'/',map );
 							r = ::access(_s(lastsavetime_path,"/lastsave"), R_OK);
@@ -625,8 +619,6 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 							serv_maps.push_back(std::make_tuple(map,lastsave,fixed));
 						}
 					}
-					if (rr == -1)
-						throw xif::sys_error("map listing in server folder : readdir_r");
 				} catch (const std::exception& e) {
 					__log__(log_lvl::ERROR, "FILES", logstream << "Error while listing maps of server : " << e.what());
 				}
@@ -1690,7 +1682,7 @@ void* minecraft::serv_thread (void* arg) {
 					throw xif::sys_error("error during select() in minecraft service server thread");
 				}
 					// Timeout
-				else if (r == 0) {
+				if (r == 0) {
 					if (::time(NULL)%20 == 0 and stopInfo.doneDone and s->s_is_perm_map) {
 						lastsaveTimeFile(_S( MINECRAFT_SRV_DIR,"/mc_",s->s_servid,'/',s->s_map ), true);
 					}
@@ -1730,7 +1722,8 @@ void* minecraft::serv_thread (void* arg) {
 						interpret_requests.insert(interpret_requests.end(), int_req);
 					}
 				}
-				else if (r >= 1) {
+				
+				if (r >= 1) {
 					
 						// Check for java output
 					if (FD_ISSET(java_pipes.out, &sel_set) or FD_ISSET(java_pipes.err, &sel_set)) {
@@ -1756,7 +1749,10 @@ void* minecraft::serv_thread (void* arg) {
 								current_line.erase(0,i+1);
 								i = 0;
 								
-								MC_log_interpret(line, s, &stopInfo, interpret_requests);
+								MC_log_interpret(line, s,
+								                 &stopInfo,
+								                 interpret_requests,
+								                 &javavm_gc_hist);
 								timeval utc_time; ::gettimeofday(&utc_time, NULL);
 								log_hist.push_back( log_line({utc_time.tv_sec, line}) );
 								

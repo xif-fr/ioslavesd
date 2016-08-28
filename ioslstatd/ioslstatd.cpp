@@ -13,16 +13,6 @@
 	
 	// Log
 #include <sstream>
-std::ostringstream log_stream;
-std::ostream& xlog::logstream_acquire () noexcept {
-	return log_stream;
-}
-std::string xlog::logstream_retrieve () noexcept {
-	std::string buf = log_stream.str();
-	log_stream.str(std::string());
-	return buf;
-}
-
 #include <iostream>
 #define LOG_ARROW       "\033[34;1m=> \033[0m"
 #define LOG_ARROW_OK    "\033[32;1m=> \033[0m"
@@ -35,6 +25,13 @@ std::string xlog::logstream_retrieve () noexcept {
 #define COLOR_YELLOW    "\033[1;33m"
 #define COLOR_GREEN     "\033[32m"
 #define COLOR_RESET     "\033[0m"
+std::ostringstream log_stream;
+std::ostream& xlog::logstream_acquire () noexcept { return log_stream; }
+std::string xlog::logstream_retrieve () noexcept { std::string buf = log_stream.str(); log_stream.str(std::string()); return buf; }
+void xlog::__log__ (xlog::log_lvl lvl, const char* part, std::ostream&, int m, xlog::logl_t* lid) noexcept { xlog::__log__(lvl,part,xlog::logstream_retrieve(),m,lid); }
+void xlog::__log__ (xlog::log_lvl lvl, const char* part, std::string msg, int m, xlog::logl_t* lid) noexcept {
+	std::cerr << "[" << part << "] " << msg << std::endl;
+}
 
 	// Misc
 #include <stdlib.h>

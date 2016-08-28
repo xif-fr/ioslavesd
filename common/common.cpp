@@ -328,7 +328,6 @@ _rewait:
 	return WEXITSTATUS(cmd_r);
 }
 
-#define DIRENT_ALLOC_SZ(dir) (size_t)offsetof(struct dirent, d_name) + std::max(sizeof(dirent::d_name), (size_t)::fpathconf(dirfd(dir),_PC_NAME_MAX)) +1
 
 	// Remove folder entierely
 void ioslaves::rmdir_recurse (const char* dir_path) {
@@ -336,13 +335,9 @@ void ioslaves::rmdir_recurse (const char* dir_path) {
 	DIR* dir = ::opendir(dir_path);
 	if (dir == NULL) 
 		throw xif::sys_error(_S("rmdir_recurse : can't open dir '",dir_path,"'"));
-	dirent* dp, *dentr = (dirent*) ::malloc(DIRENT_ALLOC_SZ(dir));
-	RAII_AT_END({
-		::closedir(dir);
-		::free(dentr);
-	});
-	int rr;
-	while ((rr = ::readdir_r(dir, dentr, &dp)) != -1 and dp != NULL) {
+	RAII_AT_END_L( ::closedir(dir) );
+	dirent* dp = NULL;
+	while ((dp = ::readdir(dir)) != NULL) {
 		if (::strcmp(dp->d_name, ".") == 0 or ::strcmp(dp->d_name, "..") == 0) continue;
 		char* path = new char[::strlen(dir_path)+::strlen(dp->d_name)+2];
 		RAII_AT_END_L( delete[] path );
@@ -361,8 +356,6 @@ void ioslaves::rmdir_recurse (const char* dir_path) {
 				throw xif::sys_error(_S("rmdir_recurse : can't remove file '",path,"'"));
 		}
 	}
-	if (rr == -1)
-		throw xif::sys_error("rmdir_recurse : readdir_r");
 	r = ::rmdir(dir_path);
 	if (r == -1) 
 		throw xif::sys_error(_S("rmdir_recurse : can't remove directory '",dir_path,"'"));
@@ -374,13 +367,9 @@ void ioslaves::chown_recurse (const char* dir_path, uid_t uid, gid_t gid) {
 	DIR* dir = ::opendir(dir_path);
 	if (dir == NULL) 
 		throw xif::sys_error(_S("chown_recurse : can't open dir '",dir_path,"'"));
-	dirent* dp, *dentr = (dirent*) ::malloc(DIRENT_ALLOC_SZ(dir));
-	RAII_AT_END({
-		::closedir(dir);
-		::free(dentr);
-	});
-	int rr;
-	while ((rr = ::readdir_r(dir, dentr, &dp)) != -1 and dp != NULL) {
+	RAII_AT_END_L( ::closedir(dir) );
+	dirent* dp = NULL;
+	while ((dp = ::readdir(dir)) != NULL) {
 		if (::strcmp(dp->d_name, ".") == 0 or ::strcmp(dp->d_name, "..") == 0) continue;
 		char* path = new char[::strlen(dir_path)+::strlen(dp->d_name)+2];
 		RAII_AT_END_L( delete[] path );
@@ -399,8 +388,6 @@ void ioslaves::chown_recurse (const char* dir_path, uid_t uid, gid_t gid) {
 				throw xif::sys_error(_S("chown_recurse : can't chown file '",path,"'"));
 		}
 	}
-	if (rr == -1)
-		throw xif::sys_error("chown_recurse : readdir_r");
 	r = ::lchown(dir_path, uid, gid);
 	if (r == -1) 
 		throw xif::sys_error(_S("chown_recurse : can't chown directory '",dir_path,"'"));

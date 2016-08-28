@@ -514,14 +514,12 @@ int main (int argc, const char* argv[]) {
 							DIR* dir = ::opendir(IOSLAVESD_KEYS_DIR);
 							if (dir == NULL) 
 								throw xif::sys_error("can't open keys dir");
-							dirent* dp, *dentr = (dirent*) ::malloc((size_t)offsetof(struct dirent, d_name) + std::max(sizeof(dirent::d_name), (size_t)::fpathconf(dirfd(dir),_PC_NAME_MAX)) +1);
-							RAII_AT_END({ ::closedir(dir); ::free(dentr); });
-							int rr;
-							while ((rr = ::readdir_r(dir, dentr, &dp)) != -1 and dp != NULL) {
-								if (dentr->d_type != DT_DIR) 
+							RAII_AT_END_L( ::closedir(dir) );
+							dirent* dp = NULL;
+							while ((dp = ::readdir(dir)) != NULL) {
+								if (dp->d_type != DT_DIR)
 									throw ioslaves::req_err(ioslaves::answer_code::NOT_AUTHORIZED, "PERMS", "Key folder not empty : first key sending can't be satisfied", log_lvl::SEVERE);
 							}
-							if (rr == -1) throw xif::sys_error("readdir error while listing keys dir");
 							__log__(log_lvl::IMPORTANT, "PERMS", logstream << "Master is not authenticated but key folder is empty : authorizing first key sending");
 						}
 						in_addr_t auth_ip;
