@@ -426,9 +426,7 @@ void xdyndns::NSD_zone_parser (std::string domain, const std::list<xdyndns::srv_
 		}
 		if (ctx == CTX_DYNPART_WAIT) 
 			goto __CTX_DYNPART_WRITE;
-		throw xif::sys_error("dyndns zone parse error", (ctx < CTX_DYNPART_WAIT) ? 
-																		_S("didn't reach DYNPART ctxs (ctx=",::ixtoa((int)ctx),")"):
-																		"wtf, srv table not written");
+		throw xif::sys_error("dyndns zone parse error", (ctx < CTX_DYNPART_WAIT) ? _S("didn't reach DYNPART ctxs (ctx=",::ixtoa((int)ctx),")") : "wtf, srv table not written");
 	} catch (const xif::sys_error& se) {
 		throw;
 	} catch (const std::exception& e) {

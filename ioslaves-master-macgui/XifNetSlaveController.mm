@@ -163,7 +163,7 @@ NSAttributedString* log_master_strs[] = {
 		}
 		NSDictionary* slavePrefs = [prefsSlaves objectForKey:[NSString stringWithStdString:self->slaveID]];
 		if (slavePrefs == nil) {
-			slavePrefs = [NSDictionary dictionaryWithObjectsAndKeys:[NSDictionary dictionary], @"ssh", 
+			slavePrefs = [NSDictionary dictionaryWithObjectsAndKeys:[NSArray array], @"ssh",
 			                                                        nil];
 			prefsSlaves = [NSMutableDictionary dictionaryWithDictionary:prefsSlaves];
 			[prefsSlaves setValue:slavePrefs forKey:[NSString stringWithStdString:self->slaveID]];
@@ -224,7 +224,8 @@ NSAttributedString* log_master_strs[] = {
 				NSUserDefaults* prefs = [NSUserDefaults standardUserDefaults];
 				NSMutableDictionary* prefsSlaves = [NSMutableDictionary dictionaryWithDictionary:[prefs dictionaryForKey:@"slaves"]];
 				NSMutableDictionary* slavePrefs = [NSMutableDictionary dictionaryWithDictionary:[prefsSlaves objectForKey:[NSString stringWithStdString:self->slaveID]]];
-				NSMutableArray* sshPresets = [NSMutableArray arrayWithArray:[slavePrefs objectForKey:@"ssh"]];
+				NSMutableArray* sshPresets = ([slavePrefs objectForKey:@"ssh"] == nil) ? [NSMutableArray array] :
+				                                                                         [NSMutableArray arrayWithArray:[slavePrefs objectForKey:@"ssh"]];
 				NSDictionary* preset = [NSDictionary dictionaryWithObjectsAndKeys:[view->presetNameField stringValue], @"name",
 				                                                                  [view->usernameField stringValue], @"user",
 				                                                                  [view->sshfsPathField stringValue], @"path",

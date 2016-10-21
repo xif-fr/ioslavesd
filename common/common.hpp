@@ -80,7 +80,7 @@ namespace ioslaves {
 	#define IOSLAVES_KEY_SEND_DELAY 4
 	std::string bin_to_hex (const unsigned char* d, size_t sz);
 	void hex_to_bin (std::string, unsigned char* d);
-	unsigned char* generate_random (size_t sz);
+	std::unique_ptr<unsigned char[]> generate_random (size_t sz);
 	std::string md5 (std::string to_hash);
 	struct key_t { unsigned char bin [KEY_LEN]; };
 	struct challenge_t { unsigned char bin [CHALLENGE_LEN]; };
@@ -148,7 +148,7 @@ namespace ioslaves {
 	inline bool operator>= (const version& ver1, const version& ver2) { return (ver1 == ver2 or ver2 <= ver1); }
 	
 		// Execute program `cmd` with arguments in defined working directory, and redirect standard in/out to returned pipe
-	std::pair<pid_t,pipe_proc_t> fork_exec (const char* cmd, const std::vector<std::string>& args, bool io_redir, const char* wdir, bool closefds, uid_t uid, gid_t gid, bool disown);
+	std::pair<pid_t,pipe_proc_t> fork_exec (const char* cmd, const std::vector<std::string>& args, bool io_redir, const char* wdir, bool closefds, uid_t uid, gid_t gid, bool disown, const char* locale);
 		// system(3) implementation, SIGCHILD must be blocked in other threads
 	int exec_wait (const char* cmd, const std::vector<std::string>& args, const char* wdir, uid_t uid, gid_t gid);
 		

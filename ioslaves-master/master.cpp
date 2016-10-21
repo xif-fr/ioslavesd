@@ -508,8 +508,8 @@ void IPreSlaveCo () {
 	try {
 		if (not $addr_defined) {
 			in_port_t $connect_port = IOSLAVES_MASTER_DEFAULT_PORT;
-			try { // Retriving port number with SRV records
-				std::cerr << "Retriving port number from SRV record _ioslavesd._tcp." << $slave_id << '.' << XIFNET_SLAVES_DOM << "..." << std::endl;
+			try { // Retrieving port number with SRV records
+				std::cerr << "Retrieving port number from SRV record _ioslavesd._tcp." << $slave_id << '.' << XIFNET_SLAVES_DOM << "..." << std::endl;
 				$connect_port = iosl_master::slave_get_port_dns($slave_id);
 			} catch (const iosl_master::ldns_error& e) {
 				std::cerr << (optctx::interactive?COLOR_YELLOW:COLOR_RED) << "Failed to retrive port number : " << e.what();
@@ -805,10 +805,9 @@ void IPowerup () {
 
 void IKeygen () {
 	std::cerr << LOG_ARROW << "Generating key for slave '" << $slave_id << "'..." << std::endl;
-	unsigned char* keybuf = ioslaves::generate_random(KEY_LEN);
-	RAII_AT_END({ delete[] keybuf; });
+	std::unique_ptr<unsigned char[]> keybuf = ioslaves::generate_random(KEY_LEN);
 	ioslaves::key_t key;
-	::memcpy(key.bin, keybuf, KEY_LEN);
+	::memcpy(key.bin, keybuf.get(), KEY_LEN);
 	int r;
 	r = ::access(IOSLAVES_MASTER_KEYS_DIR, F_OK);
 	if (r == -1) {
@@ -983,12 +982,12 @@ void ISlKeyAuth () {
 	o = (ioslaves::answer_code)$slave_sock->i_char();
 	if (o != ioslaves::answer_code::OK)
 		throw o;
-	std::cerr << LOG_ARROW_OK << "Authorization acceped ! Waiting for sender master connection to slave (max " << IOSLAVES_KEY_SEND_DELAY << " seconds)..." << std::endl;
+	std::cerr << LOG_ARROW_OK << "Authorization accepted ! Waiting for sender master connection to slave (max " << IOSLAVES_KEY_SEND_DELAY << " seconds)..." << std::endl;
 	$slave_sock->set_read_timeout(timeval({IOSLAVES_KEY_SEND_DELAY+1,0}));
 	o = (ioslaves::answer_code)$slave_sock->i_char();
 	if (o == ioslaves::answer_code::OK) {
 		$key_sl_auth_ip = $slave_sock->i_str();
-		std::cerr << LOG_ARROW_OK << "Key of master '" << $key_sl_master << "' (" << $key_sl_auth_ip << ") acceped !" << std::endl;
+		std::cerr << LOG_ARROW_OK << "Key of master '" << $key_sl_master << "' (" << $key_sl_auth_ip << ") accepted !" << std::endl;
 		delete $slave_sock;
 		$slave_sock = NULL;
 		return;

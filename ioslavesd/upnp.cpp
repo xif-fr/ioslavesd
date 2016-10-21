@@ -87,11 +87,15 @@ void ioslaves::upnpInit () {
 					::close(f);
 					return;
 				} else
-					__log__(log_lvl::LOG, "UPnP", logstream << "Cached IGD is now unreachable");
+					__log__(log_lvl::NOTICE, "UPnP", logstream << "Cached IGD is now unreachable");
 			}
 		_abort_cache:;
 		}
-		RAII_AT_END({ if (f != -1) ::close(f); });
+		if (f != -1) {
+			::ftruncate(f, (size_t)0);
+			::lseek(f, (off_t)0, SEEK_SET);
+		}
+		RAII_AT_END({ if (f != -1) ::close(f); f = -1; });
 			// Search for UPnP devices on the network
 		UPNPDev* dev_list = upnpDiscoverAll(UPNP_DISCOVER_MAX_DELAY_MS, 
 		                                    UPNP_DISCOVER_INTERFACE, NULL, UPNP_LOCAL_PORT_SAME, false, UPNP_DISCOVER_IP_MULTICAST_TTL, 
@@ -133,8 +137,6 @@ void ioslaves::upnpInit () {
 		throw ioslaves::upnpError("No valid UPnP IGD found");
 	_ok:
 		if (f != -1) {
-			::ftruncate(f, (size_t)0);
-			::lseek(f, (off_t)0, SEEK_SET);
 			rs = ::write(f, upnp_device_url.rootdescURL, ::strlen(upnp_device_url.rootdescURL));
 		}
 	} catch (const ioslaves::upnpError& upnperr) {
@@ -307,7 +309,7 @@ void ioslaves::upnpReopen () {
 			unreachable = 0;
 		} catch (...) {
 			if (::time(NULL)%10 == 0)
-				__log__(log_lvl::FATAL, "UPnP", logstream << "IGD is unreachable for " << ::time(NULL)-unreachable << "s !");
+				__log__(log_lvl::SEVERE, "UPnP", logstream << "IGD is unreachable for " << ::time(NULL)-unreachable << "s !");
 			return;
 		}
 	}

@@ -33,11 +33,7 @@ using ioslaves::answer_code;
 std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::gather_infos (std::vector<std::string> needed_tags) {
 	
 		/// List slaves and open info files
-	std::vector<std::pair<iosl_dyn_slaves::slave_info,libconfig::Config*>> slaves_list_cfg;
-	RAII_AT_END({
-		for (std::pair<iosl_dyn_slaves::slave_info,libconfig::Config*>& p : slaves_list_cfg) 
-			delete p.second;
-	});
+	std::vector<std::pair< iosl_dyn_slaves::slave_info,std::unique_ptr<libconfig::Config> >> slaves_list_cfg;
 	
 	{	size_t ni;
 		DIR* slaves_dir = ::opendir(IOSLAVES_MASTER_SLAVES_DIR);
@@ -63,7 +59,7 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::gather_infos (std::vec
 				} catch (const libconfig::ParseException& e) {
 					throw ioslaves::req_err(answer_code::INVALID_DATA, logstream << "Parse error in slave file of " << info.sl_name << " at line " << e.getLine() << " : " << e.getError());
 				}
-				slaves_list_cfg.push_back( std::pair<slave_info,libconfig::Config*>( info, conf ) );
+				slaves_list_cfg.push_back({info, std::unique_ptr<libconfig::Config>(conf)});
 				::fclose(ser_f);
 			}
 		__dp_loop_next:
@@ -73,7 +69,7 @@ std::vector<iosl_dyn_slaves::slave_info> iosl_dyn_slaves::gather_infos (std::vec
 	
 		/// Pre-fill the info strcut
 	std::vector<iosl_dyn_slaves::slave_info> slaves_list;
-	for (const std::pair<iosl_dyn_slaves::slave_info,libconfig::Config*>& p : slaves_list_cfg) {
+	for (const std::pair<iosl_dyn_slaves::slave_info, std::unique_ptr<libconfig::Config>>& p : slaves_list_cfg) {
 		iosl_dyn_slaves::slave_info info = p.first;
 		info.sl_status = -1;
 		libconfig::Config& cfg = *p.second;

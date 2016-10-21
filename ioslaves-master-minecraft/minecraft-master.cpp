@@ -1743,7 +1743,7 @@ _try_start:
 			::setRunningOnSlave($server_name, $slave_id);
 		__log__ << LOG_ARROW << "Starting early LiveConsole on port " << $websocket_port << " via minecraft-master..." << std::flush;
 		ioslaves::fork_exec("minecraft-master", {$master_id, $slave_id, "-i", "--websocket", ::ixtoa($websocket_port) ,"--server", $server_name, "--console"}, 
-								  false, NULL, true, -1, -1, true);
+		                    false, NULL, true, -1, -1, true, NULL);
 		__log__ << LOG_AROBASE_OK << "Exiting." << std::flush;
 	} else {
 		if ((o = (ioslaves::answer_code)sock->i_char()) != ioslaves::answer_code::OK) 

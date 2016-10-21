@@ -68,7 +68,7 @@ in_port_t iosl_master::slave_get_port_dns (std::string slave_id) {
 	// Resolve and connect to a slave
 socketxx::base_netsock iosl_master::slave_connect (std::string slave_id, in_port_t default_port, timeval timeout) {
 	socketxx::base_netsock::addr_info addr ( _s(slave_id,'.',XIFNET_SLAVES_DOM), [&] () -> in_port_t {
-		try { // Retriving port number with SRV records
+		try { // Retrieving port number with SRV records
 			return iosl_master::slave_get_port_dns(slave_id);
 		} catch (const ldns_error&) {
 			if (default_port == 0)

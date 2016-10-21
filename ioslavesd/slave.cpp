@@ -460,11 +460,10 @@ int main (int argc, const char* argv[]) {
 					cli.o_char((char)e.answ_code);
 					continue;
 				}
-				unsigned char* challenge = ioslaves::generate_random(CHALLENGE_LEN);
-				RAII_AT_END({ delete[] challenge; });
-				cli.o_buf(challenge, CHALLENGE_LEN);
+				std::unique_ptr<unsigned char[]> challenge = ioslaves::generate_random(CHALLENGE_LEN);
+				cli.o_buf(challenge.get(), CHALLENGE_LEN);
 				unsigned char buf [CHALLENGE_LEN+KEY_LEN];
-				::memcpy(buf, challenge, CHALLENGE_LEN);
+				::memcpy(buf, challenge.get(), CHALLENGE_LEN);
 				::memcpy(buf+CHALLENGE_LEN, key.bin, KEY_LEN);
 				ioslaves::hash_t expected_answer;
 				::WHIRLPOOL(buf, CHALLENGE_LEN+KEY_LEN, expected_answer.bin);
@@ -680,6 +679,7 @@ int main (int argc, const char* argv[]) {
 					} break;
 					case ioslaves::op_code::PERM_STATUS: {
 						__log__(silent ? log_lvl::_DEBUG : log_lvl::LOG, "OP", "Registering to the permanent status pool");
+						OpPermsCheck();
 						pthread_mutex_handle_lock(status_clients_mutex);
 						status_clients.insert(status_clients.begin(), cli);
 					} break;

@@ -209,13 +209,13 @@ std::string ioslaves::md5 (std::string to_hash) {
 	return bin_to_hex(hashed, sizeof(hashed));
 }
 
-unsigned char* ioslaves::generate_random (size_t sz) {
+std::unique_ptr<unsigned char[]> ioslaves::generate_random (size_t sz) {
 	fd_t fd = ::open("/dev/urandom", O_RDONLY);
 	if (fd == -1) throw xif::sys_error("open(/dev/urandom) failed");
 	RAII_AT_END_L( ::close(fd) );
 	unsigned char* buf = new unsigned char[sz];
 	if (::read(fd, buf, sz) != (ssize_t)sz) throw xif::sys_error("read(/dev/urandom) failed");
-	return buf;
+	return std::unique_ptr<unsigned char[]>(buf);
 }
 
 /** ------------------------------------	**/
@@ -229,7 +229,7 @@ unsigned char* ioslaves::generate_random (size_t sz) {
 #include <sys/wait.h>
 
 	// Fork processus, change working dir, execute `cmd` with arguments, and redirect standard in/out to returned pipe
-std::pair<pid_t,pipe_proc_t> ioslaves::fork_exec (const char* cmd, const std::vector<std::string>& args, bool io_redir, const char* wdir, bool closefds, uid_t uid, gid_t gid, bool disown) {
+std::pair<pid_t,pipe_proc_t> ioslaves::fork_exec (const char* cmd, const std::vector<std::string>& args, bool io_redir, const char* wdir, bool closefds, uid_t uid, gid_t gid, bool disown, const char* locale) {
 	int r;
 	fd_t pipes_in[2], pipes_out[2], pipes_err[2];
 	if (io_redir) {
@@ -257,8 +257,8 @@ std::pair<pid_t,pipe_proc_t> ioslaves::fork_exec (const char* cmd, const std::ve
 			::close(pipes_err[0]); ::close(pipes_out[0]); ::close(pipes_in[1]);
 		}
 		if (::dup2(pipes_err[1], STDERR_FILENO) == -1 ||
-			 ::dup2(pipes_out[1], STDOUT_FILENO) == -1 ||
-			 ::dup2(pipes_in[0], STDIN_FILENO) == -1 )
+		    ::dup2(pipes_out[1], STDOUT_FILENO) == -1 ||
+		    ::dup2(pipes_in[0], STDIN_FILENO) == -1 )
 		{ 
 			::perror("fork_exec : can't redirect standard in/out with dup2()"); 
 			::exit(EXIT_FAILURE);
@@ -287,8 +287,10 @@ std::pair<pid_t,pipe_proc_t> ioslaves::fork_exec (const char* cmd, const std::ve
 				::exit(EXIT_FAILURE);
 			}
 		}
-		if (disown) {
-				// Create empty process session/group to disown child process
+		if (locale != NULL) {  // Change locale of child process
+			::setlocale(LC_ALL, locale);
+		}
+		if (disown) {  // Create empty process session/group to disown child process
 			r = ::setsid();
 			if (r == -1) { 
 				::perror("fork_exec : can't change process session"); 
@@ -317,7 +319,7 @@ std::pair<pid_t,pipe_proc_t> ioslaves::fork_exec (const char* cmd, const std::ve
 int ioslaves::exec_wait (const char* cmd, const std::vector<std::string>& args, const char* wdir, uid_t uid, gid_t gid) {
 	int r;
 	pid_t pid = 
-		ioslaves::fork_exec(cmd, args, false, wdir, true, uid, gid, false).first;
+		ioslaves::fork_exec(cmd, args, false, wdir, true, uid, gid, false, NULL).first;
 	int cmd_r = 0;
 _rewait:
 	r = ::waitpid(pid, &cmd_r, 0);

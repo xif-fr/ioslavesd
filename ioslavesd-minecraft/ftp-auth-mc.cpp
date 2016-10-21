@@ -217,7 +217,7 @@ void* minecraft::mc_ftpd_auth_thread (void* arg) {
 		                    	"--nochmod",
 		                    	_S("--minuid=",::ixtoa(java_user_id))
 		                    }, 
-		                    false, NULL, true, 0, 0, true).first;
+		                    false, NULL, true, 0, 0, true, NULL).first;
 		}
 		__log__(log_lvl::DONE, "FTP", "Done", LOG_ADD, &l);
 
