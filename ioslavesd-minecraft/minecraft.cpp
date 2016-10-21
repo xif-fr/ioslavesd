@@ -150,11 +150,12 @@ namespace minecraft {
 
 	// Start Minecraft service
 extern "C" bool ioslapi_start (const char*) {
+	int r;
 	logl_t l;
 	__log__(log_lvl::IMPORTANT, NULL, logstream << "Starting Minecraft Servers Distributed Hosting...");
 	
 		// Minecraft user for executing java
-	int r;
+#ifndef IOSLMC_NO_MCJAVA_USER
 	errno = 0;
 	long _pwbufsz = ::sysconf(_SC_GETPW_R_SIZE_MAX);
 	if (_pwbufsz < 1) _pwbufsz = 100;
@@ -167,6 +168,10 @@ extern "C" bool ioslapi_start (const char*) {
 	}
 	minecraft::java_user_id = userinfo.pw_uid;
 	minecraft::java_group_id = userinfo.pw_gid;
+#else
+	#define java_user_id (uid_t)-1
+	#define java_group_id (gid_t)-1
+#endif
 	
 		// Load conf file
 	__log__(log_lvl::LOG, NULL, logstream << "Loading conf file...");
@@ -752,16 +757,12 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 
 	// Should always be running as euid=mcjava
 inline void assert_mcjava () {
-#ifdef __linux__
+#ifndef IOSLMC_NO_MCJAVA_USER
 	uid_t euid = ::getegid();
 	if (euid != minecraft::java_user_id) 
 		throw std::logic_error("should be running as mcjava !");
 #endif
 }
-#ifndef __linux__
-	#define java_user_id (uid_t)-1
-	#define java_group_id (gid_t)-1
-#endif
 
 /// Transfer and map functions
 
@@ -1516,10 +1517,9 @@ struct interpret_request {
 	std::function<bool (decltype(sock), std::string msg, interpret_request*)> f_callback; // ret true = end of request, autodel ctx data sock
 	std::function<void (decltype(sock), interpret_request*)> f_expire;
 };
-std::string MC_log_interpret (std::string line, minecraft::serv*, minecraft::serv_stopped*, std::list<interpret_request*>&);
 
 void MC_write_command (minecraft::serv* s, pipe_proc_t java_pipes, std::string cmd);
-#define WriteEarlyState(_char_) _stat = _char_; ::write(s->s_early_pipe, &_stat, 1);
+#define WriteEarlyState(_char_) { _stat = _char_; ::write(s->s_early_pipe, &_stat, 1); }
 
 void* minecraft::serv_thread (void* arg) {
 	char _stat;
@@ -1644,7 +1644,7 @@ void* minecraft::serv_thread (void* arg) {
 			// Live console
 		struct log_line { time_t time; std::string msg; };
 		std::vector<log_line> log_hist;
-		std::string current_line;
+		std::string buffer_lines;
 		std::list<socketxx::io::simple_socket<socketxx::base_netsock>*> live_consoles;
 		std::list<interpret_request*> interpret_requests;
 		
@@ -1725,7 +1725,7 @@ void* minecraft::serv_thread (void* arg) {
 				
 				if (r >= 1) {
 					
-						// Check for java output
+						/// Check for java output
 					if (FD_ISSET(java_pipes.out, &sel_set) or FD_ISSET(java_pipes.err, &sel_set)) {
 						errno = 0;
 						char lbuf[1024];
@@ -1742,38 +1742,109 @@ void* minecraft::serv_thread (void* arg) {
 						if (rs == -1)
 							throw xif::sys_error("read from java stdout failed");
 						
-						current_line.insert(current_line.length(), lbuf, (size_t)rs);
-						for (size_t i = 0; i < current_line.length(); i++) {
-							if (current_line[i] == '\n') {
-								std::string line = current_line.substr(0,i);
-								current_line.erase(0,i+1);
+							// Extract individual lines from java's output
+						std::vector<std::string> lines;
+						buffer_lines.insert(buffer_lines.length(), lbuf, (size_t)rs);
+						for (size_t i = 0; i < buffer_lines.length(); i++) {
+							if (buffer_lines[i] == '\n') {
+								if (s->s_early_pipe != INVALID_HANDLE)
+									WriteEarlyState('l');
+								lines.push_back( buffer_lines.substr(0,i) );
+								buffer_lines.erase(0,i+1);
 								i = 0;
-								
-								MC_log_interpret(line, s,
-								                 &stopInfo,
-								                 interpret_requests,
-								                 &javavm_gc_hist);
-								timeval utc_time; ::gettimeofday(&utc_time, NULL);
-								log_hist.push_back( log_line({utc_time.tv_sec, line}) );
-								
-								for (auto it = live_consoles.begin(); it != live_consoles.end();) {
-									try {
-										(*it)->o_int<int64_t>(utc_time.tv_sec);
-										(*it)->o_str(line); 
-									} catch (const socketxx::error& e) { 
-										__ldebug__(THLOGSCLI(s), "Live console client hanged up");
-										FD_CLR((*it)->socketxx::base_fd::get_fd(), &select_set);
-										delete *it;
-										auto p_it = it++; live_consoles.erase(p_it);
-										continue;
-									}
-									it++;
-								}
 							}
 						}
+						for (const std::string& line : lines) {
+							
+							if (line.std::string::find("[GC ") == 0) {
+								javavm_gc_hist.push_gc_entry(line);
+								continue;
+							}
+								// Quick parsing of the line : extract the date, the part/severity and the message
+#ifdef SCANF_NOGNU
+							char m_date[21], m_part[100]; int mi_msg = -1;
+							r = ::sscanf(line.c_str(), "[%19[^]]] [%99[^]]]%*[: ]%n", m_date, m_part, &mi_msg);
+#else
+							char m_date[21]; char* m_part = NULL; int mi_msg = -1;
+							RAII_AT_END({ if (m_part) ::free(m_part); });
+							if (s->s_mc_ver >= ioslaves::version(1,7,0))
+								r = ::sscanf(line.c_str(), "[%19[^]]] [%m[^]]]%*[: ]%n", m_date, &m_part, &mi_msg);
+							else
+								r = ::sscanf(line.c_str(), "%20[^[][%m[^]]]%n", m_date, &m_part, &mi_msg);
+#endif
+							std::string msg, m_msg;
+							char severity = '?';
+							if (r >= 2 and mi_msg != -1) {
+								m_msg = line.substr(mi_msg);
+								std::string part = m_part; size_t slash;
+								if ((slash = part.find('/')) != std::string::npos and slash+1 < part.length()) {
+									severity = part[slash+1];
+									part = part.substr(0,slash);
+									msg = _S( severity," [",part,"] ",m_msg );
+								} else
+									msg = m_msg;
+							} else
+								msg = m_msg = line;
+							__log__(log_lvl::_DEBUG, THLOGSCLI(s), logstream << "-- " << msg, (stopInfo.doneDone?LOG_NO_HISTORY:0));
+							
+								// Detect done/stop messages emitted by mc server
+							const char* done_msg = "Done (";
+							if (s->s_serv_type == minecraft::serv_type::BUNGEECORD) done_msg = "Listening on";
+							if (not stopInfo.doneDone and m_msg.std::string::find(done_msg) == 0) {
+								WriteEarlyState('d');
+								__log__(log_lvl::NOTICE, THLOGSCLI(s), logstream << "Server started !");
+								stopInfo.doneDone = true;
+								stopInfo.why = (minecraft::whyStopped)0;
+							}
+							if (m_msg.std::string::find("Stopping server") == 0) {
+								__log__(log_lvl::NOTICE, THLOGSCLI(s), logstream << "Server said it is stopping !");
+								if (s->s_early_pipe != INVALID_HANDLE) WriteEarlyState('S');
+								stopInfo.gracefully = true;
+								if (stopInfo.why == (minecraft::whyStopped)0) stopInfo.why = minecraft::whyStopped::ITSELF;
+							}
+							
+								// Go through interpret requests
+							for (auto it = interpret_requests.begin(); it != interpret_requests.end(); it++) {
+								interpret_request* int_req = *it;
+								for (const std::string patten : int_req->patterns_beg) {
+									if (patten.length() == 0 or m_msg.std::string::find(patten) == 0) {
+										int_req->patterns_beg = { patten };
+										bool r = (int_req->f_callback)(int_req->sock, m_msg, int_req);
+										if (r) {
+											if (int_req->sock != NULL)
+												delete int_req->sock;
+											delete int_req;
+											auto p_it = it++; interpret_requests.erase(p_it);
+										} else
+											it++;
+										break;
+									}
+								}
+							}
+							
+								// Send the log line to LiveConsole clients
+							timeval utc_time;
+							::gettimeofday(&utc_time, NULL);
+							for (auto it = live_consoles.begin(); it != live_consoles.end();) {
+								try {
+									(*it)->o_int<int64_t>(utc_time.tv_sec);
+									(*it)->o_str(msg);
+								} catch (const socketxx::error& e) { 
+									__ldebug__(THLOGSCLI(s), "Live console client hanged up");
+									FD_CLR((*it)->socketxx::base_fd::get_fd(), &select_set);
+									delete *it;
+									auto p_it = it++; live_consoles.erase(p_it);
+									continue;
+								}
+								it++;
+							}
+							log_hist.push_back({ .time = utc_time.tv_sec, .msg = msg });
+							
+						}
+						
 					}
 					
-						// Check for internal communication pipe input
+						/// Check for internal communication pipe input
 					if (FD_ISSET(comm_socket, &sel_set)) {
 						socketxx::io::simple_socket<socketxx::base_fd> comms(socketxx::base_socket(comm_socket, SOCKETXX_MANUAL_FD));
 						minecraft::internal_serv_op_code opp = (minecraft::internal_serv_op_code)comms.i_char();
@@ -1928,7 +1999,7 @@ void* minecraft::serv_thread (void* arg) {
 					
 				}
 				
-				// Interpret request timeout
+					// Interpret request timeout
 				for (auto it = interpret_requests.begin(); it != interpret_requests.end();) {
 					interpret_request* int_req = *it;
 					if (::time(NULL) >= int_req->req_end) {
@@ -2097,82 +2168,6 @@ void MC_write_command (minecraft::serv* s, pipe_proc_t java_pipes, std::string c
 	ssize_t rs;
 	rs = ::write(java_pipes.in, _s(cmd,'\n'), cmd.length()+1);
 	if (rs != (ssize_t)cmd.length()+1) throw xif::sys_error(_S("failed to write command to java"));
-}
-	// Interpret log line
-inline void _str_delLastSpace (std::string& str) { if (not str.empty() and str[str.length()-1] == ' ') str.resize(str.length()-1); }
-std::string MC_log_interpret (const std::string line, minecraft::serv* s, minecraft::serv_stopped* stopInfo, std::list<interpret_request*>& int_req_list) {
-	if (s->s_early_pipe != INVALID_HANDLE) {
-		char _stat; WriteEarlyState('l');
-	}
-	bool hour_brackets = false;
-	bool hour_and_part = false;
-	if (s->s_serv_type == minecraft::serv_type::VANILLA) {
-		if (s->s_mc_ver >= ioslaves::version(1,7,0)) hour_brackets = true;
-	} else if (s->s_serv_type == minecraft::serv_type::BUKKIT or s->s_serv_type == minecraft::serv_type::CAULDRON) {
-		if (s->s_mc_ver >= ioslaves::version(1,7,0)) { hour_brackets = true; hour_and_part = true; }
-	} else if (s->s_serv_type == minecraft::serv_type::FORGE) {
-		hour_brackets = true;
-	}
-	enum { DATE, PART, MSG } ctx = DATE;
-	std::string m_date;
-	std::string m_part;
-	std::string m_msg;
-	for (size_t i = (hour_brackets?1:0); i < line.length(); i++) {
-		if (ctx == DATE) {
-			if (not hour_and_part) {
-				if (hour_brackets) { if (line[i] == ']') { ctx = PART; i++; continue; } }
-				else { if (line[i] == '[') { _str_delLastSpace(m_date); ctx = PART; continue; } }
-			} else 
-				if (line[i] == ' ') { if (not m_date.empty()) m_date.erase(m_date.begin()); ctx = PART; continue; };
-			m_date += line[i];
-		} else if (ctx == PART) {
-			if (line[i] == ']') { ctx = MSG; continue; }
-			if (line[i] != '[')
-				m_part += line[i];
-		} else if (ctx == MSG) {
-			if (line[i] == ':' or line[i] == ' ') continue;
-			m_msg = line.substr(i, std::string::npos);
-			break;
-		}
-	}
-	if (ctx != MSG) { 
-		__log__(log_lvl::_DEBUG, THLOGSCLI(s), logstream << "-- " << line, (stopInfo->doneDone?LOG_NO_HISTORY:0));
-		return line;
-	} else {
-		__log__(log_lvl::_DEBUG, THLOGSCLI(s), logstream << "-- [" << m_part << "] " << m_msg, (stopInfo->doneDone?LOG_NO_HISTORY:0));
-		if (ctx != MSG) return m_msg;
-	}
-	for (auto it = int_req_list.begin(); it != int_req_list.end(); it++) {
-		interpret_request* int_req = *it;
-		for (const std::string patten : int_req->patterns_beg) {
-			if (patten.length() == 0 or m_msg.std::string::find(patten) == 0) {
-				int_req->patterns_beg = { patten };
-				bool r = (int_req->f_callback)(int_req->sock, m_msg, int_req);
-				if (r) {
-					if (int_req->sock != NULL)
-						delete int_req->sock;
-					delete int_req;
-					auto p_it = it++; int_req_list.erase(p_it);
-				} else 
-					it++;
-				break;
-			}
-		}
-	}
-	if (not stopInfo->doneDone
-	and (m_msg.std::string::find("Done (") == 0
-	or (s->s_serv_type == minecraft::serv_type::BUNGEECORD and m_msg.std::string::find("Listening on") == 0))) {
-		char _stat; WriteEarlyState('d');
-		stopInfo->doneDone = true;
-		stopInfo->why = (minecraft::whyStopped)0;
-	} 
-	else if (m_msg.std::string::find("Stopping server") == 0) {
-		__log__(log_lvl::NOTICE, THLOGSCLI(s), logstream << "Server said it is stopping !");
-		if (s->s_early_pipe != INVALID_HANDLE) { char _stat; WriteEarlyState('S'); }
-		stopInfo->gracefully = true;
-		if (stopInfo->why == (minecraft::whyStopped)0) stopInfo->why = minecraft::whyStopped::ITSELF;
-	}
-	return m_msg;
 }
 
 	/// Stop

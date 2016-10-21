@@ -860,6 +860,8 @@
 					"MINECRAFT_SRV_DIR=\"\\\"/var/ioslaves/minecraft\\\"\"",
 					"XIFNET_MC_DOM=\\\"mc.xif.fr\\\"",
 					PTHREAD_MUTEX_LOG_ENABLED,
+					IOSLMC_NO_MCJAVA_USER,
+					SCANF_NOGNU,
 					"$(inherited)",
 				);
 				OTHER_LDFLAGS = (
@@ -895,6 +897,7 @@
 			buildSettings = {
 				ARCHS = "$(NATIVE_ARCH_ACTUAL)";
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"XIFNET_SLAVES_DOM=\\\"net.xif.fr\\\"",
 					"DEBUG=1",
