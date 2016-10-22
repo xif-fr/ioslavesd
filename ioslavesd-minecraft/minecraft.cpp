@@ -1115,6 +1115,14 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 		
 			// Get infos : server name, server jar (distro+ver), needed RAM and running time, permanent or temp map, UTC last-same-time on master, early liveconsole option, autoshutdown, and minecraft options
 		s->s_serv_type = (minecraft::serv_type)cli.i_char();
+		bool need_forge_libs = false;
+		if (s->s_serv_type == minecraft::serv_type::FORGE || s->s_serv_type == minecraft::serv_type::CAULDRON) {
+			time_t master_forgelibs_mtime = cli.i_int<uint64_t>();
+			struct stat forgelibs_stat;
+			r = ::stat(_s( MINECRAFT_BIGFILES_DIR,"/forge_libs" ), &forgelibs_stat);
+			if (r == -1 or master_forgelibs_mtime > forgelibs_stat.st_mtime)
+				need_forge_libs = true;
+		}
 		s->s_mc_ver = ioslaves::version(cli.i_str(),true);
 		s->s_megs_ram = cli.i_int<uint16_t>();
 		s->s_is_perm_map = cli.i_bool();
@@ -1348,6 +1356,13 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 			bigfiles.push_back( minecraft::_BigFiles_entry{ "forge_libs", _S(working_dir,"/libraries") } );
 		if (s->s_serv_type == minecraft::serv_type::CAULDRON) 
 			bigfiles.push_back( minecraft::_BigFiles_entry{ _S("cauldronbukkit-",s->s_mc_ver.str(),".jar") } );
+		if (need_forge_libs) {
+			__log__(log_lvl::LOG, "FILES", logstream << "Updating forge libraries from master...");
+			try { asroot_block(); ioslaves::rmdir_recurse(_s( MINECRAFT_BIGFILES_DIR,"/forge_libs" )); } catch (...) {}
+			minecraft::transferAndExtract(cli, minecraft::transferWhat::BIGFILE, "forge_libs.zip", MINECRAFT_BIGFILES_DIR);
+			minecraft::unzip(_s( MINECRAFT_BIGFILES_DIR,"/forge_libs.zip" ), MINECRAFT_BIGFILES_DIR, "forge_libs");
+			r = ::unlink(_s( MINECRAFT_BIGFILES_DIR,"/forge_libs.zip" ));
+		}
 		for (minecraft::_BigFiles_entry entry : bigfiles) {
 			std::string file_path = _S( MINECRAFT_BIGFILES_DIR,'/',entry.name );
 			r = ::access(file_path.c_str(), R_OK);

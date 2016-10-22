@@ -1566,6 +1566,13 @@ _try_start:
 	}
 	__log__ << "Sending infos..." << std::flush;
 	sock->o_char((char)$start_serv_type);
+	if ($start_serv_type == minecraft::serv_type::FORGE || $start_serv_type == minecraft::serv_type::CAULDRON) {
+		struct stat forgelibszip_stat;
+		r = ::stat(_s( IOSLAVES_MINECRAFT_MASTER_BIGFILES_DIR,"forge_libs.zip" ), &forgelibszip_stat);
+		if (r == -1) sock->o_int<uint64_t>((time_t)0);
+		else
+			sock->o_int<uint64_t>(forgelibszip_stat.st_mtime);
+	}
 	sock->o_str($start_jar_ver);
 	sock->o_int<uint16_t>($needed_ram);
 	sock->o_bool($start_is_perm);

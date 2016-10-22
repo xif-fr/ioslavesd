@@ -1,11 +1,11 @@
-post_upgrade () {
-	cd /srv/mc/_bigfiles
-	rm -Rf forge_libs
-	wget http://repo.xif.fr:7979/xifnet/minecraft/forge_libs.zip
-	unzip forge_libs.zip
-	rm forge_libs.zip
-	chown -R mcjava:mcjava forge_libs
-}
+#post_upgrade () {
+#	cd /srv/mc/_bigfiles
+#	rm -Rf forge_libs
+#	wget http://repo.xif.fr:7979/xifnet/minecraft/forge_libs.zip
+#	unzip forge_libs.zip
+#	rm forge_libs.zip
+#	chown -R mcjava:mcjava forge_libs
+#}
 
 post_install() {
 	getent passwd mcjava > /dev/null || useradd mcjava --system --user-group --no-create-home --home-dir=/srv/mc > /dev/null

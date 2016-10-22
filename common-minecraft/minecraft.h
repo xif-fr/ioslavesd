@@ -24,7 +24,7 @@ typedef uint16_t ram_mb_t;
 #define MC_STAT_REFRESH_FREQ_SEC 15
 
 	// Protocol version
-#define IOSLAVES_MINECRAFT_PROTO_VERS 0x29
+#define IOSLAVES_MINECRAFT_PROTO_VERS 0x2A
 
 	// Minecraft service
 namespace minecraft {

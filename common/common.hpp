@@ -40,6 +40,9 @@ time_t iosl_time ();
 
 	// Files
 const std::string& __get_homedir__();
+#ifdef __APPLE__
+#define st_mtime st_mtimespec.tv_sec
+#endif
 
 	// Network
 #include <../lib/socket++/include/config.h>
