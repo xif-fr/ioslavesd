@@ -12,16 +12,19 @@
 	// Various
 #include <xifutils/polyvar.hpp>
 #include <netinet/in.h>
+typedef uint16_t ram_mb_t;
 #define MC_MAP_PERM 0640
 #define MC_LASTSAVETIME_FORCE (time_t)-1
 #define MC_LASTSAVETIME_NOSAVE (time_t)0
-#define MC_MIN_SERV_RAM 512
+#define MC_MIN_SERV_RAM (ram_mb_t)512
 #define MC_SWAP_FACTOR 0.5f
 #define MC_FREE_RAM_FACTOR 0.7f
 #define MINECRAFT_SERV_MASTER_MAX_DELAY_CONSIDERED_EQUAL 4
+#define MC_JAVA_VM_GC_STAT_HIST_DUR_SEC 100
+#define MC_STAT_REFRESH_FREQ_SEC 15
 
 	// Protocol version
-#define IOSLAVES_MINECRAFT_PROTO_VERS 0x28
+#define IOSLAVES_MINECRAFT_PROTO_VERS 0x29
 
 	// Minecraft service
 namespace minecraft {
@@ -51,6 +54,20 @@ namespace minecraft {
 	enum class transferWhat : char { JAR = 'j', MAP = 'm', SERVFOLD = 's', BIGFILE = 'b' };
 	
 	enum class whyStopped : char { DESIRED_MASTER = 'M', DESIRED_INTERNAL = 'I', KILLED = 'E', ITSELF = 'i', NOT_STARTED = 'N' };
+	
+	struct javavm_stat {
+		ram_mb_t heap_sz;
+		ram_mb_t peak_used, perm_use;
+			// over MC_JAVA_VM_GC_STAT_HIST_DUR_SEC
+		float gc_pressure;
+		uint16_t gc_mean_pause_ms;
+			// global
+		float gc_glob_pressure;
+		float gc_time_ratio;
+			// system
+		ram_mb_t rss_inst, rss_peak;
+		float cpu_inst, cpu_mean;
+	};
 	
 #ifdef IOSLAVESD_MINECRAFT
 

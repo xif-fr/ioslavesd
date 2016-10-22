@@ -1087,25 +1087,23 @@ void verifyMapList (std::string slave_id, std::string server_name, socketxx::io:
 void MServStatus () {
 	__log__ << LOG_ARROW << "Updating status for server '" << $server_name << "'..." << std::flush;
 	int32_t n_players = -1;
-	time_t zero_players_since = 0;
-	in_port_t s_port = 0;
 	bool s_is_perm_map = true;
-	time_t s_time_start = 0;
 	std::string s_map = "";
-	xif::polyvar ftpstatus;
-	time_t no_player_since = 0;
 	auto _retrieve_status_info_ = [&] (std::string slave, socketxx::io::simple_socket<socketxx::base_socket>& sock, bool& $status) {
 		$status = sock.i_bool();
 		if ($status) {
 			sock.o_bool(true);
 			s_is_perm_map = sock.i_bool();
 			s_map = sock.i_str();
-			s_time_start = sock.i_int<uint64_t>();
+			time_t s_time_start = sock.i_int<uint64_t>();
 			n_players = sock.i_int<int32_t>();
-			zero_players_since = sock.i_int<uint32_t>();
-			s_port = sock.i_int<in_port_t>();
-			ftpstatus = sock.i_var();
-			no_player_since = sock.i_int<uint64_t>();
+			time_t zero_players_since = sock.i_int<uint32_t>();
+			in_port_t s_port = sock.i_int<in_port_t>();
+			xif::polyvar ftpstatus = sock.i_var();
+			time_t no_player_since = sock.i_int<uint64_t>();
+			static_assert(XIF_SOCKETXX_ENDIANNESS_SAME, "Incompatible endianness");
+			minecraft::javavm_stat st;
+			sock.i_buf(&st, sizeof(minecraft::javavm_stat));
 			if (not optctx::interactive)
 				std::cout << std::endl << xif::polyvar(xif::polyvar::map({{"running",true},
 				                                                          {"slave",slave},
@@ -1116,7 +1114,16 @@ void MServStatus () {
 				                                                          {"map",s_map},
 				                                                          {"start_time",s_time_start},
 				                                                          {"ftp_status",ftpstatus},
-				                                                          {"no_player_since",no_player_since}
+				                                                          {"no_player_since",no_player_since},
+				                                                          {"heap_perm_used",st.perm_use},
+				                                                          {"heap_sz",st.heap_sz},
+				                                                          {"heap_peak_used",st.peak_used},
+				                                                          {"gc_pressure",st.gc_pressure},
+				                                                          {"gc_mean_pause_ms",st.gc_mean_pause_ms},
+				                                                          {"gc_time_ratio",st.gc_time_ratio},
+				                                                          {"vm_rss",st.rss_inst},
+				                                                          {"cpu_inst",st.cpu_inst},
+				                                                          {"cpu_mean",st.cpu_mean}
 				})).to_json() << std::endl;
 		}
 		verifyMapList(slave, $server_name, sock);

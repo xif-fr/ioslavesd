@@ -80,10 +80,11 @@ namespace minecraft {
 		in_port_t s_port = 0;
 		std::vector<in_port_t> s_oth_ports;
 		pid_t s_java_pid = -1;
-		unsigned short s_megs_ram = 0;
+		ram_mb_t s_megs_ram = 0;
 		uint8_t s_viewdist;
 		time_t s_start_iosl_time = 0;
 		time_t s_delay_noplayers = 0;
+		javavm_stat* s_vmstat = NULL;
 	};
 	
 	#define MCLOGSCLI(s) logstream << '[' << s->s_servid << "] "
@@ -292,16 +293,21 @@ extern "C" bool ioslapi_shutdown_inhibit () {
 
 	// Returns a small resumé of the Minecraft service
 extern "C" xif::polyvar* ioslapi_status_info () {
-	std::map<std::string, std::tuple< socketxx::io::simple_socket<socketxx::base_socket>, bool, minecraft::serv_type >> pending_requests;
+	std::map<std::string, std::tuple< socketxx::io::simple_socket<socketxx::base_socket>, bool, minecraft::serv_type, minecraft::javavm_stat >> pending_requests;
 	MUTEX_PRELOCK; ::pthread_mutex_lock(&minecraft::servs_mutex); MUTEX_POSTLOCK;
 	for (std::pair<std::string,minecraft::serv*> p : minecraft::servs) {
+		minecraft::javavm_stat& st = *p.second->s_vmstat;
+		__log__(xlog::log_lvl::LOG, NULL, MCLOGCLI(p.first) << "JVM Heap: sz " << st.heap_sz << "M pk_use " << st.peak_used << "M perm_use " << st.perm_use << "M, "
+		                                                    << std::setprecision(2) << "GC: press " << st.gc_pressure << "/" << st.gc_glob_pressure << " time% "
+		                                                    << std::setprecision(3) << st.gc_time_ratio*100. << " mean_pause " << st.gc_mean_pause_ms << "ms");
+		
 		try {
 			socketxx::io::simple_socket<socketxx::base_socket> s_comm = socketxx::base_socket(p.second->s_sock_comm, SOCKETXX_MANUAL_FD);
 			s_comm.set_read_timeout({2,0});
 			s_comm.o_char((char)minecraft::internal_serv_op_code::GET_PLAYER_LIST);
 			bool fixed = not
 				ioslaves::infofile_get(_s( MINECRAFT_SRV_DIR,"/mc_",p.first,'/',p.second->s_map,"/fixed_map" ), true).empty();
-			pending_requests.insert({p.first, std::make_tuple(s_comm, fixed, p.second->s_serv_type)});
+			pending_requests.insert({p.first, std::make_tuple(s_comm, fixed, p.second->s_serv_type, st)});
 		} catch (...) {}
 	}
 	::pthread_mutex_unlock(&minecraft::servs_mutex); MUTEX_UNLOCKED;
@@ -315,7 +321,7 @@ extern "C" xif::polyvar* ioslapi_status_info () {
 				s_comm.i_int<uint32_t>();
 			}
 		} catch (...) {}
-		servers.v().back().s() += _S( " [",(char)std::get<2>(p.second),"]" );
+		servers.v().back().s() += _S( " [",(char)std::get<2>(p.second),",",::ixtoa(std::get<3>(p.second).perm_use),"M]" );
 		if (std::get<1>(p.second) == true)
 			servers.v().back().s() += " fix";
 	}
@@ -548,7 +554,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 				}
 			} break;
 			
-				// Send stats to client (status, running map, start time, players, port, list of server maps)
+				// Send stats to client (status, running map, start time, players, port, list of server maps, vm stats)
 			case minecraft::op_code::SERV_STAT: {
 				logl_t l;
 				__log__(log_lvl::_DEBUG, "COMM", logstream << "Master wants to get status of server '" << s_servid << "'", LOG_WAIT, &l);
@@ -564,6 +570,7 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 						cli.o_str(s->s_map);
 						time_t start_time = ::time(NULL) - (::iosl_time() - s->s_start_iosl_time);
 						cli.o_int<uint64_t>(start_time);
+						minecraft::javavm_stat st = *s->s_vmstat;
 						time_t no_player_since;
 						socketxx::io::simple_socket<socketxx::base_socket> s_comm(socketxx::base_socket(s->s_sock_comm, SOCKETXX_MANUAL_FD));
 						s_comm.set_read_timeout({4,0});
@@ -590,6 +597,8 @@ extern "C" void ioslapi_net_client_call (socketxx::base_socket& _cli_sock, const
 						xif::polyvar ftp_status = minecraft::ftp_status_for_serv(s_servid);
 						cli.o_var(ftp_status);
 						cli.o_int<uint64_t>(no_player_since);
+						static_assert(XIF_SOCKETXX_ENDIANNESS_SAME, "Incompatible endianness");
+						cli.o_buf(&st, sizeof(minecraft::javavm_stat));
 					}
 				} catch (const std::out_of_range) {
 					__log__(log_lvl::_DEBUG, "COMM", ": Not running", LOG_ADD, &l);
@@ -1508,6 +1517,85 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 		
 	/// Server thread
 
+// JavaVM G1GC info analyser/history
+struct javavm_gc_hist_t {
+	struct gc_entry {
+		time_t date;
+		enum { GC_YOUNG, GC_MIXED, GC_REMARK, GC_CLEANUP } type; // stop-the-world only
+		constexpr static uint gc_type_pressure_coeff[] = {
+			[GC_YOUNG] = 1, [GC_MIXED] = 2, [GC_REMARK] = 1, [GC_CLEANUP] = 2,
+		};
+		float time_sec;
+		ram_mb_t before, after, heap;
+	};
+	std::list<gc_entry> gc_hist;
+	float gc_glob_tot_time_sec;
+	uint gc_glob_pressure_cnt;
+	const time_t glob_beg;
+	minecraft::javavm_stat* stat;
+	javavm_gc_hist_t (minecraft::javavm_stat* stat) : gc_glob_tot_time_sec(0.f), gc_glob_pressure_cnt(0), glob_beg(::time(NULL)), stat(stat) {
+		stat->peak_used = stat->rss_peak = (ram_mb_t)0;
+	}
+	void push_gc_entry (std::string info) {
+		int r = -1;
+		gc_entry entry;
+		entry.date = ::time(NULL);
+		std::str_remove_all(info, " (G1 Evacuation Pause)");
+		if (info.find("pause (young)") != std::string::npos) {
+			entry.type = gc_entry::GC_YOUNG;
+			r = ::sscanf(info.c_str(), "[GC pause (young) %huM->%huM(%huM), %f secs]", &entry.before, &entry.after, &entry.heap, &entry.time_sec);
+			if (r != 4) return;
+		} else
+		if (info.find("pause (mixed)") != std::string::npos) {
+			entry.type = gc_entry::GC_MIXED;
+			r = ::sscanf(info.c_str(), "[GC pause (mixed) %huM->%huM(%huM), %f secs]", &entry.before, &entry.after, &entry.heap, &entry.time_sec);
+			if (r != 4) return;
+		} else
+		if (info.find("remark") != std::string::npos) {
+			entry.type = gc_entry::GC_REMARK;
+			r = ::sscanf(info.c_str(), "[GC remark, %f secs]", &entry.time_sec);
+			if (r != 1) return;
+		} else
+		if (info.find("cleanup") != std::string::npos) {
+			entry.type = gc_entry::GC_CLEANUP;
+			r = ::sscanf(info.c_str(), "[GC cleanup %huM->%huM(%huM), %f secs]", &entry.before, &entry.after, &entry.heap, &entry.time_sec);
+			if (r != 4) return;
+		} else
+			return;
+		this->gc_glob_pressure_cnt += gc_entry::gc_type_pressure_coeff[entry.type];
+		this->gc_glob_tot_time_sec += entry.time_sec;
+		if (entry.type != gc_entry::GC_REMARK) {
+			stat->heap_sz = entry.heap;
+			stat->peak_used = std::max(stat->peak_used, entry.before);
+			stat->perm_use = entry.after;
+		}
+		gc_hist.emplace_front(entry);
+	}
+	void refresh_gc_stat () {
+		float gc_tot_time_sec = 0.f;
+		uint gc_pressure_cnt = 0;
+		for (std::list<gc_entry>::iterator it = gc_hist.begin(); it != gc_hist.end(); it++) {
+			if (::time(NULL)-it->date > MC_JAVA_VM_GC_STAT_HIST_DUR_SEC) {
+				gc_hist.erase(it, gc_hist.end());
+				break;
+			}
+			gc_tot_time_sec += it->time_sec;
+			gc_pressure_cnt += gc_entry::gc_type_pressure_coeff[it->type];
+		}
+		stat->gc_mean_pause_ms = (gc_hist.size() != 0) ? (uint)::lroundf(gc_tot_time_sec*1000.f/gc_hist.size()) : (uint)0;
+		stat->gc_pressure = gc_pressure_cnt / (float)MC_JAVA_VM_GC_STAT_HIST_DUR_SEC;
+		time_t elapsed_time = ::time(NULL) - glob_beg;
+		stat->gc_time_ratio = this->gc_glob_tot_time_sec / (float)elapsed_time;
+		stat->gc_glob_pressure = this->gc_glob_pressure_cnt / (float)elapsed_time;
+	}
+	void refresh_system_stat () {
+		#warning TO DO
+		/*-- TODO --*/ stat->cpu_inst = stat->cpu_mean = stat->rss_inst = 0; /*-- TODO --*/
+		stat->rss_peak = std::max(stat->rss_peak, stat->rss_inst);
+	}
+};
+decltype(javavm_gc_hist_t::gc_entry::gc_type_pressure_coeff) constexpr javavm_gc_hist_t::gc_entry::gc_type_pressure_coeff;
+
 // Interpret java outputs. Interpret requests can be queued by commands, waiting for a specific pattern in log
 struct interpret_request {
 	socketxx::io::simple_socket<socketxx::base_socket>* sock;
@@ -1599,7 +1687,7 @@ void* minecraft::serv_thread (void* arg) {
 		pipe_proc_t java_pipes;
 		{ asroot_block();
 			std::tie(s->s_java_pid, java_pipes)
-				= ioslaves::fork_exec("java", args, true, s->s_wdir.c_str(), true, minecraft::java_user_id, minecraft::java_group_id, false);
+				= ioslaves::fork_exec("java", args, true, s->s_wdir.c_str(), true, minecraft::java_user_id, minecraft::java_group_id, false, "C");
 		}
 		
 			// Java StdIO handling
@@ -1647,6 +1735,15 @@ void* minecraft::serv_thread (void* arg) {
 		std::string buffer_lines;
 		std::list<socketxx::io::simple_socket<socketxx::base_netsock>*> live_consoles;
 		std::list<interpret_request*> interpret_requests;
+		
+			// Stats
+		s->s_vmstat = new minecraft::javavm_stat;
+		javavm_gc_hist_t javavm_gc_hist (s->s_vmstat);
+		RAII_AT_END_N(vmstat, {
+			delete s->s_vmstat;
+			s->s_vmstat = NULL;
+		});
+		time_t stats_last_update = (time_t)0;
 		
 			// Autoclose & player listing
 		#define MINECRAFT_LIST_PATTERNS_BEG {"There are ", "Il y a ", "Total players online: "}
@@ -1720,6 +1817,13 @@ void* minecraft::serv_thread (void* arg) {
 						int_req->req_end = ::time(NULL)+1;
 						int_req->f_expire = [&first_0] (void*, interpret_request*) { first_0 = 0; };
 						interpret_requests.insert(interpret_requests.end(), int_req);
+					}
+					
+						// Stats
+					if (::time(NULL) - stats_last_update >= MC_STAT_REFRESH_FREQ_SEC) {
+						stats_last_update = ::time(NULL);
+						javavm_gc_hist.refresh_gc_stat();
+						javavm_gc_hist.refresh_system_stat();
 					}
 				}
 				
