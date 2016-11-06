@@ -1536,9 +1536,9 @@ void minecraft::startServer (socketxx::io::simple_socket<socketxx::base_socket> 
 struct javavm_gc_hist_t {
 	struct gc_entry {
 		time_t date;
-		enum { GC_YOUNG, GC_MIXED, GC_REMARK, GC_CLEANUP } type; // stop-the-world only
+		enum { GC_YOUNG, GC_MIXED, GC_REMARK, GC_CLEANUP, GC_FULL } type; // stop-the-world only
 		constexpr static uint gc_type_pressure_coeff[] = {
-			[GC_YOUNG] = 1, [GC_MIXED] = 2, [GC_REMARK] = 1, [GC_CLEANUP] = 2,
+			[GC_YOUNG] = 1, [GC_MIXED] = 2, [GC_REMARK] = 1, [GC_CLEANUP] = 2, [GC_FULL] = 0
 		};
 		float time_sec;
 		ram_mb_t before, after, heap;
@@ -1574,6 +1574,11 @@ struct javavm_gc_hist_t {
 		if (info.find("cleanup") != std::string::npos) {
 			entry.type = gc_entry::GC_CLEANUP;
 			r = ::sscanf(info.c_str(), "[GC cleanup %huM->%huM(%huM), %f secs]", &entry.before, &entry.after, &entry.heap, &entry.time_sec);
+			if (r != 4) return;
+		} else
+		if (info.find("Full") != std::string::npos) {
+			entry.type = gc_entry::GC_FULL;
+			r = ::sscanf(info.c_str(), "[Full GC (System.gc())  %huM->%huM(%huM), %f secs]", &entry.before, &entry.after, &entry.heap, &entry.time_sec);
 			if (r != 4) return;
 		} else
 			return;
@@ -1688,6 +1693,7 @@ void* minecraft::serv_thread (void* arg) {
 			"-XX:MinHeapFreeRatio=10",
 			"-Xms256M",
 			_S("-Xmx",::ixtoa(s->s_megs_ram),"M"),
+			"-Djline.terminal=off",
 			"-jar", s->s_jar_path,
 			"--world", s->s_map,
 		};
@@ -1873,37 +1879,48 @@ void* minecraft::serv_thread (void* arg) {
 								i = 0;
 							}
 						}
-						for (const std::string& line : lines) {
+						for (std::string& line : lines) {
 							
 							if (line.std::string::find("[GC ") == 0) {
 								javavm_gc_hist.push_gc_entry(line);
 								continue;
 							}
+								// Clean up the line (jline chars...)
+							while (line.size() > 0 and ((not ::isgraph(line[0]) and line[0] != '\t') or line[0] == '>'))
+								line.erase(line.begin());
 								// Quick parsing of the line : extract the date, the part/severity and the message
-#ifdef SCANF_NOGNU
-							char m_date[21], m_part[100]; int mi_msg = -1;
-							r = ::sscanf(line.c_str(), "[%19[^]]] [%99[^]]]%*[: ]%n", m_date, m_part, &mi_msg);
-#else
-							char m_date[21]; char* m_part = NULL; int mi_msg = -1;
-							RAII_AT_END({ if (m_part) ::free(m_part); });
-							if (s->s_mc_ver >= ioslaves::version(1,7,0))
-								r = ::sscanf(line.c_str(), "[%19[^]]] [%m[^]]]%*[: ]%n", m_date, &m_part, &mi_msg);
-							else
-								r = ::sscanf(line.c_str(), "%20[^[][%m[^]]]%n", m_date, &m_part, &mi_msg);
-#endif
-							std::string msg, m_msg;
-							char severity = '?';
-							if (r >= 2 and mi_msg != -1) {
-								m_msg = line.substr(mi_msg);
-								std::string part = m_part; size_t slash;
-								if ((slash = part.find('/')) != std::string::npos and slash+1 < part.length()) {
-									severity = part[slash+1];
-									part = part.substr(0,slash);
-									msg = _S( severity," [",part,"] ",m_msg );
-								} else
-									msg = m_msg;
+							const char* fmt = NULL; // %severity %part %n
+							if (s->s_serv_type == minecraft::serv_type::BUNGEECORD)
+								fmt = "%*9[^[][%1$m[A-Z]] %3$n"; // hh:mm:ss [SEVERITY] Message...
+							else if (s->s_mc_ver >= ioslaves::version(1,7,0)) {
+								if (s->s_serv_type == minecraft::serv_type::BUKKIT or s->s_serv_type == minecraft::serv_type::SPIGOT)
+									fmt = "[%*8[:0-9] %1$m[A-Z]]%*[: ]%3$n"; // [hh:mm:ss SEVERITY]: Message...
+								else
+									fmt = "[%*8[:0-9]] [%2$m[^/]/%1$m[A-Z]]%*[: ]%3$n"; // [hh:mm:ss] [Part/SEVERITY]: Message...
 							} else
-								msg = m_msg = line;
+								fmt = "%*20[^[][%1$m[A-Z]] %3$n"; // YYYY-MM-DD hh:mm:ss [SEVERITY] Message...
+#ifdef SCANF_NOGNU
+							char m_sev[100], m_part[100]; int mi_msg = -1;
+							std::string mfmt = fmt;
+							std::str_replace_all(mfmt, "$m", "$99");
+							r = ::sscanf(line.c_str(), mfmt.c_str(), m_sev, m_part, &mi_msg);
+#else
+							char* m_sev = NULL; char* m_part = NULL; int mi_msg = -1;
+							RAII_AT_END({ if (m_part) ::free(m_part);
+							              if (m_sev) ::free(m_sev); });
+							r = ::sscanf(line.c_str(), fmt, &m_sev, &m_part, &mi_msg);
+#endif
+							char severity = (m_sev != NULL and m_sev[0] != 0) ? m_sev[0] : '?';
+							std::string m_msg;
+							if (r >= 1 and mi_msg != -1)
+								m_msg = line.substr(mi_msg);
+							else
+								m_msg = line;
+							std::string msg;
+							if (m_part != NULL)
+								msg = _S( severity," [",m_part,"] ",m_msg );
+							else
+								msg = _S( severity," ",m_msg );
 							__log__(log_lvl::_DEBUG, THLOGSCLI(s), logstream << "-- " << msg, (stopInfo.doneDone?LOG_NO_HISTORY:0));
 							
 								// Detect done/stop messages emitted by mc server
