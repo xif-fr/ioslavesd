@@ -240,7 +240,7 @@ void* minecraft::mc_ftpd_auth_thread (void* arg) {
 				}
 				s.i_line();
 				
-				__log__(log_lvl::NOTICE, "FTP", logstream << "Verifying user '" << fields.username << "' IP " << fields.ip << "...");
+				__log__(log_lvl::LOG, "FTP", logstream << "Verifying user '" << fields.username << "' IP " << fields.ip << "...");
 				for (auto it = ftp_sessions.begin(); it != ftp_sessions.end();) {
 					if (it->end_validity < ::time(NULL)) {
 						__log__(log_lvl::LOG, "FTP", logstream << "FTP session for user '" << it->username << "' invalidated");

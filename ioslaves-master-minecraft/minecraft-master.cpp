@@ -873,7 +873,7 @@ void acceptFileSave (socketxx::io::simple_socket<socketxx::base_socket> sock, st
 		__log__ << std::flush;
 }
 
-	// Process a report request (stopping, crashing...) of slave
+	// Process a report request from slave
 void handleReportRequest (socketxx::io::simple_socket<socketxx::base_socket> sock, std::string slave) {
 	int r;
 	std::string servname = sock.i_str();
@@ -886,32 +886,32 @@ void handleReportRequest (socketxx::io::simple_socket<socketxx::base_socket> soc
 		case minecraft::whyStopped::ITSELF: reason = "Minecraft server stopped itself"; json_reason = "by_server"; break;
 		case minecraft::whyStopped::KILLED: reason = "Killed"; json_reason = "killed"; break;
 		case minecraft::whyStopped::NOT_STARTED: reason = "Server was not even started"; json_reason = "start_fail"; break;
-		default: reason = "Unknown";
+		default: reason = "Unknown"; json_reason = "unknown"; break;
 	}
 	bool gracefully_stopped = sock.i_bool();
 	time_t date = (time_t)sock.i_int<uint64_t>();
 	bool current_state_running = sock.i_bool();
 	std::string map_to_save = sock.i_str();
-	__log__ << "Server was stopped " << (gracefully_stopped?"":"un") << "gracefully. Reason : " << reason << ".";
+	__log__ << (gracefully_stopped?LOG_AROBASE_OK:LOG_AROBASE_ERR) << "Server was stopped " << (gracefully_stopped?"":"un") << "gracefully. Reason : " << reason << "." << std::flush;
 	if (not $granmaster or ($refuse_save and ($worldname.empty() or $worldname != map_to_save))) {
-		__log__ << std::flush << LOG_AROBASE_ERR << "Refusing report request" << std::flush;
+		__log__ << LOG_AROBASE_ERR << "Refusing report request" << std::flush;
 		sock.o_bool(false);
 		return;
 	}
 	r = ::access( _s(IOSLAVES_MINECRAFT_MASTER_DIR,'/',servname), X_OK);
 	if (r == -1) {
-		__log__ << std::flush << LOG_AROBASE_ERR << "Can't accept report request : unable to access server folder" << std::flush;
+		__log__ << LOG_AROBASE_ERR << "Can't accept report request : unable to access server folder" << std::flush;
 		sock.o_bool(false);
 		return;
 	}
 	if (::getRunningOnSlave(servname).empty())
-		__log__ << std::flush << COLOR_YELLOW << "Warning ! Locally, server was stopped. Maybe an another master started this server. " << COLOR_RESET << std::flush;
+		__log__ << COLOR_YELLOW << "Warning ! Locally, server was stopped. Maybe an another master started this server. " << COLOR_RESET << std::flush;
 	fd_t lockf = -1;
 	std::string lockpath = _S( IOSLAVES_MINECRAFT_MASTER_DIR,'/',servname,"/_mcmaster.lock" );
 	if (servname != $server_name) {
 		lockf = ::open(lockpath.c_str(), O_CREAT|O_RDONLY|O_EXCL|O_NOFOLLOW, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
 		if (lockf == -1 and errno == EEXIST) {
-			__log__ << std::flush << LOG_AROBASE_ERR << "Can't accept report request : server directory is already locked" << std::flush;
+			__log__ << LOG_AROBASE_ERR << "Can't accept report request : server directory is already locked" << std::flush;
 			sock.o_bool(false);
 			return;
 		}
@@ -929,8 +929,7 @@ void handleReportRequest (socketxx::io::simple_socket<socketxx::base_socket> soc
 	                                                        {"gracefully",gracefully_stopped}})).to_json();
 	ioslaves::infofile_set(_s( IOSLAVES_MINECRAFT_MASTER_DIR,'/',servname,"/stop_infos" ), stopinfos);
 	if (not map_to_save.empty()) 
-		__log__ << " Saving world '" << map_to_save << "'..." << std::flush;
-	else __log__ << std::flush;
+		__log__ << "Saving world '" << map_to_save << "'..." << std::flush;
 	bool true_save = true;
 	if (current_state_running) {
 		::setRunningOnSlave(servname, slave);
@@ -1106,24 +1105,15 @@ void MServStatus () {
 			sock.i_buf(&st, sizeof(minecraft::javavm_stat));
 			if (not optctx::interactive)
 				std::cout << std::endl << xif::polyvar(xif::polyvar::map({{"running",true},
-				                                                          {"slave",slave},
-				                                                          {"players",n_players},
-				                                                          {"zeropl_min",(zero_players_since == 0 ? xif::polyvar() : xif::polyvar((::time(NULL)-zero_players_since)/60))},
-				                                                          {"port",s_port},
-				                                                          {"is_perm_map",s_is_perm_map},
-				                                                          {"map",s_map},
+				                                                          {"slave",slave}, {"port",s_port},
 				                                                          {"start_time",s_time_start},
+				                                                          {"players",n_players}, {"no_player_since",no_player_since},
+				                                                          {"zeropl_min",(zero_players_since == 0 ? xif::polyvar() : xif::polyvar((::time(NULL)-zero_players_since)/60))},
+				                                                          {"is_perm_map",s_is_perm_map}, {"map",s_map},
 				                                                          {"ftp_status",ftpstatus},
-				                                                          {"no_player_since",no_player_since},
-				                                                          {"heap_perm_used",st.perm_use},
-				                                                          {"heap_sz",st.heap_sz},
-				                                                          {"heap_peak_used",st.peak_used},
-				                                                          {"gc_pressure",st.gc_pressure},
-				                                                          {"gc_mean_pause_ms",st.gc_mean_pause_ms},
-				                                                          {"gc_time_ratio",st.gc_time_ratio},
-				                                                          {"vm_rss",st.rss_inst},
-				                                                          {"cpu_inst",st.cpu_inst},
-				                                                          {"cpu_mean",st.cpu_mean}
+				                                                          {"heap_perm_used",st.perm_use}, {"heap_sz",st.heap_sz}, {"heap_peak_used",st.peak_used},
+				                                                          {"gc_pressure",st.gc_pressure}, {"gc_mean_pause_ms",st.gc_mean_pause_ms}, {"gc_time_ratio",st.gc_time_ratio},
+				                                                          {"vm_rss",st.rss_inst},  {"cpu_inst",st.cpu_inst},  {"cpu_mean",st.cpu_mean}
 				})).to_json() << std::endl;
 		}
 		verifyMapList(slave, $server_name, sock);
@@ -1150,12 +1140,12 @@ void MServStatus () {
 					__log__ << NICE_WARNING << "Network error while refreshing status : " << e.what() << std::flush;
 					::sleep(3);
 					tryGetStatus(n-1);
-				} catch (...) {
-					__log__ << NICE_WARNING << "Failed to connect to slave ! " << std::flush;
+				} catch (std::exception& e) {
+					__log__ << NICE_WARNING << "Failed to initiate connection : " << e.what() << std::flush;
 					::sleep(5);
 					tryGetStatus(n-1);
 				}
-			}; tryGetStatus(20/*trials*/);
+			}; tryGetStatus(20);//trials
 			if ($status) {
 				__log__ << LOG_ARROW_OK << "Yes, server is running on slave '" << $local_slave_id << "'." << std::flush;
 				::setRunningOnSlave($server_name, $local_slave_id);
@@ -1188,8 +1178,8 @@ void MServStatus () {
 			} catch (const std::runtime_error& e) {
 				__log__ << NICE_WARNING << "Error while connecting to slave : " << e.what() << std::flush;
 				$status = false;
-			} catch (...) {
-				__log__ << NICE_WARNING << "Failed to connect to slave ! " << std::flush;
+			} catch (std::exception& e) {
+				__log__ << NICE_WARNING << "Failed to initiate connection : " << e.what() << std::flush;
 				$status = false;
 			}
 		}
