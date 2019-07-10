@@ -535,7 +535,7 @@ NSAttributedString* log_master_strs[] = {
 			while (true) {
 				socketxx::end::_socket_server::_select_throw_stop(sock.get_fd(), 
 				                                                  stop_pipes[0], 
-				                                                  NULL_TIMEVAL, true);
+				                                                  TIMEOUT_INF, true);
 				time_t le_time = sock.i_int<uint64_t>();
 				log_lvl le_lvl = (log_lvl)sock.i_char();
 				std::string le_part = sock.i_str();

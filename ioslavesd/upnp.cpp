@@ -106,6 +106,7 @@ void ioslaves::upnpInit () {
 		}
 		for (UPNPDev* dev = dev_list; dev != NULL; dev = dev->pNext) {
 			int xml_descr_sz = 0, status_code = -1;
+			#warning TO DO : Activate MINIUPNPC_SET_SOCKET_TIMEOUT to circumvent the lack of answer of shitty UPnP devices on the LAN (such as Windows...)
 			const char* xml_descr = (char*)miniwget_getaddr(dev->descURL, &xml_descr_sz,
 			                                                upnp_lanIP, sizeof(upnp_lanIP),
 			                                                dev->scope_id, &status_code);
