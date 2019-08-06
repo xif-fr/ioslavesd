@@ -1,6 +1,6 @@
 CXX = clang++
 CXX_FLAGS = $(CXXFLAGS) -Wall -std=gnu++0x $(shell pkg-config --cflags nopoll)
-LDFLAGS = $(shell pkg-config --libs-only-l socketxx nopoll) -lldns -lconfig++
+LD_FLAGS = $(LDFLAGS) $(shell pkg-config --libs-only-l socketxx nopoll) -lldns -lconfig++
 
 ifndef $(LD)
 	LD=$(CXX)
@@ -9,7 +9,7 @@ endif
 all: ioslstatd
 
 ioslstatd: common.o ioslstatd.o master-impl.o 
-	$(LD) -o $@ $^ $(LDFLAGS)
+	$(LD) -o $@ $^ $(LD_FLAGS)
 
 common.o: common.cpp common.hpp 
 ioslstatd.o: ioslstatd.cpp

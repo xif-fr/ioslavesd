@@ -1014,8 +1014,10 @@ void IioslFile2JSON () {
 	int r;
 	std::string fname = _S( IOSLAVES_MASTER_SLAVES_DIR,"/",$slave_id,".conf" );
 	r = ::access(fname.c_str(), F_OK);
-	if (r == -1) 
+	if (r == -1) {
 		std::cerr << COLOR_RED << "Slave settings file not found for '" << $slave_id << "'" << COLOR_RESET << std::endl;
+		return;
+	}
 	xif::polyvar infos;
 	try {
 		libconfig::Config conf;

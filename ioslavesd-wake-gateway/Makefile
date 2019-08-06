@@ -1,6 +1,6 @@
 CXX=clang++
 CXX_FLAGS = $(CXXFLAGS) -Wall -std=c++0x -fPIC
-LDFLAGS = $(shell pkg-config --libs-only-l socketxx) -lldns -lconfig++
+LD_FLAGS = $(LDFLAGS) $(shell pkg-config --libs-only-l socketxx) -lldns -lconfig++
 
 ifndef $(LD)
 	LD=$(CXX)
@@ -9,7 +9,7 @@ endif
 all: wake-gateway.iosldl
 
 wake-gateway.iosldl: common.o wake-gateway.o master-impl.o dyn_slaves.o wol.o
-	$(LD) -o $@ $^ $(LDFLAGS) -shared
+	$(LD) -o $@ $^ $(LD_FLAGS) -shared
 
 common.o: common.cpp common.hpp 
 wake-gateway.o: wake-gateway.cpp

@@ -1,6 +1,6 @@
 CXX=clang++
 CXX_FLAGS = $(CXXFLAGS) -Wall -std=c++0x
-LDFLAGS = $(shell pkg-config --libs-only-l socketxx) -lconfig++ -lminiupnpc -lldns -ltopp -ldl
+LD_FLAGS = $(LDFLAGS) $(shell pkg-config --libs-only-l socketxx) -lconfig++ -lminiupnpc -lldns -ltopp -ldl
 
 ifndef $(LD)
 	LD=$(CXX)
@@ -9,7 +9,7 @@ endif
 all: ioslavesd
 
 ioslavesd: common.o log_slave.o slave.o upnp.o status.o master-impl.o keys.o
-	$(LD) -o $@ $^ $(LDFLAGS)
+	$(LD) -o $@ $^ $(LD_FLAGS)
 
 common.o: common.cpp common.hpp 
 log_slave.o: log_slave.cpp log.h 
