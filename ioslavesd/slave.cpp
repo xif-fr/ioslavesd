@@ -45,8 +45,8 @@ using namespace xlog;
 #undef private
 
 	// Process
-#include <sys/sysctl.h>
 #ifdef __APPLE__
+	#include <sys/sysctl.h>
 	#include <libproc.h>
 #endif
 
