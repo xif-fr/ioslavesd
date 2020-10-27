@@ -1,5 +1,5 @@
 CXX=clang++
-CXX_FLAGS = $(CXXFLAGS) -Wall -std=c++0x
+CXX_FLAGS = $(CXXFLAGS) -Wall
 LD_FLAGS = $(LDFLAGS) $(shell pkg-config --libs-only-l socketxx) -lconfig++ -lminiupnpc -lldns -ltopp -ldl
 
 ifndef $(LD)
